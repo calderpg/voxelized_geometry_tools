@@ -21,7 +21,7 @@
 namespace voxelized_geometry_tools
 {
 /// Using declaration to make naming clearer and easier to read.
-using EstimateDistanceQuery = common_robotics_utilities::Maybe<double>;
+using EstimateDistanceQuery = common_robotics_utilities::OwningMaybe<double>;
 
 /// This is similar to std::optional<Eigen::Vector4d>, but lets us enforce
 /// specific behavior in the contained Vector4d.

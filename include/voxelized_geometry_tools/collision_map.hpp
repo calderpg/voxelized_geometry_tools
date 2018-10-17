@@ -156,45 +156,45 @@ public:
 
   uint32_t UpdateConnectedComponents();
 
-  common_robotics_utilities::Maybe<uint32_t> GetNumConnectedComponents() const
+  common_robotics_utilities::OwningMaybe<uint32_t> GetNumConnectedComponents() const
   {
     if (components_valid_)
     {
-      return common_robotics_utilities::Maybe<uint32_t>(number_of_components_);
+      return common_robotics_utilities::OwningMaybe<uint32_t>(number_of_components_);
     }
     else
     {
-      return common_robotics_utilities::Maybe<uint32_t>();
+      return common_robotics_utilities::OwningMaybe<uint32_t>();
     }
   }
 
-  common_robotics_utilities::Maybe<bool> IsSurfaceIndex(
+  common_robotics_utilities::OwningMaybe<bool> IsSurfaceIndex(
       const common_robotics_utilities::voxel_grid::GridIndex& index) const;
 
-  common_robotics_utilities::Maybe<bool> IsSurfaceIndex(
+  common_robotics_utilities::OwningMaybe<bool> IsSurfaceIndex(
       const int64_t x_index, const int64_t y_index,
       const int64_t z_index) const;
 
-  common_robotics_utilities::Maybe<bool> IsConnectedComponentSurfaceIndex(
+  common_robotics_utilities::OwningMaybe<bool> IsConnectedComponentSurfaceIndex(
       const common_robotics_utilities::voxel_grid::GridIndex& index) const;
 
-  common_robotics_utilities::Maybe<bool> IsConnectedComponentSurfaceIndex(
+  common_robotics_utilities::OwningMaybe<bool> IsConnectedComponentSurfaceIndex(
       const int64_t x_index, const int64_t y_index,
       const int64_t z_index) const;
 
-  common_robotics_utilities::Maybe<bool> CheckIfCandidateCorner(
+  common_robotics_utilities::OwningMaybe<bool> CheckIfCandidateCorner(
       const double x, const double y, const double z) const;
 
-  common_robotics_utilities::Maybe<bool> CheckIfCandidateCorner3d(
+  common_robotics_utilities::OwningMaybe<bool> CheckIfCandidateCorner3d(
       const Eigen::Vector3d& location) const;
 
-  common_robotics_utilities::Maybe<bool> CheckIfCandidateCorner4d(
+  common_robotics_utilities::OwningMaybe<bool> CheckIfCandidateCorner4d(
       const Eigen::Vector4d& location) const;
 
-  common_robotics_utilities::Maybe<bool> CheckIfCandidateCorner(
+  common_robotics_utilities::OwningMaybe<bool> CheckIfCandidateCorner(
       const common_robotics_utilities::voxel_grid::GridIndex& index) const;
 
-  common_robotics_utilities::Maybe<bool> CheckIfCandidateCorner(
+  common_robotics_utilities::OwningMaybe<bool> CheckIfCandidateCorner(
       const int64_t x_index, const int64_t y_index,
       const int64_t z_index) const;
 

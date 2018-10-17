@@ -203,13 +203,13 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
   }
 }
 
-common_robotics_utilities::Maybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::Maybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -217,7 +217,7 @@ common_robotics_utilities::Maybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
   // Out of bounds indices are NOT surface cells
   if (IndexInBounds(x_index, y_index, z_index) == false)
   {
-    return common_robotics_utilities::Maybe<bool>();
+    return common_robotics_utilities::OwningMaybe<bool>();
   }
   // Check all 26 possible neighbors
   const int64_t min_x_check = std::max(INT64_C(0), x_index - 1);
@@ -241,31 +241,31 @@ common_robotics_utilities::Maybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
             = GetImmutable(x_idx, y_idx, z_idx).Value().Occupancy();
           if ((our_occupancy < 0.5) && (other_occupancy >= 0.5))
           {
-            return common_robotics_utilities::Maybe<bool>(true);
+            return common_robotics_utilities::OwningMaybe<bool>(true);
           }
           else if ((our_occupancy > 0.5) && (other_occupancy <= 0.5))
           {
-            return common_robotics_utilities::Maybe<bool>(true);
+            return common_robotics_utilities::OwningMaybe<bool>(true);
           }
           else if ((our_occupancy == 0.5) && (other_occupancy != 0.5))
           {
-            return common_robotics_utilities::Maybe<bool>(true);
+            return common_robotics_utilities::OwningMaybe<bool>(true);
           }
         }
       }
     }
   }
-  return common_robotics_utilities::Maybe<bool>(false);
+  return common_robotics_utilities::OwningMaybe<bool>(false);
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsConnectedComponentSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
@@ -274,14 +274,14 @@ TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
   // Out of bounds indices are NOT surface cells
   if (!IndexInBounds(x_index, y_index, z_index))
   {
-    return common_robotics_utilities::Maybe<bool>();
+    return common_robotics_utilities::OwningMaybe<bool>();
   }
   // Edge indices are automatically surface cells
   if (x_index == 0 || y_index == 0 || z_index == 0
       || x_index == (GetNumXCells() - 1) || y_index == (GetNumYCells() - 1)
       || z_index == (GetNumZCells() - 1))
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // If the cell is inside the grid, we check the neighbors
   // Note that we must check all 26 neighbors
@@ -291,71 +291,71 @@ TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
   if (our_component
       != GetImmutable(x_index, y_index, z_index - 1).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 2
   else if (our_component
            != GetImmutable(x_index, y_index, z_index + 1).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 3
   else if (our_component
            != GetImmutable(x_index, y_index - 1, z_index).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 4
   else if (our_component
            != GetImmutable(x_index, y_index + 1, z_index).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 5
   else if (our_component
            != GetImmutable(x_index - 1, y_index, z_index).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 6
   else if (our_component
            != GetImmutable(x_index + 1, y_index, z_index).Value().Component())
   {
-    return common_robotics_utilities::Maybe<bool>(true);
+    return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // If none of the faces are exposed, it's not a surface voxel
-  return common_robotics_utilities::Maybe<bool>(false);
+  return common_robotics_utilities::OwningMaybe<bool>(false);
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner(
     const double x, const double y, const double z) const
 {
   return CheckIfCandidateCorner4d(Eigen::Vector4d(x, y, z, 1.0));
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner3d(
     const Eigen::Vector3d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex3d(location));
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner4d(
     const Eigen::Vector4d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex4d(location));
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return CheckIfCandidateCorner(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::Maybe<bool>
+common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner(
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
@@ -406,19 +406,19 @@ TaggedObjectCollisionMap::CheckIfCandidateCorner(
     {
       // If there is one or fewer neighbors to work with,
       // we are clearly not a corner
-      return common_robotics_utilities::Maybe<bool>(false);
+      return common_robotics_utilities::OwningMaybe<bool>(false);
     }
     else
     {
       // If there are 2 or more neighbors to work with,
       // we are a candidate corner
-      return common_robotics_utilities::Maybe<bool>(true);
+      return common_robotics_utilities::OwningMaybe<bool>(true);
     }
   }
   else
   {
     // Not in the grid
-    return common_robotics_utilities::Maybe<bool>();
+    return common_robotics_utilities::OwningMaybe<bool>();
   }
 }
 

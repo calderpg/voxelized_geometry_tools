@@ -170,7 +170,20 @@ public:
 
   bool AreComponentsValid() const { return components_valid_; }
 
+  /// Use this with great care if you know the components are still/now valid.
+  void ForceComponentsToBeValid() { components_valid_ = true; }
+
+  /// Use this to invalidate the current components.
+  void ForceComponentsToBeInvalid() { components_valid_ = false; }
+
   bool AreSpatialSegmentsValid() const { return spatial_segments_valid_; }
+
+  /// Use this with great care if you know the spatial segments are still/now
+  /// valid.
+  void ForceSpatialSegmentsToBeValid() { spatial_segments_valid_ = true; }
+
+  /// Use this to invalidate the current spatial segments.
+  void ForceSpatialSegmentsToBeInvalid() { spatial_segments_valid_ = false; }
 
   double GetResolution() const { return GetCellSizes().x(); }
 

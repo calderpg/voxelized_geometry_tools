@@ -683,13 +683,15 @@ ExtractSignedDistanceField(
       return is_filled_fn(real_grid_index);
     };
     // Make both SDFs
+    const common_robotics_utilities::voxel_grid::GridSizes enlarged_sizes(
+        grid.GetCellSizes().x(), num_x_cells, num_y_cells, num_z_cells);
     auto free_sdf_result
         = ExtractSignedDistanceField<T>(
-            grid.GetOriginTransform(), grid.GetGridSizes(), free_is_filled_fn,
+            grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn,
             oob_value, frame, use_parallel);
     auto filled_sdf_result
         = ExtractSignedDistanceField<T>(
-            grid.GetOriginTransform(), grid.GetGridSizes(), filled_is_filled_fn,
+            grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn,
             oob_value, frame, use_parallel);
     // Combine to make a single SDF
     SignedDistanceField<SDFBackingStore> combined_sdf(
@@ -698,11 +700,6 @@ ExtractSignedDistanceField(
     {
       for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
       {
-        // Parallelize across the Z-axis, since VoxelGrid ensures Z-axis cells
-        // are contiguous in memory.
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
         for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
         {
           const int64_t query_x_idx = x_idx + x_axis_query_offset;

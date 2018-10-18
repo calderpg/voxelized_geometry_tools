@@ -104,6 +104,25 @@ add_dependencies(${PROJECT_NAME}_ros_interface ${catkin_EXPORTED_TARGETS}
 target_link_libraries(${PROJECT_NAME}_ros_interface ${PROJECT_NAME}
                                                     ${catkin_LIBRARIES})
 
+# Examples
+add_executable(voxelized_geometry_tools_tutorial example/tutorial.cpp)
+add_dependencies(voxelized_geometry_tools_tutorial
+    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(voxelized_geometry_tools_tutorial
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(estimate_distance_example example/estimate_distance.cpp)
+add_dependencies(estimate_distance_example
+    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(estimate_distance_example
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(spatial_segments example/spatial_segments.cpp)
+add_dependencies(spatial_segments
+    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(spatial_segments
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############

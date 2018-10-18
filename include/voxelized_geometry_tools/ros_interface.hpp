@@ -306,8 +306,10 @@ inline visualization_msgs::Marker ExportSDFForDisplay(
       new_color.g = 0.0;
       new_color.r = 0.0;
     }
+    return new_color;
   };
-  auto display_rep = ExportVoxelGridToRViz(sdf, sdf.GetFrame(), color_fn);
+  auto display_rep = ExportVoxelGridToRViz<float, BackingStore>(
+      sdf, sdf.GetFrame(), color_fn);
   display_rep.ns = "sdf_distance";
   display_rep.id = 1;
   return display_rep;
@@ -337,7 +339,8 @@ inline visualization_msgs::Marker ExportSDFForDisplayCollisionOnly(
       return free_color;
     }
   };
-  auto display_rep = ExportVoxelGridToRViz(sdf, sdf.GetFrame(), color_fn);
+  auto display_rep = ExportVoxelGridToRViz<float, BackingStore>(
+      sdf, sdf.GetFrame(), color_fn);
   display_rep.ns = "sdf_collision";
   display_rep.id = 1;
   return display_rep;

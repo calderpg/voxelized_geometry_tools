@@ -310,7 +310,7 @@ private:
         = this->GetInverseOriginTransform() * query_location;
     // Switch between all the possible options of where we are
     const Eigen::Vector4d cell_center_location
-        = this->GridIndexToLocationGridFrame(x_idx, y_idx, z_idx);
+        = this->GridIndexToLocationInGridFrame(x_idx, y_idx, z_idx);
     const Eigen::Matrix<T, 4, 1> query_offset
         = grid_frame_query_location - cell_center_location.cast<T>();
     // We can't catch the easiest case of being at a cell center, since doing so
@@ -326,9 +326,9 @@ private:
         = GetAxisInterpolationIndices(
             z_idx, this->GetNumZCells(), query_offset(2));
     const Eigen::Vector4d lower_corner_location
-        = this->GridIndexToLocationGridFrame(x_axis_indices.first,
-                                             y_axis_indices.first,
-                                             z_axis_indices.first);
+        = this->GridIndexToLocationInGridFrame(x_axis_indices.first,
+                                               y_axis_indices.first,
+                                               z_axis_indices.first);
     const double mxmymz_distance
         = GetCorrectedCenterDistance(x_axis_indices.first,
                                      y_axis_indices.first,
@@ -791,7 +791,7 @@ public:
       const Eigen::Vector4d& location) const
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
-        = this->LocationToGridIndex3d(location);
+        = this->LocationToGridIndex4d(location);
     if (this->IndexInBounds(index))
     {
       return EstimateDistanceQuery(
@@ -834,7 +834,7 @@ public:
   }
 
   GradientQuery GetCoarseGradient4d(
-      const Eigen::Vector3d& location,
+      const Eigen::Vector4d& location,
       const bool enable_edge_gradients=false) const
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
@@ -1009,7 +1009,7 @@ public:
                            nominal_window_size);
   }
 
-  GradientQuery GetSmoothGradient(
+  GradientQuery GetFineGradient(
       const double x, const double y, const double z,
       const double nominal_window_size) const
   {
@@ -1096,21 +1096,22 @@ public:
       const Eigen::Vector4d cell_center_location
           = this->GridIndexToLocation(index);
       // TODO - check how this affects results
+      // TODO - this definitely doesn't fix it
       // Bump the query point away from the cell center
       double adjusted_x = x;
       double adjusted_y = y;
       double adjusted_z = z;
       if (adjusted_x == cell_center_location(0))
       {
-        adjusted_x += (GetResolution() * 0.01);
+        adjusted_x += (GetResolution() * 0.125);
       }
       if (adjusted_y == cell_center_location(1))
       {
-        adjusted_y += (GetResolution() * 0.01);
+        adjusted_y += (GetResolution() * 0.125);
       }
       if (adjusted_z == cell_center_location(2))
       {
-        adjusted_z += (GetResolution() * 0.01);
+        adjusted_z += (GetResolution() * 0.125);
       }
       // Use with AutoDiffScalar
       typedef Eigen::AutoDiffScalar<Eigen::Vector4d> AScalar;

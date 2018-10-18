@@ -1,5 +1,7 @@
 #pragma once
 
+#include <omp.h>
+
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -14,6 +16,7 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/maybe.hpp>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 
@@ -120,7 +123,8 @@ public:
   explicit MultipleThreadIndexQueueWrapper(const size_t max_queues)
   {
     per_thread_queues_.resize(
-          GetNumOMPThreads(), ThreadIndexQueues(max_queues));
+        common_robotics_utilities::openmp_helpers::GetNumOmpThreads(),
+        ThreadIndexQueues(max_queues));
   }
 
   const GridIndex& Query(const int32_t distance_squared, const size_t idx) const
@@ -160,11 +164,8 @@ public:
 
   void Enqueue(const int32_t distance_squared, const GridIndex& index)
   {
-#if defined(_OPENMP)
-    const size_t thread_num = (size_t)omp_get_thread_num();
-#else
-    const size_t thread_num = 0;
-#endif
+    const int32_t thread_num
+        = common_robotics_utilities::openmp_helpers::GetContextOmpThreadNum();
     per_thread_queues_.at(thread_num).at(distance_squared).push_back(index);
   }
 
@@ -177,21 +178,6 @@ public:
   }
 
 private:
-
-  inline static size_t GetNumOMPThreads()
-  {
-#if defined(_OPENMP)
-    size_t num_threads = 0;
-#pragma omp parallel
-    {
-      num_threads = (size_t)omp_get_num_threads();
-    }
-    return num_threads;
-#else
-    return 1;
-#endif
-  }
-
   typedef std::vector<std::vector<GridIndex>> ThreadIndexQueues;
   std::vector<ThreadIndexQueues> per_thread_queues_;
 

@@ -70,6 +70,7 @@ add_compile_options(-Wshadow)
 add_compile_options(-O3)
 add_compile_options(-g)
 add_compile_options(-flto)
+add_compile_options(-Werror=non-virtual-dtor)
 
 ## It's not clear if add_compile_options does the right things for flags that
 ## may differ between languages and target type.

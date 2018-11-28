@@ -3,6 +3,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -36,9 +37,12 @@ CollisionMap CudaPointcloudVoxelizer::VoxelizePointclouds(
   }
   if (cuda_helpers::IsAvailable())
   {
+    const std::chrono::time_point<std::chrono::steady_clock> start_time =
+        std::chrono::steady_clock::now();
     // Allocate device-side memory for tracking grids
     const int32_t num_tracking_grids = static_cast<int32_t>(pointclouds.size());
-    std::vector<float*> device_tracking_grid_ptrs(pointclouds.size(), nullptr);
+    std::vector<int32_t*> device_tracking_grid_ptrs(
+        pointclouds.size(), nullptr);
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
       auto device_tracking_grid_ptr =
@@ -84,13 +88,15 @@ CollisionMap CudaPointcloudVoxelizer::VoxelizePointclouds(
           num_x_cells, num_y_cells, num_z_cells,
           device_tracking_grid_ptrs.at(idx));
     }
+    const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
+        std::chrono::steady_clock::now();
     // Filter
     const float percent_seen_free =
         static_cast<float>(filter_options.PercentSeenFree());
-    const float outlier_points_threshold =
-        static_cast<float>(filter_options.OutlierPointsThreshold());
-    const float num_cameras_seen_free =
-        static_cast<float>(filter_options.NumCamerasSeenFree());
+    const int32_t outlier_points_threshold =
+        filter_options.OutlierPointsThreshold();
+    const int32_t num_cameras_seen_free =
+        filter_options.NumCamerasSeenFree();
     auto device_filter_grid_ptr =
         cuda_helpers::PrepareFilterGrid(
             static_environment.GetTotalCells(),
@@ -108,6 +114,14 @@ CollisionMap CudaPointcloudVoxelizer::VoxelizePointclouds(
     cuda_helpers::CleanupDeviceMemory(
         num_tracking_grids, device_tracking_grid_ptrs.data(),
         device_filter_grid_ptr);
+    const std::chrono::time_point<std::chrono::steady_clock> done_time =
+        std::chrono::steady_clock::now();
+    std::cout
+        << "Raycasting time "
+        << std::chrono::duration<double>(raycasted_time - start_time).count()
+        << ", filtering time "
+        << std::chrono::duration<double>(done_time - raycasted_time).count()
+        << std::endl;
     return filtered_grid;
   }
   else

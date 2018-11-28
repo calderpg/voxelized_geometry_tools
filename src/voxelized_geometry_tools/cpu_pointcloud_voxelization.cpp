@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -45,7 +46,7 @@ CollisionMap CpuPointcloudVoxelizer::VoxelizePointclouds(
     RaycastPointCloud(cloud, cell_size * 0.5, tracking_grid);
   }
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
-        std::chrono::steady_clock::now();
+      std::chrono::steady_clock::now();
   // Combine & filter
   const auto result = CombineAndFilterGrids(
       static_environment, filter_options, tracking_grids);
@@ -131,55 +132,52 @@ CpuPointcloudVoxelizer::CombineAndFilterGrids(
 {
   CollisionMap filtered_grid = static_environment;
   // Don't parallelize this, it results in significantly higher runtime!
-  for (int64_t x_idx = 0; x_idx < filtered_grid.GetNumXCells(); x_idx++)
+  // Because we want to improve performance and don't need to know where in the
+  // grid we are, we can take advantage of the dense backing vector to iterate
+  // through the grid data, rather than the grid cells.
+  auto& filtered_grid_backing_store = filtered_grid.GetMutableRawData();
+#pragma omp parallel for
+  for (size_t voxel = 0; voxel < filtered_grid_backing_store.size(); voxel++)
   {
-    for (int64_t y_idx = 0; y_idx < filtered_grid.GetNumYCells(); y_idx++)
+    voxelized_geometry_tools::CollisionCell& current_cell =
+        filtered_grid_backing_store.at(voxel);
+    // Filled cells stay filled, we don't work with them.
+    // We only change cells that are unknown or empty.
+    if (current_cell.Occupancy() <= 0.5)
     {
-      for (int64_t z_idx = 0; z_idx < filtered_grid.GetNumZCells(); z_idx++)
+      int32_t seen_filled = 0;
+      int32_t seen_free = 0;
+      for (size_t idx = 0; idx < tracking_grids.size(); idx++)
       {
-        // We know this is in bounds!
-        voxelized_geometry_tools::CollisionCell& current_cell =
-            filtered_grid.GetMutable(x_idx, y_idx, z_idx).Value();
-        // Filled cells stay filled, we don't work with them.
-        // We only change cells that are unknown or empty.
-        if (current_cell.Occupancy() <= 0.5)
+        const CpuVoxelizationTrackingCell& grid_cell =
+            tracking_grids.at(idx).GetImmutableRawData().at(voxel);
+        const int32_t free_count = grid_cell.seen_free_count.load();
+        const int32_t filled_count = grid_cell.seen_filled_count.load();
+        const SeenAs seen_as =
+            filter_options.CountsSeenAs(free_count, filled_count);
+        if (seen_as == SeenAs::FREE)
         {
-          int32_t seen_filled = 0;
-          int32_t seen_free = 0;
-          for (size_t idx = 0; idx < tracking_grids.size(); idx++)
-          {
-            const CpuVoxelizationTrackingCell& grid_cell =
-                tracking_grids.at(idx).GetImmutable(x_idx, y_idx, z_idx)
-                    .Value();
-            const int32_t free_count = grid_cell.seen_free_count.load();
-            const int32_t filled_count = grid_cell.seen_filled_count.load();
-            const SeenAs seen_as =
-                filter_options.CountsSeenAs(free_count, filled_count);
-            if (seen_as == SeenAs::FREE)
-            {
-              seen_free += 1;
-            }
-            else if (seen_as == SeenAs::FILLED)
-            {
-              seen_filled += 1;
-            }
-          }
-          if (seen_filled > 0)
-          {
-            // If any camera saw something here, it is filled.
-            current_cell.Occupancy() = 1.0;
-          }
-          else if (seen_free >= filter_options.NumCamerasSeenFree())
-          {
-            // Did enough cameras see this empty?
-            current_cell.Occupancy() = 0.0;
-          }
-          else
-          {
-            // Otherwise, it is unknown.
-            current_cell.Occupancy() = 0.5;
-          }
+          seen_free += 1;
         }
+        else if (seen_as == SeenAs::FILLED)
+        {
+          seen_filled += 1;
+        }
+      }
+      if (seen_filled > 0)
+      {
+        // If any camera saw something here, it is filled.
+        current_cell.Occupancy() = 1.0;
+      }
+      else if (seen_free >= filter_options.NumCamerasSeenFree())
+      {
+        // Did enough cameras see this empty?
+        current_cell.Occupancy() = 0.0;
+      }
+      else
+      {
+        // Otherwise, it is unknown.
+        current_cell.Occupancy() = 0.5;
       }
     }
   }

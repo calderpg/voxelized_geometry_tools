@@ -315,7 +315,7 @@ void FilterTrackingGrids(
 }
 
 void RetrieveTrackingGrid(
-    const int64_t num_cells, const int32_t* const device_tracking_grid_ptr, 
+    const int64_t num_cells, const int32_t* const device_tracking_grid_ptr,
     void* host_data_ptr)
 {
   // Wait for GPU to finish before accessing on host
@@ -327,7 +327,7 @@ void RetrieveTrackingGrid(
 }
 
 void RetrieveFilteredGrid(
-    const int64_t num_cells, const float* const device_filter_grid_ptr, 
+    const int64_t num_cells, const float* const device_filter_grid_ptr,
     void* host_data_ptr)
 {
   // Wait for GPU to finish before accessing on host

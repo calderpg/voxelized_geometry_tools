@@ -132,7 +132,7 @@ else()
     message(WARNING "OpenCL not found. Building stubs for OpenCL helpers.")
     add_library(${PROJECT_NAME}_opencl_voxelization_helpers
                 include/${PROJECT_NAME}/opencl_voxelization_helpers.h
-                src/${PROJECT_NAME}/opencl_voxelization_helpers.cc)
+                src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
 endif()
 
 # Pointcloud voxelization

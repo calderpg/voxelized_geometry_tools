@@ -19,14 +19,18 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-CollisionMap CpuPointcloudVoxelizer::VoxelizePointclouds(
-    const CollisionMap& static_environment,
-    const PointcloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointcloudWrapperPtr>& pointclouds) const
+CollisionMap CpuPointCloudVoxelizer::VoxelizePointClouds(
+    const CollisionMap& static_environment, const double step_size_multiplier,
+    const PointCloudVoxelizationFilterOptions& filter_options,
+    const std::vector<PointCloudWrapperPtr>& pointclouds) const
 {
   if (!static_environment.IsInitialized())
   {
     throw std::invalid_argument("!static_environment.IsInitialized()");
+  }
+  if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
+  {
+    throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
   }
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
@@ -35,15 +39,24 @@ CollisionMap CpuPointcloudVoxelizer::VoxelizePointclouds(
   // Get grid resolution and size parameters.
   const auto& grid_size = static_environment.GetGridSizes();
   const double cell_size = static_environment.GetResolution();
+  const double step_size = cell_size * step_size_multiplier;
   // For each cloud, raycast it into its own "tracking grid"
   std::vector<CpuVoxelizationTrackingGrid> tracking_grids(
       pointclouds.size(),
       CpuVoxelizationTrackingGrid(
           X_WG, grid_size, CpuVoxelizationTrackingCell()));
-  for (size_t idx = 0; idx < pointclouds.size(); idx++) {
-    const PointcloudWrapperPtr& cloud = pointclouds.at(idx);
-    CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
-    RaycastPointCloud(cloud, cell_size * 0.5, tracking_grid);
+  for (size_t idx = 0; idx < pointclouds.size(); idx++)
+  {
+    const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
+    if (cloud_ptr)
+    {
+      CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
+      RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
+    }
+    else
+    {
+      throw std::runtime_error("PointCloudWrapperPtr is null");
+    }
   }
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();
@@ -61,19 +74,19 @@ CollisionMap CpuPointcloudVoxelizer::VoxelizePointclouds(
   return result;
 }
 
-void CpuPointcloudVoxelizer::RaycastPointCloud(
-    const PointcloudWrapperPtr& cloud, const double step_size,
+void CpuPointCloudVoxelizer::RaycastPointCloud(
+    const PointCloudWrapper& cloud, const double step_size,
     CpuVoxelizationTrackingGrid& tracking_grid) const
 {
   // Get X_WC, the transform from world to the origin of the pointcloud
-  const Eigen::Isometry3d& X_WC = cloud->GetPointcloudOriginTransform();
+  const Eigen::Isometry3d& X_WC = cloud.GetPointCloudOriginTransform();
   // Get the origin of X_WC
   const Eigen::Vector4d p_WCo = X_WC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
 #pragma omp parallel for
-  for (int64_t idx = 0; idx < cloud->Size(); idx++)
+  for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
-    const Eigen::Vector4d p_CP = cloud->GetPointLocationDouble(idx);
+    const Eigen::Vector4d p_CP = cloud.GetPointLocationDouble(idx);
     // Location of point P in world W
     const Eigen::Vector4d p_WP = X_WC * p_CP;
     // Ray from camera to point
@@ -125,9 +138,9 @@ void CpuPointcloudVoxelizer::RaycastPointCloud(
 }
 
 voxelized_geometry_tools::CollisionMap
-CpuPointcloudVoxelizer::CombineAndFilterGrids(
+CpuPointCloudVoxelizer::CombineAndFilterGrids(
     const CollisionMap& static_environment,
-    const PointcloudVoxelizationFilterOptions& filter_options,
+    const PointCloudVoxelizationFilterOptions& filter_options,
     const std::vector<CpuVoxelizationTrackingGrid>& tracking_grids) const
 {
   CollisionMap filtered_grid = static_environment;

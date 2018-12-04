@@ -13,8 +13,8 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-std::unique_ptr<PointcloudVoxelizationInterface>
-MakeBestAvailablePointcloudVoxelizer()
+std::unique_ptr<PointCloudVoxelizationInterface>
+MakeBestAvailablePointCloudVoxelizer()
 {
   // Since not all voxelizers will be available on all platforms, we try them
   // in order of preference. If available (i.e. on NVIDIA platforms), CUDA is
@@ -23,33 +23,61 @@ MakeBestAvailablePointcloudVoxelizer()
   // directly construct the desired voxelizer.
   try
   {
-    std::cout << "Trying CUDA Pointcloud Voxelizer..." << std::endl;
-    return std::unique_ptr<PointcloudVoxelizationInterface>(
-        new CudaPointcloudVoxelizer());
+    std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new CudaPointCloudVoxelizer());
   }
   catch (std::runtime_error&)
   {
-    std::cerr << "CUDA Pointcloud Voxelizer is not available" << std::endl;
+    std::cerr << "CUDA PointCloud Voxelizer is not available" << std::endl;
   }
   try
   {
-    std::cout << "Trying OpenCL Pointcloud Voxelizer..." << std::endl;
-    return std::unique_ptr<PointcloudVoxelizationInterface>(
-        new OpenCLPointcloudVoxelizer());
+    std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new OpenCLPointCloudVoxelizer());
   }
   catch (std::runtime_error&)
   {
-    std::cerr << "OpenCL Pointcloud Voxelizer is not available" << std::endl;
+    std::cerr << "OpenCL PointCloud Voxelizer is not available" << std::endl;
   }
   try
   {
-    std::cout << "Trying CPU Pointcloud Voxelizer..." << std::endl;
-    return std::unique_ptr<PointcloudVoxelizationInterface>(
-        new CpuPointcloudVoxelizer());
+    std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new CpuPointCloudVoxelizer());
   }
   catch (std::runtime_error&)
   {
-    throw std::runtime_error("No Pointcloud Voxelizers available");
+    throw std::runtime_error("No PointCloud Voxelizers available");
+  }
+}
+
+std::unique_ptr<PointCloudVoxelizationInterface>
+MakePointCloudVoxelizer(const VoxelizerOptions option)
+{
+  if (option == VoxelizerOptions::BEST_AVAILABLE)
+  {
+    return MakeBestAvailablePointCloudVoxelizer();
+  }
+  else if (option == VoxelizerOptions::CPU)
+  {
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new CpuPointCloudVoxelizer());
+  }
+  else if (option == VoxelizerOptions::OPENCL)
+  {
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new OpenCLPointCloudVoxelizer());
+  }
+  else if (option == VoxelizerOptions::CUDA)
+  {
+    return std::unique_ptr<PointCloudVoxelizationInterface>(
+        new CudaPointCloudVoxelizer());
+  }
+  else
+  {
+    throw std::invalid_argument("Invalid VoxelizerOptions");
   }
 }
 }

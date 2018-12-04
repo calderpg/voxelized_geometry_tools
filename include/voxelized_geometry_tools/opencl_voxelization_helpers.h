@@ -1,6 +1,9 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
+
+#include <Eigen/Geometry>
 
 namespace voxelized_geometry_tools
 {
@@ -8,39 +11,43 @@ namespace pointcloud_voxelization
 {
 namespace opencl_helpers
 {
-bool IsAvailable();
+class OpenCLVoxelizationHelperInterface
+{
+public:
+  virtual ~OpenCLVoxelizationHelperInterface() {}
 
-int32_t* PrepareTrackingGrid(const int64_t num_cells);
+  virtual bool IsAvailable() const = 0;
 
-void RaycastPoints(
-    const float* points, const int32_t num_points,
-    const float* const pointcloud_origin_transform,
-    const float* const inverse_grid_origin_transform,
-    const float inverse_cell_size, const int32_t num_x_cells,
-    const int32_t num_y_cells, const int32_t num_z_cells,
-    int32_t* const device_tracking_grid_ptr);
+  virtual std::vector<int64_t> PrepareTrackingGrids(
+      const int64_t num_cells, const int32_t num_grids) = 0;
 
-float* PrepareFilterGrid(
-    const int64_t num_cells, const void* host_data_ptr);
+  virtual bool RaycastPoints(
+      const std::vector<float>& raw_points,
+      const Eigen::Isometry3f& pointcloud_origin_transform,
+      const Eigen::Isometry3f& inverse_grid_origin_transform,
+      const float inverse_cell_size, const int32_t num_x_cells,
+      const int32_t num_y_cells, const int32_t num_z_cells,
+      const int64_t tracking_grid_starting_offset) = 0;
 
-void FilterTrackingGrids(
-    const int64_t num_cells, const int32_t num_device_tracking_grids,
-    int32_t* const* device_tracking_grid_ptrs,
-    float* const device_filter_grid_ptr, const float percent_seen_free,
-    const int32_t outlier_points_threshold,
-    const int32_t num_cameras_seen_free);
+  virtual bool PrepareFilterGrid(
+       const int64_t num_cells, const void* host_data_ptr) = 0;
 
-void RetrieveTrackingGrid(
-    const int64_t num_cells, const int32_t* const device_tracking_grid_ptr,
-    void* host_data_ptr);
+  virtual void FilterTrackingGrids(
+       const int64_t num_cells, const int32_t num_grids,
+       const float percent_seen_free, const int32_t outlier_points_threshold,
+       const int32_t num_cameras_seen_free) = 0;
 
-void RetrieveFilteredGrid(
-    const int64_t num_cells, const float* const device_filter_grid_ptr,
-    void* host_data_ptr);
+  virtual void RetrieveTrackingGrid(
+      const int64_t num_cells, const int64_t tracking_grid_starting_index,
+      void* host_data_ptr) = 0;
 
-void CleanupDeviceMemory(
-    const int32_t num_device_tracking_grids,
-    int32_t* const* device_tracking_grid_ptrs, float* device_filter_grid_ptr);
+  virtual void RetrieveFilteredGrid(
+      const int64_t num_cells, void* host_data_ptr) = 0;
+
+  virtual void CleanupAllocatedMemory() = 0;
+};
+
+OpenCLVoxelizationHelperInterface* MakeHelperInterface();
 }
 }
 }

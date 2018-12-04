@@ -2,8 +2,12 @@
 
 #include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <cstring>
+#include <memory>
+#include <iostream>
+#include <vector>
+
+#include <Eigen/Geometry>
+#include <CL/cl.hpp>
 
 namespace voxelized_geometry_tools
 {
@@ -11,242 +15,445 @@ namespace pointcloud_voxelization
 {
 namespace opencl_helpers
 {
-bool IsAvailable() { return true; }
+/*
+      "  const float step_size = (1.0 / inverse_cell_size) * 0.5f;"
+      "  const float rx = wx - ox;"
+      "  const float ry = wy - oy;"
+      "  const float rz = wz - oz;"
+      "  const float current_ray_length ="
+      "      sqrt((rx * rx) + (ry * ry) + (rz * rz));"
+      "  const int num_steps = (int)floor(current_ray_length / step_size);"
+      "  int previous_x_cell = -1;"
+      "  int previous_y_cell = -1;"
+      "  int previous_z_cell = -1;"
+      "  for (int step = 0; step < num_steps; step++)"
+      "  {"
+      "    bool in_grid = false;"
+      "    const float elapsed_ratio = (float)step / (float)num_steps;"
+      "    const float cx = (rx * elapsed_ratio) + ox;"
+      "    const float cy = (ry * elapsed_ratio) + oy;"
+      "    const float cz = (rz * elapsed_ratio) + oz;"
+      "    const float gx ="
+      "        inverse_grid_origin_transform[0] * cx"
+      "        + inverse_grid_origin_transform[4] * cy"
+      "        + inverse_grid_origin_transform[8] * cz"
+      "        + inverse_grid_origin_transform[12];"
+      "    const float gy ="
+      "        inverse_grid_origin_transform[1] * cx"
+      "        + inverse_grid_origin_transform[5] * cy"
+      "        + inverse_grid_origin_transform[9] * cz"
+      "        + inverse_grid_origin_transform[13];"
+      "    const float gz ="
+      "        inverse_grid_origin_transform[2] * cx"
+      "        + inverse_grid_origin_transform[6] * cy"
+      "        + inverse_grid_origin_transform[10] * cz"
+      "        + inverse_grid_origin_transform[14];"
+      "    const int x_cell = (int)(gx * inverse_cell_size);"
+      "    const int y_cell = (int)(gy * inverse_cell_size);"
+      "    const int z_cell = (int)(gz * inverse_cell_size);"
+      "    if (x_cell != previous_x_cell || y_cell != previous_y_cell"
+      "        || z_cell != previous_z_cell)"
+      "    {"
+      "      if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0"
+      "         && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)"
+      "      {"
+      "        in_grid = true;"
+      "        const int cell_index ="
+      "            (x_cell * stride1) + (y_cell * stride2) + z_cell;"
+      "        const int tracking_grid_index ="
+      "            tracking_grid_starting_offset + (cell_index * 2);"
+      "        atomic_add(&(tracking_grid[tracking_grid_index]), 1);"
+      "      }"
+      "      else if (in_grid)"
+      "      {"
+      "        break;"
+      "      }"
+      "    }"
+      "    previous_x_cell = x_cell;"
+      "    previous_y_cell = y_cell;"
+      "    previous_z_cell = z_cell;"
+      "  }"
+*/
 
-int32_t* PrepareTrackingGrid(const int64_t num_cells)
+
+static std::string GetRaycastingKernelCode()
 {
-  int32_t* device_tracking_grid_ptr =
-      static_cast<int32_t*>(calloc(num_cells * 2, sizeof(int32_t)));
-  return device_tracking_grid_ptr;
+  const std::string kernel_code =
+      "void kernel RaycastPoint("
+      "    global const int* points,"
+      "    global const float* pointcloud_origin_transform,"
+      "    global const float* inverse_grid_origin_transform,"
+      "    const float inverse_cell_size, const int stride1, const int stride2,"
+      "    const int num_x_cells, const int num_y_cells, const int num_z_cells,"
+      "    global int* tracking_grid, const int tracking_grid_starting_offset)"
+      "{"
+      "  const int point_index = get_global_id(0);"
+      "  if (point_index < 300) { tracking_grid[tracking_grid_starting_offset + point_index] = 1; }"
+      "  const float ox = pointcloud_origin_transform[12];"
+      "  const float oy = pointcloud_origin_transform[13];"
+      "  const float oz = pointcloud_origin_transform[14];"
+      "  const float px = points[(point_index * 3) + 0];"
+      "  const float py = points[(point_index * 3) + 1];"
+      "  const float pz = points[(point_index * 3) + 2];"
+      "  const float wx = pointcloud_origin_transform[0] * px"
+      "                   + pointcloud_origin_transform[4] * py"
+      "                   + pointcloud_origin_transform[8] * pz"
+      "                   + pointcloud_origin_transform[12];"
+      "  const float wy = pointcloud_origin_transform[1] * px"
+      "                   + pointcloud_origin_transform[5] * py"
+      "                   + pointcloud_origin_transform[9] * pz"
+      "                   + pointcloud_origin_transform[13];"
+      "  const float wz = pointcloud_origin_transform[2] * px"
+      "                   + pointcloud_origin_transform[6] * py"
+      "                   + pointcloud_origin_transform[10] * pz"
+      "                   + pointcloud_origin_transform[14];"
+      "  const float gx ="
+      "      inverse_grid_origin_transform[0] * wx"
+      "      + inverse_grid_origin_transform[4] * wy"
+      "      + inverse_grid_origin_transform[8] * wz"
+      "      + inverse_grid_origin_transform[12];"
+      "  const float gy ="
+      "      inverse_grid_origin_transform[1] * wx"
+      "      + inverse_grid_origin_transform[5] * wy"
+      "      + inverse_grid_origin_transform[9] * wz"
+      "      + inverse_grid_origin_transform[13];"
+      "  const float gz ="
+      "      inverse_grid_origin_transform[2] * wx"
+      "      + inverse_grid_origin_transform[6] * wy"
+      "      + inverse_grid_origin_transform[10] * wz"
+      "      + inverse_grid_origin_transform[14];"
+      "  const int x_cell = (int)(gx * inverse_cell_size);"
+      "  const int y_cell = (int)(gy * inverse_cell_size);"
+      "  const int z_cell = (int)(gz * inverse_cell_size);"
+      "  if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0"
+      "      && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)"
+      "  {"
+      "    const int cell_index ="
+      "        (x_cell * stride1) + (y_cell * stride2) + z_cell;"
+      "    const int tracking_grid_index ="
+      "        tracking_grid_starting_offset + (cell_index * 2);"
+      "    atomic_add(&(tracking_grid[tracking_grid_index + 1]), 1);"
+      "  }"
+      "}";
+  return kernel_code;
 }
 
-void RaycastPoints(
-    const float* const points, const int32_t num_points,
-    const float* const pointcloud_origin_transform,
-    const float* const inverse_grid_origin_transform,
-    const float inverse_cell_size, const int32_t num_x_cells,
-    const int32_t num_y_cells, const int32_t num_z_cells,
-    int32_t* const device_tracking_grid_ptr)
+static std::string GetFilterKernelCode()
 {
-  // Prepare for raycasting
-  const int32_t stride1 = num_y_cells * num_z_cells;
-  const int32_t stride2 = num_z_cells;
-  // Raycast
-  for (int32_t point_index = 0; point_index < num_points; point_index++)
-  {
-    const float ox = pointcloud_origin_transform[12];
-    const float oy = pointcloud_origin_transform[13];
-    const float oz = pointcloud_origin_transform[14];
-    const float px = points[(point_index * 3) + 0];
-    const float py = points[(point_index * 3) + 1];
-    const float pz = points[(point_index * 3) + 2];
-    const float wx = pointcloud_origin_transform[0] * px
-                     + pointcloud_origin_transform[4] * py
-                     + pointcloud_origin_transform[8] * pz
-                     + pointcloud_origin_transform[12];
-    const float wy = pointcloud_origin_transform[1] * px
-                     + pointcloud_origin_transform[5] * py
-                     + pointcloud_origin_transform[9] * pz
-                     + pointcloud_origin_transform[13];
-    const float wz = pointcloud_origin_transform[2] * px
-                     + pointcloud_origin_transform[6] * py
-                     + pointcloud_origin_transform[10] * pz
-                     + pointcloud_origin_transform[14];
-    const float step_size = (1.0f / inverse_cell_size) * 0.5f;
-    const float rx = wx - ox;
-    const float ry = wy - oy;
-    const float rz = wz - oz;
-    const float current_ray_length =
-        std::sqrt((rx * rx) + (ry * ry) + (rz * rz));
-    const float num_steps = std::floor(current_ray_length / step_size);
-    int32_t previous_x_cell = -1;
-    int32_t previous_y_cell = -1;
-    int32_t previous_z_cell = -1;
-    for (float step = 0.0f; step < num_steps; step += 1.0f)
-    {
-      bool in_grid = false;
-      const float elapsed_ratio = step / num_steps;
-      const float cx = (rx * elapsed_ratio) + ox;
-      const float cy = (ry * elapsed_ratio) + oy;
-      const float cz = (rz * elapsed_ratio) + oz;
-      const float gx =
-          inverse_grid_origin_transform[0] * cx
-          + inverse_grid_origin_transform[4] * cy
-          + inverse_grid_origin_transform[8] * cz
-          + inverse_grid_origin_transform[12];
-      const float gy =
-          inverse_grid_origin_transform[1] * cx
-          + inverse_grid_origin_transform[5] * cy
-          + inverse_grid_origin_transform[9] * cz
-          + inverse_grid_origin_transform[13];
-      const float gz =
-          inverse_grid_origin_transform[2] * cx
-          + inverse_grid_origin_transform[6] * cy
-          + inverse_grid_origin_transform[10] * cz
-          + inverse_grid_origin_transform[14];
-      const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-      const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-      const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
-      if (x_cell != previous_x_cell || y_cell != previous_y_cell
-          || z_cell != previous_z_cell)
-      {
-        if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-            && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-        {
-          in_grid = true;
-          const int32_t cell_index =
-              (x_cell * stride1) + (y_cell * stride2) + z_cell;
-          // Increase free count
-          device_tracking_grid_ptr[cell_index * 2] += 1;
-        }
-        else if (in_grid)
-        {
-          // We've left the grid and there's no reason to keep going.
-          break;
-        }
-      }
-      previous_x_cell = x_cell;
-      previous_y_cell = y_cell;
-      previous_z_cell = z_cell;
-    }
-    // Set the point itself as filled
-    const float gx =
-        inverse_grid_origin_transform[0] * wx
-        + inverse_grid_origin_transform[4] * wy
-        + inverse_grid_origin_transform[8] * wz
-        + inverse_grid_origin_transform[12];
-    const float gy =
-        inverse_grid_origin_transform[1] * wx
-        + inverse_grid_origin_transform[5] * wy
-        + inverse_grid_origin_transform[9] * wz
-        + inverse_grid_origin_transform[13];
-    const float gz =
-        inverse_grid_origin_transform[2] * wx
-        + inverse_grid_origin_transform[6] * wy
-        + inverse_grid_origin_transform[10] * wz
-        + inverse_grid_origin_transform[14];
-    const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-    const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-    const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
-    if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-        && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-    {
-      const int32_t cell_index =
-          (x_cell * stride1) + (y_cell * stride2) + z_cell;
-      // Increase filled count
-      device_tracking_grid_ptr[(cell_index * 2) + 1] += 1;
-    }
-  }
+  const std::string kernel_code =
+      "void kernel FilterGrids("
+      "    const int num_cells, const int num_grids,"
+      "    global const int* tracking_grid,"
+      "    global float* filter_grid,"
+      "    const float percent_seen_free, const int outlier_points_threshold,"
+      "    const int num_cameras_seen_free)"
+      "{"
+      "  const int voxel_index = get_global_id(0);"
+      "  const int filter_grid_index = voxel_index * 2;"
+      "  filter_grid[filter_grid_index] = (float)(voxel_index);"
+      "  const float current_occupancy = filter_grid[filter_grid_index];"
+      "  if (current_occupancy <= 0.5)"
+      "  {"
+      "    int cameras_seen_filled = 0;"
+      "    int cameras_seen_free = 0;"
+      "    for (int idx = 0; idx < num_grids; idx++)"
+      "    {"
+      "      const int tracking_grid_offset = num_cells * 2 * idx;"
+      "      const int tracking_grid_index ="
+      "          tracking_grid_offset + filter_grid_index;"
+      "      const int free_count = tracking_grid[tracking_grid_index];"
+      "      const int filled_count ="
+      "          tracking_grid[tracking_grid_index + 1];"
+      "      const int filtered_filled_count ="
+      "          (filled_count >= outlier_points_threshold) ? filled_count : 0;"
+      "      if (free_count > 0 && filtered_filled_count > 0)"
+      "      {"
+      "        const float current_percent_seen_free ="
+      "            (float)(free_count)"
+      "            / (float)(free_count + filtered_filled_count);"
+      "        if (current_percent_seen_free >= percent_seen_free)"
+      "        {"
+      "          cameras_seen_free += 1;"
+      "        }"
+      "        else"
+      "        {"
+      "          cameras_seen_filled += 1;"
+      "        }"
+      "      }"
+      "      else if (free_count > 0)"
+      "      {"
+      "        cameras_seen_free += 1;"
+      "      }"
+      "      else if (filtered_filled_count > 0)"
+      "      {"
+      "        cameras_seen_filled += 1;"
+      "      }"
+      "    }"
+      "    if (cameras_seen_filled > 0)"
+      "    {"
+      "      filter_grid[filter_grid_index] = 1.0;"
+      "    }"
+      "    else if (cameras_seen_free >= num_cameras_seen_free)"
+      "    {"
+      "      filter_grid[filter_grid_index] = 0.0;"
+      "    }"
+      "    else"
+      "    {"
+      "      filter_grid[filter_grid_index] = 0.5;"
+      "    }"
+      "  }"
+      "}";
+  return kernel_code;
 }
 
-float* PrepareFilterGrid(const int64_t num_cells, const void* host_data_ptr)
+class RealOpenCLVoxelizationHelperInterface
+    : public OpenCLVoxelizationHelperInterface
 {
-  const size_t filter_grid_size = sizeof(float) * num_cells * 2;
-  float* device_filter_grid_ptr =
-      static_cast<float*>(calloc(num_cells * 2, sizeof(float)));
-  if (device_filter_grid_ptr != nullptr)
+public:
+  RealOpenCLVoxelizationHelperInterface()
   {
-    memcpy(device_filter_grid_ptr, host_data_ptr, filter_grid_size);
-  }
-  return device_filter_grid_ptr;
-}
-
-void FilterTrackingGrids(
-    const int64_t num_cells, const int32_t num_device_tracking_grids,
-    int32_t* const* device_tracking_grid_ptrs,
-    float* const device_filter_grid_ptr, const float percent_seen_free,
-    const int32_t outlier_points_threshold, const int32_t num_cameras_seen_free)
-{
-  // Filter
-  for (int32_t voxel_index = 0; voxel_index < num_cells; voxel_index++)
-  {
-    const float current_occupancy = device_filter_grid_ptr[voxel_index * 2];
-    // Filled cells stay filled, we don't work with them.
-    // We only change cells that are unknown or empty.
-    if (current_occupancy <= 0.5)
+    std::vector<cl::Platform> all_platforms;
+    cl::Platform::get(&all_platforms);
+    if (all_platforms.size() > 0)
     {
-      int32_t cameras_seen_filled = 0;
-      int32_t cameras_seen_free = 0;
-      for (int32_t idx = 0; idx < num_device_tracking_grids; idx++)
+      auto& default_platform = all_platforms.front();
+      std::vector<cl::Device> all_devices;
+      default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+      if (all_devices.size() > 0)
       {
-        int32_t* const device_tracking_grid_ptr =
-            device_tracking_grid_ptrs[idx];
-        const int32_t free_count = device_tracking_grid_ptr[voxel_index * 2];
-        const int32_t filled_count =
-            device_tracking_grid_ptr[(voxel_index * 2) + 1];
-        const int32_t filtered_filled_count =
-            (filled_count >= outlier_points_threshold) ? filled_count : 0;
-        if (free_count > 0 && filtered_filled_count > 0)
+        auto& default_device = all_devices.front();
+        // Make context + queue
+        context_ = std::unique_ptr<cl::Context>(
+            new cl::Context({default_device}));
+        queue_ = std::unique_ptr<cl::CommandQueue>(
+            new cl::CommandQueue(*context_, default_device));
+        // Make kernel programs
+        cl::Program::Sources raycasting_sources;
+        const std::string raycasting_kernel_source = GetRaycastingKernelCode();
+        raycasting_sources.push_back({raycasting_kernel_source.c_str(),
+                                      raycasting_kernel_source.length()});
+        raycasting_program_ = std::unique_ptr<cl::Program>(
+            new cl::Program(*context_, raycasting_sources));
+        cl::Program::Sources filter_sources;
+        const std::string filter_kernel_source = GetFilterKernelCode();
+        filter_sources.push_back({filter_kernel_source.c_str(),
+                                  filter_kernel_source.length()});
+        filter_program_ = std::unique_ptr<cl::Program>(
+            new cl::Program(*context_, filter_sources));
+        if (raycasting_program_->build({default_device}) != CL_SUCCESS)
         {
-          const float current_percent_seen_free =
-              static_cast<float>(free_count)
-              / static_cast<float>(free_count + filtered_filled_count);
-          if (current_percent_seen_free >= percent_seen_free)
-          {
-            cameras_seen_free += 1;
-          }
-          else
-          {
-            cameras_seen_filled += 1;
-          }
+          std::cerr << " Error building raycasting kernel: "
+                    << raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                        default_device)
+                    << std::endl;
+          raycasting_program_.reset();
         }
-        else if (free_count > 0)
+        else
         {
-          cameras_seen_free += 1;
+          std::cout << "Raycasting kernel built" << std::endl;
         }
-        else if (filtered_filled_count > 0)
+        if (filter_program_->build({default_device}) != CL_SUCCESS)
         {
-          cameras_seen_filled += 1;
+          std::cerr << " Error building filter kernel: "
+                    << filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                        default_device)
+                    << std::endl;
+          filter_program_.reset();
         }
-      }
-      if (cameras_seen_filled > 0)
-      {
-        // If any camera saw something here, it is filled.
-        device_filter_grid_ptr[voxel_index * 2] = 1.0;
-      }
-      else if (cameras_seen_free >= num_cameras_seen_free)
-      {
-        // Did enough cameras see this empty?
-        device_filter_grid_ptr[voxel_index * 2] = 0.0;
+        else
+        {
+          std::cout << "Filter kernel built" << std::endl;
+        }
       }
       else
       {
-        // Otherwise, it is unknown.
-        device_filter_grid_ptr[voxel_index * 2] = 0.5;
+        std::cerr << "No OpenCL device available" << std::endl;
       }
     }
+    else
+    {
+      std::cerr << "No OpenCL platform available" << std::endl;
+    }
   }
-}
 
-void RetrieveTrackingGrid(
-    const int64_t num_cells, const int32_t* const device_tracking_grid_ptr,
-    void* host_data_ptr)
-{
-  const size_t tracking_grid_size = sizeof(int32_t) * num_cells * 2;
-  memcpy(host_data_ptr, device_tracking_grid_ptr, tracking_grid_size);
-}
-
-void RetrieveFilteredGrid(
-    const int64_t num_cells, const float* const device_filter_grid_ptr,
-    void* host_data_ptr)
-{
-  const size_t filter_grid_size = sizeof(float) * num_cells * 2;
-  memcpy(host_data_ptr, device_filter_grid_ptr, filter_grid_size);
-}
-
-void CleanupDeviceMemory(
-    const int32_t num_device_tracking_grids,
-    int32_t* const* device_tracking_grid_ptrs, float* device_filter_grid_ptr)
-{
-  for (int32_t idx = 0; idx < num_device_tracking_grids; idx++)
+  bool IsAvailable() const override
   {
-    auto device_tracking_grid_ptr = device_tracking_grid_ptrs[idx];
-    // Free the device memory
-    free(device_tracking_grid_ptr);
+    return (context_ && queue_ && raycasting_program_ && filter_program_);
   }
-  // Free the device memory
-  free(device_filter_grid_ptr);
+
+  std::vector<int64_t> PrepareTrackingGrids(
+      const int64_t num_cells, const int32_t num_grids) override
+  {
+    const size_t buffer_size = sizeof(int32_t) * 2 * num_cells * num_grids;
+    std::cout << "Total tracking buffer size " << buffer_size << std::endl;
+    cl_int err = 0;
+    device_tracking_grid_buffer_ = std::unique_ptr<cl::Buffer>(new cl::Buffer(
+        *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
+    if (err == 0)
+    {
+      // This is how we zero the buffer
+      queue_->enqueueFillBuffer<int32_t>(
+          *device_tracking_grid_buffer_, 0, 0, buffer_size);
+      std::vector<int64_t> tracking_grid_offsets(num_grids, 0);
+      for (int32_t num_grid = 0; num_grid < num_grids; num_grid++)
+      {
+        tracking_grid_offsets.at(num_grid) = num_grid * num_cells * 2;
+        std::cout << "tracking_grid_offsets " << num_grid << " is " << tracking_grid_offsets.at(num_grid) << std::endl;
+      }
+      return tracking_grid_offsets;
+    }
+    else
+    {
+      return std::vector<int64_t>();
+    }
+  }
+
+  bool RaycastPoints(
+      const std::vector<float>& raw_points,
+      const Eigen::Isometry3f& pointcloud_origin_transform,
+      const Eigen::Isometry3f& inverse_grid_origin_transform,
+      const float inverse_cell_size, const int32_t num_x_cells,
+      const int32_t num_y_cells, const int32_t num_z_cells,
+      const int64_t tracking_grid_starting_offset) override
+  {
+    std::cout << "Start raycasting..." << std::endl;
+    cl_int err = 0;
+    cl::Buffer device_points_buffer(
+        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        sizeof(float) * raw_points.size(),
+        const_cast<void*>(static_cast<const void*>(raw_points.data())),
+        &err);
+    if (err != 0)
+    {
+      return false;
+    }
+    cl::Buffer device_pointcloud_origin_transform_buffer(
+        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        sizeof(float) * 16,
+        const_cast<void*>(static_cast<const void*>(
+            pointcloud_origin_transform.data())),
+        &err);
+    if (err != 0)
+    {
+      return false;
+    }
+    cl::Buffer device_inverse_grid_origin_transform_buffer(
+        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        sizeof(float) * 16,
+        const_cast<void*>(static_cast<const void*>(
+            inverse_grid_origin_transform.data())),
+        &err);
+    if (err != 0)
+    {
+      return false;
+    }
+    const int32_t stride1 = num_y_cells * num_z_cells;
+    const int32_t stride2 = num_z_cells;
+    // Build kernel
+    std::cout << "Start raycasting kernel..." << std::endl;
+    cl::Kernel raycasting_kernel(*raycasting_program_, "RaycastPoint");
+    raycasting_kernel.setArg(0, device_points_buffer);
+    raycasting_kernel.setArg(1, device_pointcloud_origin_transform_buffer);
+    raycasting_kernel.setArg(2, device_inverse_grid_origin_transform_buffer);
+    raycasting_kernel.setArg(3, inverse_cell_size);
+    raycasting_kernel.setArg(4, stride1);
+    raycasting_kernel.setArg(5, stride2);
+    raycasting_kernel.setArg(6, num_x_cells);
+    raycasting_kernel.setArg(7, num_y_cells);
+    raycasting_kernel.setArg(8, num_z_cells);
+    raycasting_kernel.setArg(9, *device_tracking_grid_buffer_);
+    raycasting_kernel.setArg(
+        10, static_cast<int32_t>(tracking_grid_starting_offset));
+    queue_->enqueueNDRangeKernel(
+        raycasting_kernel, cl::NullRange, cl::NDRange(raw_points.size() / 3),
+        cl::NullRange);
+    std::cout << "Raycasting kernel enqueued..." << std::endl;
+    return true;
+  }
+
+  bool PrepareFilterGrid(
+      const int64_t num_cells, const void* host_data_ptr) override
+  {
+    cl_int err = 0;
+    device_filter_grid_buffer_ = std::unique_ptr<cl::Buffer>(new cl::Buffer(
+        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        sizeof(float) * num_cells * 2, const_cast<void*>(host_data_ptr), &err));
+    if (err == 0)
+    {
+      return true;
+    }
+    else
+    {
+      device_filter_grid_buffer_.reset();
+      return false;
+    }
+  }
+
+  void FilterTrackingGrids(
+       const int64_t num_cells, const int32_t num_grids,
+       const float percent_seen_free, const int32_t outlier_points_threshold,
+       const int32_t num_cameras_seen_free) override
+  {
+    // Build kernel
+    std::cout << "Start filter kernel..." << std::endl;
+    cl::Kernel filter_kernel(*filter_program_, "FilterGrids");
+    filter_kernel.setArg(0, num_cells);
+    filter_kernel.setArg(1, num_grids);
+    filter_kernel.setArg(2, *device_tracking_grid_buffer_);
+    filter_kernel.setArg(3, *device_filter_grid_buffer_);
+    filter_kernel.setArg(4, percent_seen_free);
+    filter_kernel.setArg(5, outlier_points_threshold);
+    filter_kernel.setArg(6, num_cameras_seen_free);
+    queue_->enqueueNDRangeKernel(
+        filter_kernel, cl::NullRange, cl::NDRange(num_cells), cl::NullRange);
+    std::cout << "Filter kernel enqueued..." << std::endl;
+  }
+
+  void RetrieveTrackingGrid(
+      const int64_t num_cells,
+      const int64_t device_tracking_grid_starting_index,
+      void* host_data_ptr) override
+  {
+    const size_t item_size = sizeof(int32_t) * 2;
+    const size_t buffer_size = num_cells * item_size;
+    std::cout << "Buffer size " << buffer_size << std::endl;
+    const size_t starting_offset =
+        device_tracking_grid_starting_index * sizeof(int32_t);
+    std::cout << "Starting offset " << starting_offset << std::endl;
+    queue_->enqueueReadBuffer(
+        *device_tracking_grid_buffer_, CL_TRUE, starting_offset, buffer_size,
+        host_data_ptr);
+  }
+
+  void RetrieveFilteredGrid(
+      const int64_t num_cells, void* host_data_ptr) override
+  {
+    queue_->finish();
+    const size_t buffer_size = sizeof(float) * num_cells * 2;
+    queue_->enqueueReadBuffer(
+        *device_filter_grid_buffer_, CL_TRUE, 0, buffer_size, host_data_ptr);
+  }
+
+  void CleanupAllocatedMemory() override
+  {
+    device_tracking_grid_buffer_.reset();
+    device_filter_grid_buffer_.reset();
+  }
+
+private:
+  std::unique_ptr<cl::Context> context_;
+  std::unique_ptr<cl::CommandQueue> queue_;
+  std::unique_ptr<cl::Program> raycasting_program_;
+  std::unique_ptr<cl::Program> filter_program_;
+  std::unique_ptr<cl::Buffer> device_tracking_grid_buffer_;
+  std::unique_ptr<cl::Buffer> device_filter_grid_buffer_;
+};
+
+OpenCLVoxelizationHelperInterface* MakeHelperInterface()
+{
+  return new RealOpenCLVoxelizationHelperInterface();
 }
 }
 }
 }
+

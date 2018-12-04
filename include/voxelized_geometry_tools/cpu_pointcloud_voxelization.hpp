@@ -60,23 +60,23 @@ struct CpuVoxelizationTrackingCell
 using CpuVoxelizationTrackingGrid = common_robotics_utilities::voxel_grid
     ::VoxelGrid<CpuVoxelizationTrackingCell>;
 
-class CpuPointcloudVoxelizer : public PointcloudVoxelizationInterface {
+class CpuPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
-  CpuPointcloudVoxelizer() {}
+  CpuPointCloudVoxelizer() {}
 
-  voxelized_geometry_tools::CollisionMap VoxelizePointclouds(
-      const CollisionMap& static_environment,
-      const PointcloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointcloudWrapperPtr>& pointclouds) const override;
+  voxelized_geometry_tools::CollisionMap VoxelizePointClouds(
+      const CollisionMap& static_environment, const double step_size_multiplier,
+      const PointCloudVoxelizationFilterOptions& filter_options,
+      const std::vector<PointCloudWrapperPtr>& pointclouds) const override;
 
 private:
   void RaycastPointCloud(
-      const PointcloudWrapperPtr& cloud, const double step_size,
+      const PointCloudWrapper& cloud, const double step_size,
       CpuVoxelizationTrackingGrid& tracking_grid) const;
 
   voxelized_geometry_tools::CollisionMap CombineAndFilterGrids(
       const CollisionMap& static_environment,
-      const PointcloudVoxelizationFilterOptions& filter_options,
+      const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<CpuVoxelizationTrackingGrid>& tracking_grids) const;
 };
 }

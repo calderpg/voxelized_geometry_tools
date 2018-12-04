@@ -29,9 +29,10 @@ void RaycastPoint(
     const float* const device_points_ptr, const int32_t num_points,
     const float* const device_pointcloud_origin_transform_ptr,
     const float* const device_tracking_grid_inverse_origin_transform_ptr,
-    const float inverse_cell_size, const int32_t num_x_cells,
-    const int32_t num_y_cells, const int32_t num_z_cells, const int32_t stride1,
-    const int32_t stride2, int32_t* const device_tracking_grid_ptr)
+    const float inverse_step_size, const float inverse_cell_size,
+    const int32_t num_x_cells, const int32_t num_y_cells,
+    const int32_t num_z_cells, const int32_t stride1, const int32_t stride2,
+    int32_t* const device_tracking_grid_ptr)
 {
   const int32_t point_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (point_index < num_points)
@@ -54,12 +55,12 @@ void RaycastPoint(
                      + device_pointcloud_origin_transform_ptr[6] * py
                      + device_pointcloud_origin_transform_ptr[10] * pz
                      + device_pointcloud_origin_transform_ptr[14];
-    const float step_size = (1.0 / inverse_cell_size) * 0.5f;
     const float rx = wx - ox;
     const float ry = wy - oy;
     const float rz = wz - oz;
-    const float current_ray_length = sqrt((rx * rx) + (ry * ry) + (rz * rz));
-    const float num_steps = floor(current_ray_length / step_size);
+    const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
+    const float num_steps =
+        floor(current_ray_length * inverse_step_size);
     int32_t previous_x_cell = -1;
     int32_t previous_y_cell = -1;
     int32_t previous_z_cell = -1;
@@ -208,6 +209,18 @@ void FilterGrids(
   }
 }
 
+float* PreparePointCloud(const int32_t num_points, const float* points)
+{
+  const size_t points_size = sizeof(float) * num_points * 3;
+  float* device_points_ptr = nullptr;
+  cudaMalloc(&device_points_ptr, points_size);
+  CudaCheckErrors("Failed to allocate device points");
+  cudaMemcpy(device_points_ptr, points, points_size,
+             cudaMemcpyHostToDevice);
+  CudaCheckErrors("Failed to memcpy the points to the device");
+  return device_points_ptr;
+}
+
 int32_t* PrepareTrackingGrid(const int64_t num_cells)
 {
   const size_t tracking_grid_size = sizeof(int32_t) * num_cells * 2;
@@ -220,21 +233,13 @@ int32_t* PrepareTrackingGrid(const int64_t num_cells)
 }
 
 void RaycastPoints(
-    const float* const points, const int32_t num_points,
+    const float* const device_points_ptr, const int32_t num_points,
     const float* const pointcloud_origin_transform,
     const float* const inverse_grid_origin_transform,
-    const float inverse_cell_size, const int32_t num_x_cells,
-    const int32_t num_y_cells, const int32_t num_z_cells,
-    int32_t* const device_tracking_grid_ptr)
+    const float inverse_step_size, const float inverse_cell_size,
+    const int32_t num_x_cells, const int32_t num_y_cells,
+    const int32_t num_z_cells, int32_t* const device_tracking_grid_ptr)
 {
-  // Copy points
-  const size_t points_size = sizeof(float) * num_points * 3;
-  float* device_points_ptr = nullptr;
-  cudaMalloc(&device_points_ptr, points_size);
-  CudaCheckErrors("Failed to allocate device points");
-  cudaMemcpy(device_points_ptr, points, points_size, 
-             cudaMemcpyHostToDevice);
-  CudaCheckErrors("Failed to memcpy the points to the device");
   // Copy pointcloud origin transform
   const size_t transform_size = sizeof(float) * 16;
   float* device_pointcloud_origin_transform_ptr = nullptr;
@@ -261,13 +266,10 @@ void RaycastPoints(
   const int32_t num_blocks = (num_points + (num_threads - 1)) / num_threads;
   RaycastPoint<<<num_blocks, num_threads>>>(
       device_points_ptr, num_points, device_pointcloud_origin_transform_ptr,
-      device_tracking_grid_inverse_origin_transform_ptr, inverse_cell_size,
-      num_x_cells, num_y_cells, num_z_cells, stride1, stride2,
-      device_tracking_grid_ptr);
-  cudaDeviceSynchronize();
+      device_tracking_grid_inverse_origin_transform_ptr,
+      inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
+      num_z_cells, stride1, stride2, device_tracking_grid_ptr);
   // Free the device memory
-  cudaFree(device_points_ptr);
-  CudaCheckErrors("Failed to free device points");
   cudaFree(device_pointcloud_origin_transform_ptr);
   CudaCheckErrors("Failed to free device pointcloud origin transform");
   cudaFree(device_tracking_grid_inverse_origin_transform_ptr);
@@ -302,7 +304,6 @@ void FilterTrackingGrids(
              device_tracking_grid_ptrs_size, cudaMemcpyHostToDevice);
   CudaCheckErrors("Failed to memcpy the device tracking grid ptrs to device");
   // Call the CUDA kernel
-  cudaDeviceSynchronize();
   const int32_t num_threads = 256;
   const int32_t num_blocks = (num_cells + (num_threads - 1)) / num_threads;
   FilterGrids<<<num_blocks, num_threads>>>(
@@ -339,9 +340,16 @@ void RetrieveFilteredGrid(
 }
 
 void CleanupDeviceMemory(
+    const int32_t num_device_pointclouds, float* const* device_pointcloud_ptrs,
     const int32_t num_device_tracking_grids,
     int32_t* const* device_tracking_grid_ptrs, float* device_filter_grid_ptr)
 {
+  for (int32_t idx = 0; idx < num_device_pointclouds; idx++)
+  {
+    auto device_pointcloud_ptr = device_pointcloud_ptrs[idx];
+    cudaFree(device_pointcloud_ptr);
+    CudaCheckErrors("Failed to free device points");
+  }
   for (int32_t idx = 0; idx < num_device_tracking_grids; idx++)
   {
     auto device_tracking_grid_ptr = device_tracking_grid_ptrs[idx];

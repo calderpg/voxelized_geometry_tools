@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/print.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
@@ -17,44 +18,43 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-OpenCLPointcloudVoxelizer::OpenCLPointcloudVoxelizer()
+OpenCLPointCloudVoxelizer::OpenCLPointCloudVoxelizer()
+    : interface_(opencl_helpers::MakeHelperInterface())
 {
-  if (!opencl_helpers::IsAvailable())
+  if (!interface_->IsAvailable())
   {
-    throw std::runtime_error("OpenCLPointcloudVoxelizer not available");
+    throw std::runtime_error("OpenCLPointCloudVoxelizer not available");
   }
 }
 
-CollisionMap OpenCLPointcloudVoxelizer::VoxelizePointclouds(
-    const CollisionMap& static_environment,
-    const PointcloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointcloudWrapperPtr>& pointclouds) const
+CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
+    const CollisionMap& static_environment, const double step_size_multiplier,
+    const PointCloudVoxelizationFilterOptions& filter_options,
+    const std::vector<PointCloudWrapperPtr>& pointclouds) const
 {
   if (!static_environment.IsInitialized())
   {
     throw std::invalid_argument("!static_environment.IsInitialized()");
   }
-  if (opencl_helpers::IsAvailable())
+  if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
   {
+    throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
+  }
+  if (interface_->IsAvailable())
+  {
+    std::cout << "Starting voxelization..." << std::endl;
     const std::chrono::time_point<std::chrono::steady_clock> start_time =
         std::chrono::steady_clock::now();
     // Allocate device-side memory for tracking grids
-    const int32_t num_tracking_grids = static_cast<int32_t>(pointclouds.size());
-    std::vector<int32_t*> device_tracking_grid_ptrs(
-        pointclouds.size(), nullptr);
-    for (size_t idx = 0; idx < pointclouds.size(); idx++)
+    const std::vector<int64_t> device_tracking_grid_offsets =
+        interface_->PrepareTrackingGrids(
+            static_environment.GetTotalCells(),
+            static_cast<int32_t>(pointclouds.size()));
+    if (device_tracking_grid_offsets.size() != pointclouds.size())
     {
-      auto device_tracking_grid_ptr =
-          opencl_helpers::PrepareTrackingGrid(static_environment.GetTotalCells());
-      if (device_tracking_grid_ptr != nullptr)
-      {
-        device_tracking_grid_ptrs[idx] = device_tracking_grid_ptr;
-      }
-      else
-      {
-        throw std::runtime_error("Failed to allocate device tracking grid");
-      }
+      throw std::runtime_error("Failed to allocate device tracking grid");
     }
+    std::cout << "Allocated tracking grid..." << std::endl;
     // Prepare grid data
     const Eigen::Isometry3f inverse_grid_origin_transform_float =
         static_environment.GetInverseOriginTransform().cast<float>();
@@ -69,9 +69,9 @@ CollisionMap OpenCLPointcloudVoxelizer::VoxelizePointclouds(
     // Do raycasting of the pointclouds
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
-      const PointcloudWrapperPtr& pointcloud = pointclouds.at(idx);
+      const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
       const Eigen::Isometry3f pointcloud_origin_transform_float =
-          pointcloud->GetPointcloudOriginTransform().cast<float>();
+          pointcloud->GetPointCloudOriginTransform().cast<float>();
       // Copy pointcloud
       std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
       for (int64_t point = 0; point < pointcloud->Size(); point++)
@@ -79,13 +79,21 @@ CollisionMap OpenCLPointcloudVoxelizer::VoxelizePointclouds(
         pointcloud->CopyPointLocationIntoVectorFloat(
             point, raw_points, point * 3);
       }
+      std::cout << "Raycasting to tracking grid..." << std::endl;
       // Raycast
-      opencl_helpers::RaycastPoints(
-          raw_points.data(), static_cast<int32_t>(pointcloud->Size()),
-          pointcloud_origin_transform_float.data(),
-          inverse_grid_origin_transform_float.data(), inverse_cell_size,
-          num_x_cells, num_y_cells, num_z_cells,
-          device_tracking_grid_ptrs.at(idx));
+      const bool ok = interface_->RaycastPoints(
+          raw_points, pointcloud_origin_transform_float,
+          inverse_grid_origin_transform_float, inverse_cell_size, num_x_cells,
+          num_y_cells, num_z_cells, device_tracking_grid_offsets.at(idx));
+      if (!ok)
+      {
+        throw std::runtime_error("Failed to allocate device buffers");
+      }
+      std::vector<int32_t> raw_tracking_grid(static_environment.GetTotalCells() * 2, 0);
+      interface_->RetrieveTrackingGrid(static_environment.GetTotalCells(), device_tracking_grid_offsets.at(idx), raw_tracking_grid.data());
+      std::cout << "Raw tracking grid size: " << raw_tracking_grid.size() << std::endl;
+      std::cout << "Raw tracking grid: " << common_robotics_utilities::print::Print(raw_tracking_grid) << std::endl;
+      std::cout << "Raycasted to tracking grid..." << std::endl;
     }
     const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
         std::chrono::steady_clock::now();
@@ -96,23 +104,28 @@ CollisionMap OpenCLPointcloudVoxelizer::VoxelizePointclouds(
         filter_options.OutlierPointsThreshold();
     const int32_t num_cameras_seen_free =
         filter_options.NumCamerasSeenFree();
-    auto device_filter_grid_ptr =
-        opencl_helpers::PrepareFilterGrid(
+    const bool ok = interface_->PrepareFilterGrid(
             static_environment.GetTotalCells(),
             static_environment.GetImmutableRawData().data());
-    opencl_helpers::FilterTrackingGrids(
-        static_environment.GetTotalCells(), num_tracking_grids,
-        device_tracking_grid_ptrs.data(), device_filter_grid_ptr,
-        percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
+    if (!ok)
+    {
+      throw std::runtime_error("Failed to allocate device filter grid");
+    }
+    std::cout << "Allocated filter grid..." << std::endl;
+    interface_->FilterTrackingGrids(
+        static_environment.GetTotalCells(),
+        static_cast<int32_t>(pointclouds.size()), percent_seen_free,
+        outlier_points_threshold, num_cameras_seen_free);
+    std::cout << "Filtered tracking grids to filter grid..." << std::endl;
     // Retrieve & return
     CollisionMap filtered_grid = static_environment;
-    opencl_helpers::RetrieveFilteredGrid(
-        static_environment.GetTotalCells(), device_filter_grid_ptr,
+    interface_->RetrieveFilteredGrid(
+        static_environment.GetTotalCells(),
         filtered_grid.GetMutableRawData().data());
+    std::cout << "Retrieved filter grid..." << std::endl;
     // Cleanup device memory
-    opencl_helpers::CleanupDeviceMemory(
-        num_tracking_grids, device_tracking_grid_ptrs.data(),
-        device_filter_grid_ptr);
+    interface_->CleanupAllocatedMemory();
+    std::cout << "Cleaned up device memory..." << std::endl;
     const std::chrono::time_point<std::chrono::steady_clock> done_time =
         std::chrono::steady_clock::now();
     std::cout
@@ -130,3 +143,4 @@ CollisionMap OpenCLPointcloudVoxelizer::VoxelizePointclouds(
 }
 }
 }
+

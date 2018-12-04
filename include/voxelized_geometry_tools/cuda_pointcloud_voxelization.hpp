@@ -15,14 +15,14 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-class CudaPointcloudVoxelizer : public PointcloudVoxelizationInterface {
+class CudaPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
-  CudaPointcloudVoxelizer();
+  CudaPointCloudVoxelizer();
 
-  voxelized_geometry_tools::CollisionMap VoxelizePointclouds(
-      const CollisionMap& static_environment,
-      const PointcloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointcloudWrapperPtr>& pointclouds) const override;
+  voxelized_geometry_tools::CollisionMap VoxelizePointClouds(
+      const CollisionMap& static_environment, const double step_size_multiplier,
+      const PointCloudVoxelizationFilterOptions& filter_options,
+      const std::vector<PointCloudWrapperPtr>& pointclouds) const override;
 };
 }
 }

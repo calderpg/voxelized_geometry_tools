@@ -14,10 +14,10 @@ namespace pointcloud_voxelization
 {
 enum class SeenAs : uint8_t {UNKNOWN = 0x00, FILLED = 0x01, FREE = 0x02};
 
-class PointcloudVoxelizationFilterOptions
+class PointCloudVoxelizationFilterOptions
 {
 public:
-  PointcloudVoxelizationFilterOptions(
+  PointCloudVoxelizationFilterOptions(
       const double percent_seen_free, const int32_t outlier_points_threshold,
       const int32_t num_cameras_seen_free)
       : percent_seen_free_(percent_seen_free),
@@ -38,7 +38,7 @@ public:
     }
   }
 
-  PointcloudVoxelizationFilterOptions()
+  PointCloudVoxelizationFilterOptions()
       : percent_seen_free_(1.0),
         outlier_points_threshold_(1),
         num_cameras_seen_free_(1) {}
@@ -88,14 +88,16 @@ private:
   int32_t num_cameras_seen_free_ = 1;
 };
 
-class PointcloudWrapper
+class PointCloudWrapper
 {
 public:
-  virtual ~PointcloudWrapper() {}
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  virtual ~PointCloudWrapper() {}
 
   virtual int64_t Size() const = 0;
 
-  virtual const Eigen::Isometry3d& GetPointcloudOriginTransform() const = 0;
+  virtual const Eigen::Isometry3d& GetPointCloudOriginTransform() const = 0;
 
   virtual Eigen::Vector4d GetPointLocationDouble(
       const int64_t point_index) const = 0;
@@ -111,17 +113,17 @@ public:
       const int64_t point_index, std::vector<float>& vector,
       const int64_t vector_index) const = 0;
 };
-using PointcloudWrapperPtr = std::shared_ptr<PointcloudWrapper>;
+using PointCloudWrapperPtr = std::shared_ptr<PointCloudWrapper>;
 
-class PointcloudVoxelizationInterface
+class PointCloudVoxelizationInterface
 {
 public:
-  virtual ~PointcloudVoxelizationInterface() {}
+  virtual ~PointCloudVoxelizationInterface() {}
 
-  virtual CollisionMap VoxelizePointclouds(
-      const CollisionMap& static_environment,
-      const PointcloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointcloudWrapperPtr>& pointclouds) const = 0;
+  virtual CollisionMap VoxelizePointClouds(
+      const CollisionMap& static_environment, const double step_size_multiplier,
+      const PointCloudVoxelizationFilterOptions& filter_options,
+      const std::vector<PointCloudWrapperPtr>& pointclouds) const = 0;
 };
 }
 }

@@ -15,21 +15,23 @@
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
 using voxelized_geometry_tools::pointcloud_voxelization
-    ::CpuPointcloudVoxelizer;
+    ::CpuPointCloudVoxelizer;
 using voxelized_geometry_tools::pointcloud_voxelization
-    ::CudaPointcloudVoxelizer;
+    ::CudaPointCloudVoxelizer;
 using voxelized_geometry_tools::pointcloud_voxelization
-    ::OpenCLPointcloudVoxelizer;
+    ::OpenCLPointCloudVoxelizer;
 using voxelized_geometry_tools::pointcloud_voxelization
-    ::PointcloudVoxelizationFilterOptions;
+    ::PointCloudVoxelizationFilterOptions;
 using voxelized_geometry_tools::pointcloud_voxelization
-    ::PointcloudVoxelizationInterface;
-using voxelized_geometry_tools::pointcloud_voxelization::PointcloudWrapper;
-using voxelized_geometry_tools::pointcloud_voxelization::PointcloudWrapperPtr;
+    ::PointCloudVoxelizationInterface;
+using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapper;
+using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapperPtr;
 
-class VectorVector3dPointcloudWrapper : public PointcloudWrapper
+class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 {
 public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
   void SetOriginTransform(const Eigen::Isometry3d& origin_transform)
   {
     origin_transform_ = origin_transform;
@@ -42,7 +44,7 @@ public:
 
   int64_t Size() const override { return static_cast<int64_t>(points_.size()); }
 
-  const Eigen::Isometry3d& GetPointcloudOriginTransform() const override
+  const Eigen::Isometry3d& GetPointCloudOriginTransform() const override
   {
     return origin_transform_;
   }
@@ -157,6 +159,7 @@ void test_pointcloud_voxelization(
   const double z_size = 2.0;
   // 1/4 meter resolution, so 8 cells/axis
   const double grid_resolution = 0.25;
+  const double step_size_multiplier = 0.5;
   const voxelized_geometry_tools::CollisionCell default_cell(0.0f);
   const common_robotics_utilities::voxel_grid::GridSizes grid_size(
     grid_resolution, x_size, y_size, z_size);
@@ -179,15 +182,15 @@ void test_pointcloud_voxelization(
   // Camera 1 pose
   const Eigen::Isometry3d X_WC1(Eigen::Translation3d(-2.0, 0.0, 0.0));
   const Eigen::Isometry3d X_WC1O = X_WC1 * X_CO;
-  PointcloudWrapperPtr cam1_cloud(new VectorVector3dPointcloudWrapper());
-  static_cast<VectorVector3dPointcloudWrapper*>(cam1_cloud.get())
+  PointCloudWrapperPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
+  static_cast<VectorVector3dPointCloudWrapper*>(cam1_cloud.get())
       ->SetOriginTransform(X_WC1O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
   {
     for (double y = -2.0; y <= 2.0; y += 0.03125)
     {
       const double z = (x <= 0.0) ? 2.125 : 4.0;
-      static_cast<VectorVector3dPointcloudWrapper*>(cam1_cloud.get())->PushBack(
+      static_cast<VectorVector3dPointCloudWrapper*>(cam1_cloud.get())->PushBack(
           Eigen::Vector3d(x, y, z));
     }
   }
@@ -195,15 +198,15 @@ void test_pointcloud_voxelization(
   const Eigen::Isometry3d X_WC2 = Eigen::Translation3d(0.0, -2.0, 0.0) *
       Eigen::Quaterniond(Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()));
   const Eigen::Isometry3d X_WC2O = X_WC2 * X_CO;
-  PointcloudWrapperPtr cam2_cloud(new VectorVector3dPointcloudWrapper());
-  static_cast<VectorVector3dPointcloudWrapper*>(cam2_cloud.get())
+  PointCloudWrapperPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
+  static_cast<VectorVector3dPointCloudWrapper*>(cam2_cloud.get())
       ->SetOriginTransform(X_WC2O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
   {
     for (double y = -2.0; y <= 2.0; y += 0.03125)
     {
       const double z = (x >= 0.0) ? 2.125 : 4.0;
-      static_cast<VectorVector3dPointcloudWrapper*>(cam2_cloud.get())->PushBack(
+      static_cast<VectorVector3dPointCloudWrapper*>(cam2_cloud.get())->PushBack(
           Eigen::Vector3d(x, y, z));
     }
   }
@@ -215,7 +218,7 @@ void test_pointcloud_voxelization(
   const int32_t outlier_points_threshold = 1;
   // We only need one camera to see a voxel as free.
   const int32_t num_cameras_seen_free = 1;
-  const PointcloudVoxelizationFilterOptions filter_options(
+  const PointCloudVoxelizationFilterOptions filter_options(
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
   // Voxelize them
   visualization_msgs::MarkerArray display_markers;
@@ -233,11 +236,12 @@ void test_pointcloud_voxelization(
               0.0, 0.0, 0.25, 0.5);
   try
   {
-    std::cout << "Trying CUDA Pointcloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointcloudVoxelizationInterface> voxelizer(
-        new CudaPointcloudVoxelizer());
-    const auto cuda_voxelized = voxelizer->VoxelizePointclouds(
-        static_environment, filter_options, {cam1_cloud, cam2_cloud});
+    std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
+    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
+        new CudaPointCloudVoxelizer());
+    const auto cuda_voxelized = voxelizer->VoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options,
+        {cam1_cloud, cam2_cloud});
     check_voxelization(cuda_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface
@@ -257,11 +261,12 @@ void test_pointcloud_voxelization(
   }
   try
   {
-    std::cout << "Trying OpenCL Pointcloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointcloudVoxelizationInterface> voxelizer(
-        new OpenCLPointcloudVoxelizer());
-    const auto opencl_voxelized = voxelizer->VoxelizePointclouds(
-        static_environment, filter_options, {cam1_cloud, cam2_cloud});
+    std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
+    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
+        new OpenCLPointCloudVoxelizer());
+    const auto opencl_voxelized = voxelizer->VoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options,
+        {cam1_cloud, cam2_cloud});
     check_voxelization(opencl_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface
@@ -281,11 +286,12 @@ void test_pointcloud_voxelization(
   }
   try
   {
-    std::cout << "Trying CPU Pointcloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointcloudVoxelizationInterface> voxelizer(
-        new CpuPointcloudVoxelizer());
-    const auto cpu_voxelized = voxelizer->VoxelizePointclouds(
-        static_environment, filter_options, {cam1_cloud, cam2_cloud});
+    std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
+    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
+        new CpuPointCloudVoxelizer());
+    const auto cpu_voxelized = voxelizer->VoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options,
+        {cam1_cloud, cam2_cloud});
     check_voxelization(cpu_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface
@@ -301,7 +307,7 @@ void test_pointcloud_voxelization(
   }
   catch (std::runtime_error&)
   {
-    throw std::runtime_error("CPU Pointcloud Voxelizer is not available");
+    throw std::runtime_error("CPU PointCloud Voxelizer is not available");
   }
   // Draw the results
   display_fn(display_markers);
@@ -319,7 +325,11 @@ int main(int argc, char** argv)
   {
     display_pub.publish(markers);
   };
-  test_pointcloud_voxelization(display_fn);
-  ros::spin();
+  const int32_t max_iterations = 100;
+  for (int32_t iter = 0; iter < max_iterations; iter++)
+  {
+    test_pointcloud_voxelization(display_fn);
+  }
   return 0;
 }
+

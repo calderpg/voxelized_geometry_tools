@@ -18,5 +18,5 @@ enum class VoxelizerOptions : uint8_t { BEST_AVAILABLE = 0x00,
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakePointCloudVoxelizer(const VoxelizerOptions option);
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

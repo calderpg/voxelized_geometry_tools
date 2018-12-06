@@ -28,5 +28,5 @@ public:
 private:
   std::unique_ptr<opencl_helpers::OpenCLVoxelizationHelperInterface> interface_;
 };
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

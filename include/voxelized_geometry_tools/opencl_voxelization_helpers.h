@@ -49,6 +49,6 @@ public:
 };
 
 OpenCLVoxelizationHelperInterface* MakeHelperInterface();
-}
-}
-}
+}  // namespace opencl_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

@@ -2,8 +2,8 @@
 
 #include <cmath>
 #include <cstdint>
-#include <memory>
 #include <iostream>
+#include <memory>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -222,6 +222,7 @@ public:
         queue_ = std::unique_ptr<cl::CommandQueue>(
             new cl::CommandQueue(*context_, default_device));
         // Make kernel programs
+        const std::string build_options = "-Werror -cl-fast-relaxed-math";
         cl::Program::Sources raycasting_sources;
         const std::string raycasting_kernel_source = GetRaycastingKernelCode();
         raycasting_sources.push_back({raycasting_kernel_source.c_str(),
@@ -234,7 +235,8 @@ public:
                                   filter_kernel_source.length()});
         filter_program_ = std::unique_ptr<cl::Program>(
             new cl::Program(*context_, filter_sources));
-        if (raycasting_program_->build({default_device}) != CL_SUCCESS)
+        if (raycasting_program_->build({default_device}, build_options.c_str())
+            != CL_SUCCESS)
         {
           std::cerr << " Error building raycasting kernel: "
                     << raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
@@ -242,7 +244,8 @@ public:
                     << std::endl;
           raycasting_program_.reset();
         }
-        if (filter_program_->build({default_device}) != CL_SUCCESS)
+        if (filter_program_->build({default_device}, build_options.c_str())
+            != CL_SUCCESS)
         {
           std::cerr << " Error building filter kernel: "
                     << filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
@@ -464,7 +467,7 @@ OpenCLVoxelizationHelperInterface* MakeHelperInterface()
 {
   return new RealOpenCLVoxelizationHelperInterface();
 }
-}
-}
-}
+}  // namespace opencl_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools
 

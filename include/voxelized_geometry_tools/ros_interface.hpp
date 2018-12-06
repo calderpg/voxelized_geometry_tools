@@ -93,11 +93,11 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline visualization_msgs::Marker ExportVoxelGridSurfaceToRViz(
+inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& voxel_grid,
     const std::unordered_map<
-        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& surface,
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std::string& frame,
     const std::function<std_msgs::ColorRGBA(
         const T&, const common_robotics_utilities
@@ -120,7 +120,7 @@ inline visualization_msgs::Marker ExportVoxelGridSurfaceToRViz(
   display_rep.scale
       = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
           voxel_grid.GetCellSizes());
-  for (auto surface_itr = surface.begin(); surface_itr != surface.end();
+  for (auto surface_itr = index_map.begin(); surface_itr != index_map.end();
        ++surface_itr)
   {
     const GridIndex& index = surface_itr->first;
@@ -412,11 +412,13 @@ visualization_msgs::Marker ExportConnectedComponentsForDisplay(
     const CollisionMap& collision_map,
     const bool color_unknown_components);
 
-visualization_msgs::Marker ExportSurfaceForDisplay(
+visualization_msgs::Marker ExportIndexMapForDisplay(
     const CollisionMap& collision_map,
     const std::unordered_map<
-        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& surface,
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std_msgs::ColorRGBA& surface_color);
+
+/// Convert CollisionMap to and from ROS messages.
 
 CollisionMapMessage GetMessageRepresentation(const CollisionMap& map);
 
@@ -486,11 +488,13 @@ visualization_msgs::Marker ExportSpatialSegmentForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const uint32_t object_id, const uint32_t spatial_segment);
 
-visualization_msgs::Marker ExportSurfaceForDisplay(
+visualization_msgs::Marker ExportIndexMapForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::unordered_map<
-        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& surface,
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std_msgs::ColorRGBA& surface_color);
+
+/// Convert TaggedObjectCollisionMap to and from ROS messages.
 
 TaggedObjectCollisionMapMessage GetMessageRepresentation(
     const TaggedObjectCollisionMap& map);

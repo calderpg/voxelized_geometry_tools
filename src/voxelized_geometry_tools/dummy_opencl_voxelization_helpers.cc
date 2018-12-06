@@ -45,6 +45,6 @@ OpenCLVoxelizationHelperInterface* MakeHelperInterface()
 {
   return new DummyOpenCLVoxelizationHelperInterface();
 }
-}
-}
-}
+}  // namespace opencl_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

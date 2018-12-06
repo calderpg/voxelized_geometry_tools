@@ -24,5 +24,5 @@ public:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperPtr>& pointclouds) const override;
 };
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

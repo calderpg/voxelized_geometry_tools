@@ -126,9 +126,9 @@ CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
   }
   else
   {
-    throw std::runtime_error("OpenCLPointcloudVoxelizer not available");
+    throw std::runtime_error("OpenCLPointCloudVoxelizer not available");
   }
 }
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools
 

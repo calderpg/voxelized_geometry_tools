@@ -144,7 +144,6 @@ CpuPointCloudVoxelizer::CombineAndFilterGrids(
     const std::vector<CpuVoxelizationTrackingGrid>& tracking_grids) const
 {
   CollisionMap filtered_grid = static_environment;
-  // Don't parallelize this, it results in significantly higher runtime!
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
@@ -196,5 +195,5 @@ CpuPointCloudVoxelizer::CombineAndFilterGrids(
   }
   return filtered_grid;
 }
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

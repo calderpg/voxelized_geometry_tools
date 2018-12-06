@@ -38,6 +38,6 @@ void RetrieveFilteredGrid(const int64_t, const float* const, void*) {}
 
 void CleanupDeviceMemory(
     const int32_t, float* const*, const int32_t, int32_t* const*, float*) {}
-}
-}
-}
+}  // namespace cuda_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

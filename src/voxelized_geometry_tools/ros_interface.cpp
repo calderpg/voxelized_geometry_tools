@@ -182,10 +182,10 @@ visualization_msgs::Marker ExportConnectedComponentsForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportSurfaceForDisplay(
+visualization_msgs::Marker ExportIndexMapForDisplay(
     const CollisionMap& collision_map,
     const std::unordered_map<
-        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& surface,
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std_msgs::ColorRGBA& surface_color)
 {
   const auto color_fn
@@ -194,8 +194,8 @@ visualization_msgs::Marker ExportSurfaceForDisplay(
   {
     return surface_color;
   };
-  auto display_rep = ExportVoxelGridSurfaceToRViz<CollisionCell>(
-      collision_map, surface, collision_map.GetFrame(), color_fn);
+  auto display_rep = ExportVoxelGridIndexMapToRViz<CollisionCell>(
+      collision_map, index_map, collision_map.GetFrame(), color_fn);
   display_rep.ns = "collision_map_surface";
   display_rep.id = 1;
   return display_rep;
@@ -624,10 +624,10 @@ visualization_msgs::Marker ExportSpatialSegmentForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportSurfaceForDisplay(
+visualization_msgs::Marker ExportIndexMapForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::unordered_map<
-        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& surface,
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std_msgs::ColorRGBA& surface_color)
 {
   const auto color_fn
@@ -636,8 +636,8 @@ visualization_msgs::Marker ExportSurfaceForDisplay(
   {
     return surface_color;
   };
-  auto display_rep = ExportVoxelGridSurfaceToRViz<TaggedObjectCollisionCell>(
-      collision_map, surface, collision_map.GetFrame(), color_fn);
+  auto display_rep = ExportVoxelGridIndexMapToRViz<TaggedObjectCollisionCell>(
+      collision_map, index_map, collision_map.GetFrame(), color_fn);
   display_rep.ns = "tagged_object_collision_map_surface";
   display_rep.id = 1;
   return display_rep;

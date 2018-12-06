@@ -125,5 +125,5 @@ public:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperPtr>& pointclouds) const = 0;
 };
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

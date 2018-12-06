@@ -44,6 +44,6 @@ void CleanupDeviceMemory(
     const int32_t num_device_pointclouds, float* const* device_pointcloud_ptrs,
     const int32_t num_device_tracking_grids,
     int32_t* const* device_tracking_grid_ptrs, float* device_filter_grid_ptr);
-}
-}
-}
+}  // namespace cuda_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

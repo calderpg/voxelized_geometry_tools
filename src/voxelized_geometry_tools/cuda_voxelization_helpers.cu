@@ -361,6 +361,6 @@ void CleanupDeviceMemory(
   cudaFree(device_filter_grid_ptr);
   CudaCheckErrors("Failed to free device filter grid");
 }
-}
-}
-}
+}  // namespace cuda_helpers
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

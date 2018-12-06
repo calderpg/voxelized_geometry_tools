@@ -96,8 +96,7 @@ void check_equal(const float v1, const float v2)
   {
     const std::string msg =
         std::to_string(v1) + " does not equal " + std::to_string(v2);
-    std::cerr << msg << std::endl;
-//    throw std::runtime_error(msg);
+    throw std::runtime_error(msg);
   }
 }
 

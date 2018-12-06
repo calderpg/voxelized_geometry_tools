@@ -79,5 +79,5 @@ private:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<CpuVoxelizationTrackingGrid>& tracking_grids) const;
 };
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

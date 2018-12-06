@@ -80,5 +80,5 @@ MakePointCloudVoxelizer(const VoxelizerOptions option)
     throw std::invalid_argument("Invalid VoxelizerOptions");
   }
 }
-}
-}
+}  // namespace pointcloud_voxelization
+}  // namespace voxelized_geometry_tools

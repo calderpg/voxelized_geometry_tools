@@ -21,12 +21,13 @@ public:
   virtual std::vector<int64_t> PrepareTrackingGrids(
       const int64_t num_cells, const int32_t num_grids) = 0;
 
-  virtual bool RaycastPoints(
+  virtual void RaycastPoints(
       const std::vector<float>& raw_points,
       const Eigen::Isometry3f& pointcloud_origin_transform,
       const Eigen::Isometry3f& inverse_grid_origin_transform,
-      const float inverse_cell_size, const int32_t num_x_cells,
-      const int32_t num_y_cells, const int32_t num_z_cells,
+      const float inverse_step_size, const float inverse_cell_size,
+      const int32_t num_x_cells, const int32_t num_y_cells,
+      const int32_t num_z_cells,
       const int64_t tracking_grid_starting_offset) = 0;
 
   virtual bool PrepareFilterGrid(

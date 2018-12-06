@@ -23,10 +23,10 @@ public:
     return std::vector<int64_t>();
   }
 
-  bool RaycastPoints(
+  void RaycastPoints(
       const std::vector<float>&, const Eigen::Isometry3f&,
-      const Eigen::Isometry3f&, const float, const int32_t, const int32_t,
-      const int32_t, const int64_t) override {}
+      const Eigen::Isometry3f&, const float, const float, const int32_t,
+      const int32_t, const int32_t, const int64_t) override {}
 
   bool PrepareFilterGrid(const int64_t, const void*) override { return false; }
 

@@ -283,7 +283,7 @@ float* PrepareFilterGrid(const int64_t num_cells, const void* host_data_ptr)
   float* device_filter_grid_ptr = nullptr;
   cudaMalloc(&device_filter_grid_ptr, filter_grid_size);
   CudaCheckErrors("Failed to allocate device filter grid");
-  cudaMemcpy(device_filter_grid_ptr, host_data_ptr, filter_grid_size, 
+  cudaMemcpy(device_filter_grid_ptr, host_data_ptr, filter_grid_size,
              cudaMemcpyHostToDevice);
   CudaCheckErrors("Failed to memcpy the static environment to the device");
   return device_filter_grid_ptr;

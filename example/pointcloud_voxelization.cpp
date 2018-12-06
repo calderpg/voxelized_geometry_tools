@@ -317,6 +317,7 @@ int main(int argc, char** argv)
 {
   ros::init(argc, argv, "pointcloud_voxelization_test");
   ros::NodeHandle nh;
+  ros::NodeHandle nhp("~");
   ros::Publisher display_pub
       = nh.advertise<visualization_msgs::MarkerArray>(
           "pointcloud_occupancy", 1, true);
@@ -325,8 +326,8 @@ int main(int argc, char** argv)
   {
     display_pub.publish(markers);
   };
-  const int32_t max_iterations = 100;
-  for (int32_t iter = 0; iter < max_iterations; iter++)
+  const int32_t iterations = nhp.param(std::string("iterations"), 1);
+  for (int32_t iter = 0; iter < iterations; iter++)
   {
     test_pointcloud_voxelization(display_fn);
   }

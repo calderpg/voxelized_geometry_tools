@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp
 find_package(Eigen3 REQUIRED)
 set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 find_package(OpenMP)
+find_package(CUDA)
+find_package(OpenCL)
 
 #######################################
 ## Declare ROS messages and services ##
@@ -41,6 +43,8 @@ catkin_package(INCLUDE_DIRS
                include
                LIBRARIES
                ${PROJECT_NAME}
+               ${PROJECT_NAME}_pointcloud_voxelization
+               ${PROJECT_NAME}_ros_interface
                CATKIN_DEPENDS
                roscpp
                std_msgs
@@ -96,6 +100,59 @@ add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS}
                                  ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
+# Cuda voxelization helpers library
+if(CUDA_FOUND)
+    message(STATUS "CUDA found. Building CUDA voxelization helpers")
+    include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -use_fast_math")
+    set(CUDA_NVCC_FLAGS
+        "${CUDA_NVCC_FLAGS} -Xcompiler -D__CORRECT_ISO_CPP11_MATH_H_PROTO")
+    cuda_add_library(${PROJECT_NAME}_cuda_voxelization_helpers
+                     include/${PROJECT_NAME}/cuda_voxelization_helpers.h
+                     src/${PROJECT_NAME}/cuda_voxelization_helpers.cu)
+    target_link_libraries(${PROJECT_NAME}_cuda_voxelization_helpers
+                          cuda ${CUDA_LIBRARIES})
+else()
+    message(WARNING "CUDA not found. Building stubs for CUDA helpers.")
+    add_library(${PROJECT_NAME}_cuda_voxelization_helpers
+                include/${PROJECT_NAME}/cuda_voxelization_helpers.h
+                src/${PROJECT_NAME}/dummy_cuda_voxelization_helpers.cc)
+endif()
+
+# OpenCL voxelization helpers library
+if(OpenCL_FOUND)
+    message(STATUS "OpenCL found. Building OpenCL voxelization helpers")
+    include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
+    add_library(${PROJECT_NAME}_opencl_voxelization_helpers
+                include/${PROJECT_NAME}/opencl_voxelization_helpers.h
+                src/${PROJECT_NAME}/opencl_voxelization_helpers.cc)
+    target_link_libraries(${PROJECT_NAME}_opencl_voxelization_helpers
+                          ${OpenCL_LIBRARIES})
+else()
+    message(WARNING "OpenCL not found. Building stubs for OpenCL helpers.")
+    add_library(${PROJECT_NAME}_opencl_voxelization_helpers
+                include/${PROJECT_NAME}/opencl_voxelization_helpers.h
+                src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
+endif()
+
+# Pointcloud voxelization
+add_library(${PROJECT_NAME}_pointcloud_voxelization
+            include/${PROJECT_NAME}/cpu_pointcloud_voxelization.hpp
+            include/${PROJECT_NAME}/cuda_pointcloud_voxelization.hpp
+            include/${PROJECT_NAME}/opencl_pointcloud_voxelization.hpp
+            include/${PROJECT_NAME}/pointcloud_voxelization_interface.hpp
+            include/${PROJECT_NAME}/pointcloud_voxelization.hpp
+            src/${PROJECT_NAME}/cpu_pointcloud_voxelization.cpp
+            src/${PROJECT_NAME}/cuda_pointcloud_voxelization.cpp
+            src/${PROJECT_NAME}/opencl_pointcloud_voxelization.cpp
+            src/${PROJECT_NAME}/pointcloud_voxelization.cpp)
+add_dependencies(${PROJECT_NAME}_pointcloud_voxelization
+                 ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization
+                      ${PROJECT_NAME}_cuda_voxelization_helpers
+                      ${PROJECT_NAME}_opencl_voxelization_helpers
+                      ${PROJECT_NAME} ${catkin_LIBRARIES})
+
 # ROS interface library
 add_library(${PROJECT_NAME}_ros_interface
             include/${PROJECT_NAME}/ros_interface.hpp
@@ -124,19 +181,31 @@ add_dependencies(spatial_segments
 target_link_libraries(spatial_segments
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
 
+add_executable(pointcloud_voxelization example/pointcloud_voxelization.cpp)
+add_dependencies(pointcloud_voxelization
+    ${PROJECT_NAME}_pointcloud_voxelization ${PROJECT_NAME}
+    ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(pointcloud_voxelization
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
+    ${PROJECT_NAME} ${catkin_LIBRARIES})
+
 #############
 ## Install ##
 #############
 
 ## Mark library for installation
-install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_ros_interface
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+install(TARGETS ${PROJECT_NAME}
+                ${PROJECT_NAME}_cuda_voxelization_helpers
+                ${PROJECT_NAME}_opencl_voxelization_helpers
+                ${PROJECT_NAME}_pointcloud_voxelization
+                ${PROJECT_NAME}_ros_interface
+    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 ## Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-  FILES_MATCHING PATTERN "*.hpp"
-  PATTERN ".svn" EXCLUDE
+    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    FILES_MATCHING PATTERN "*.hpp"
+    PATTERN ".svn" EXCLUDE
 )

@@ -21,9 +21,11 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-CudaPointCloudVoxelizer::CudaPointCloudVoxelizer()
+CudaPointCloudVoxelizer::CudaPointCloudVoxelizer(
+    const std::map<std::string, int32_t>& options)
+    : interface_(cuda_helpers::MakeHelperInterface(options))
 {
-  if (!cuda_helpers::IsAvailable())
+  if (!interface_->IsAvailable())
   {
     throw std::runtime_error("CudaPointCloudVoxelizer not available");
   }
@@ -42,51 +44,18 @@ CollisionMap CudaPointCloudVoxelizer::VoxelizePointClouds(
   {
     throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
   }
-  if (cuda_helpers::IsAvailable())
+  if (interface_->IsAvailable())
   {
     const std::chrono::time_point<std::chrono::steady_clock> start_time =
         std::chrono::steady_clock::now();
-    // Prepare and copy over pointclouds to the device
-    std::vector<float*> device_pointcloud_ptrs(pointclouds.size(), nullptr);
-#pragma omp parallel for
-    for (size_t idx = 0; idx < pointclouds.size(); idx++)
-    {
-      const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
-      // Copy pointcloud
-      std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
-      for (int64_t point = 0; point < pointcloud->Size(); point++)
-      {
-        pointcloud->CopyPointLocationIntoVectorFloat(
-            point, raw_points, point * 3);
-      }
-      auto device_pointcloud_ptr =
-          cuda_helpers::PreparePointCloud(
-              static_cast<int32_t>(pointcloud->Size()), raw_points.data());
-      if (device_pointcloud_ptr != nullptr)
-      {
-        device_pointcloud_ptrs[idx] = device_pointcloud_ptr;
-      }
-      else
-      {
-        throw std::runtime_error("Failed to allocate device pointcloud");
-      }
-    }
     // Allocate device-side memory for tracking grids
-    const int32_t num_tracking_grids = static_cast<int32_t>(pointclouds.size());
-    std::vector<int32_t*> device_tracking_grid_ptrs(
-        pointclouds.size(), nullptr);
-    for (size_t idx = 0; idx < pointclouds.size(); idx++)
+    const std::vector<int64_t> device_tracking_grid_offsets =
+        interface_->PrepareTrackingGrids(
+            static_environment.GetTotalCells(),
+            static_cast<int32_t>(pointclouds.size()));
+    if (device_tracking_grid_offsets.size() != pointclouds.size())
     {
-      auto device_tracking_grid_ptr =
-          cuda_helpers::PrepareTrackingGrid(static_environment.GetTotalCells());
-      if (device_tracking_grid_ptr != nullptr)
-      {
-        device_tracking_grid_ptrs[idx] = device_tracking_grid_ptr;
-      }
-      else
-      {
-        throw std::runtime_error("Failed to allocate device tracking grid");
-      }
+      throw std::runtime_error("Failed to allocate device tracking grid");
     }
     // Prepare grid data
     const Eigen::Isometry3f inverse_grid_origin_transform_float =
@@ -102,23 +71,25 @@ CollisionMap CudaPointCloudVoxelizer::VoxelizePointClouds(
         static_cast<int32_t>(static_environment.GetNumYCells());
     const int32_t num_z_cells =
         static_cast<int32_t>(static_environment.GetNumZCells());
-    const std::chrono::time_point<std::chrono::steady_clock> prepared_time =
-        std::chrono::steady_clock::now();
     // Do raycasting of the pointclouds
-#pragma omp parallel for
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
       const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
       const Eigen::Isometry3f pointcloud_origin_transform_float =
           pointcloud->GetPointCloudOriginTransform().cast<float>();
+      // Copy pointcloud
+      std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
+      for (int64_t point = 0; point < pointcloud->Size(); point++)
+      {
+        pointcloud->CopyPointLocationIntoVectorFloat(
+            point, raw_points, point * 3);
+      }
       // Raycast
-      cuda_helpers::RaycastPoints(
-          device_pointcloud_ptrs.at(idx),
-          static_cast<int32_t>(pointcloud->Size()),
-          pointcloud_origin_transform_float.data(),
+      interface_->RaycastPoints(
+          raw_points, pointcloud_origin_transform_float.data(),
           inverse_grid_origin_transform_float.data(), inverse_step_size,
           inverse_cell_size, num_x_cells, num_y_cells, num_z_cells,
-          device_tracking_grid_ptrs.at(idx));
+          device_tracking_grid_offsets.at(idx));
     }
     const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
         std::chrono::steady_clock::now();
@@ -129,35 +100,25 @@ CollisionMap CudaPointCloudVoxelizer::VoxelizePointClouds(
         filter_options.OutlierPointsThreshold();
     const int32_t num_cameras_seen_free =
         filter_options.NumCamerasSeenFree();
-    auto device_filter_grid_ptr =
-        cuda_helpers::PrepareFilterGrid(
-            static_environment.GetTotalCells(),
-            static_environment.GetImmutableRawData().data());
-    if (device_filter_grid_ptr == nullptr)
-    {
-      throw std::runtime_error("Failed to allocate device filter grid");
-    }
-    cuda_helpers::FilterTrackingGrids(
-        static_environment.GetTotalCells(), num_tracking_grids,
-        device_tracking_grid_ptrs.data(), device_filter_grid_ptr,
-        percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
+    interface_->PrepareFilterGrid(
+        static_environment.GetTotalCells(),
+        static_environment.GetImmutableRawData().data());
+    interface_->FilterTrackingGrids(
+        static_environment.GetTotalCells(),
+        static_cast<int32_t>(pointclouds.size()), percent_seen_free,
+        outlier_points_threshold, num_cameras_seen_free);
     // Retrieve & return
     CollisionMap filtered_grid = static_environment;
-    cuda_helpers::RetrieveFilteredGrid(
-        static_environment.GetTotalCells(), device_filter_grid_ptr,
+    interface_->RetrieveFilteredGrid(
+        static_environment.GetTotalCells(),
         filtered_grid.GetMutableRawData().data());
     // Cleanup device memory
-    cuda_helpers::CleanupDeviceMemory(
-        num_tracking_grids, device_pointcloud_ptrs.data(),
-        num_tracking_grids, device_tracking_grid_ptrs.data(),
-        device_filter_grid_ptr);
+    interface_->CleanupAllocatedMemory();
     const std::chrono::time_point<std::chrono::steady_clock> done_time =
         std::chrono::steady_clock::now();
     std::cout
-        << "Preparation time "
-        << std::chrono::duration<double>(prepared_time - start_time).count()
-        << ", raycasting time "
-        << std::chrono::duration<double>(raycasted_time - prepared_time).count()
+        << "Raycasting time "
+        << std::chrono::duration<double>(raycasted_time - start_time).count()
         << ", filtering time "
         << std::chrono::duration<double>(done_time - raycasted_time).count()
         << std::endl;

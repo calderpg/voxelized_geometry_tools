@@ -14,7 +14,8 @@ namespace voxelized_geometry_tools
 namespace pointcloud_voxelization
 {
 std::unique_ptr<PointCloudVoxelizationInterface>
-MakeBestAvailablePointCloudVoxelizer()
+MakeBestAvailablePointCloudVoxelizer(
+    const std::map<std::string, int32_t>& options)
 {
   // Since not all voxelizers will be available on all platforms, we try them
   // in order of preference. If available (i.e. on NVIDIA platforms), CUDA is
@@ -25,7 +26,7 @@ MakeBestAvailablePointCloudVoxelizer()
   {
     std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer());
+        new CudaPointCloudVoxelizer(options));
   }
   catch (std::runtime_error&)
   {
@@ -35,7 +36,7 @@ MakeBestAvailablePointCloudVoxelizer()
   {
     std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer());
+        new OpenCLPointCloudVoxelizer(options));
   }
   catch (std::runtime_error&)
   {
@@ -54,26 +55,28 @@ MakeBestAvailablePointCloudVoxelizer()
 }
 
 std::unique_ptr<PointCloudVoxelizationInterface>
-MakePointCloudVoxelizer(const VoxelizerOptions option)
+MakePointCloudVoxelizer(
+    const VoxelizerOptions voxelizer,
+    const std::map<std::string, int32_t>& options)
 {
-  if (option == VoxelizerOptions::BEST_AVAILABLE)
+  if (voxelizer == VoxelizerOptions::BEST_AVAILABLE)
   {
-    return MakeBestAvailablePointCloudVoxelizer();
+    return MakeBestAvailablePointCloudVoxelizer(options);
   }
-  else if (option == VoxelizerOptions::CPU)
+  else if (voxelizer == VoxelizerOptions::CPU)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new CpuPointCloudVoxelizer());
   }
-  else if (option == VoxelizerOptions::OPENCL)
+  else if (voxelizer == VoxelizerOptions::OPENCL)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer());
+        new OpenCLPointCloudVoxelizer(options));
   }
-  else if (option == VoxelizerOptions::CUDA)
+  else if (voxelizer == VoxelizerOptions::CUDA)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer());
+        new CudaPointCloudVoxelizer(options));
   }
   else
   {

@@ -3,7 +3,9 @@
 #include <cmath>
 #include <cstdint>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -200,22 +202,49 @@ static std::string GetFilterKernelCode()
   return kernel_code;
 }
 
+int32_t RetrieveOptionOrDefault(
+    const std::map<std::string, int32_t>& options, const std::string& option,
+    const int32_t default_value)
+{
+  auto found_itr = options.find(option);
+  if (found_itr != options.end())
+  {
+    const int32_t value = found_itr->second;
+    std::cout << "Option [" << option << "] found with value [" << value << "]"
+              << std::endl;
+    return value;
+  }
+  else
+  {
+    std::cout << "Option [" << option << "] not found, default ["
+              << default_value << "]" << std::endl;
+    return default_value;
+  }
+}
+
 class RealOpenCLVoxelizationHelperInterface
     : public OpenCLVoxelizationHelperInterface
 {
 public:
-  RealOpenCLVoxelizationHelperInterface()
+  RealOpenCLVoxelizationHelperInterface(
+      const std::map<std::string, int32_t>& options)
   {
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
-    if (all_platforms.size() > 0)
+    const int32_t platform_index =
+        RetrieveOptionOrDefault(options, "OPENCL_PLATFORM_INDEX", 0);
+    if (all_platforms.size() > 0 && platform_index >= 0
+        && platform_index < static_cast<int32_t>(all_platforms.size()))
     {
-      auto& default_platform = all_platforms.front();
+      auto& default_platform = all_platforms.at(platform_index);
       std::vector<cl::Device> all_devices;
       default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-      if (all_devices.size() > 0)
+      const int32_t device_index =
+          RetrieveOptionOrDefault(options, "OPENCL_DEVICE_INDEX", 0);
+      if (all_devices.size() > 0 && device_index >= 0
+          && device_index < static_cast<int32_t>(all_devices.size()))
       {
-        auto& default_device = all_devices.front();
+        auto& default_device = all_devices.at(device_index);
         // Make context + queue
         context_ = std::unique_ptr<cl::Context>(
             new cl::Context({default_device}));
@@ -254,10 +283,27 @@ public:
           filter_program_.reset();
         }
       }
+      else if (all_devices.size() > 0
+               && (device_index < 0
+                   || device_index >= static_cast<int32_t>(all_devices.size())))
+      {
+        std::cerr << "OPENCL_DEVICE_INDEX = " << device_index
+                  << " out of range for " << all_devices.size() << " devices"
+                  << std::endl;
+      }
       else
       {
         std::cerr << "No OpenCL device available" << std::endl;
       }
+    }
+    else if (all_platforms.size() > 0
+             && (platform_index < 0
+                 || platform_index
+                     >= static_cast<int32_t>(all_platforms.size())))
+    {
+      std::cerr << "OPENCL_PLATFORM_INDEX = " << platform_index
+                << " out of range for " << all_platforms.size() << " platforms"
+                << std::endl;
     }
     else
     {
@@ -376,18 +422,14 @@ public:
     }
   }
 
-  bool PrepareFilterGrid(
+  void PrepareFilterGrid(
       const int64_t num_cells, const void* host_data_ptr) override
   {
     cl_int err = 0;
     device_filter_grid_buffer_ = std::unique_ptr<cl::Buffer>(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * num_cells * 2, const_cast<void*>(host_data_ptr), &err));
-    if (err == CL_SUCCESS)
-    {
-      return true;
-    }
-    else
+    if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Failed to allocate and copy filtered buffer");
     }
@@ -463,9 +505,10 @@ private:
   std::unique_ptr<cl::Buffer> device_filter_grid_buffer_;
 };
 
-OpenCLVoxelizationHelperInterface* MakeHelperInterface()
+OpenCLVoxelizationHelperInterface* MakeHelperInterface(
+    const std::map<std::string, int32_t>& options)
 {
-  return new RealOpenCLVoxelizationHelperInterface();
+  return new RealOpenCLVoxelizationHelperInterface(options);
 }
 }  // namespace opencl_helpers
 }  // namespace pointcloud_voxelization

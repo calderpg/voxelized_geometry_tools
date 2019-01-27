@@ -2,8 +2,10 @@
 
 #include <atomic>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -18,7 +20,8 @@ namespace pointcloud_voxelization
 {
 class OpenCLPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
-  OpenCLPointCloudVoxelizer();
+  OpenCLPointCloudVoxelizer(
+      const std::map<std::string, int32_t>& options);
 
   voxelized_geometry_tools::CollisionMap VoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,

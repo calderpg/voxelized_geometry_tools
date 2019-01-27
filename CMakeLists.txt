@@ -112,6 +112,9 @@ if(CUDA_FOUND)
                      src/${PROJECT_NAME}/cuda_voxelization_helpers.cu)
     target_link_libraries(${PROJECT_NAME}_cuda_voxelization_helpers
                           cuda ${CUDA_LIBRARIES})
+    add_library(${PROJECT_NAME}_dummy_cuda_voxelization_helpers
+              include/${PROJECT_NAME}/cuda_voxelization_helpers.h
+              src/${PROJECT_NAME}/dummy_cuda_voxelization_helpers.cc)
 else()
     message(WARNING "CUDA not found. Building stubs for CUDA helpers.")
     add_library(${PROJECT_NAME}_cuda_voxelization_helpers
@@ -128,6 +131,9 @@ if(OpenCL_FOUND)
                 src/${PROJECT_NAME}/opencl_voxelization_helpers.cc)
     target_link_libraries(${PROJECT_NAME}_opencl_voxelization_helpers
                           ${OpenCL_LIBRARIES})
+    add_library(${PROJECT_NAME}_dummy_opencl_voxelization_helpers
+              include/${PROJECT_NAME}/opencl_voxelization_helpers.h
+              src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
 else()
     message(WARNING "OpenCL not found. Building stubs for OpenCL helpers.")
     add_library(${PROJECT_NAME}_opencl_voxelization_helpers

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -30,7 +32,7 @@ public:
       const int32_t num_z_cells,
       const int64_t tracking_grid_starting_offset) = 0;
 
-  virtual bool PrepareFilterGrid(
+  virtual void PrepareFilterGrid(
        const int64_t num_cells, const void* host_data_ptr) = 0;
 
   virtual void FilterTrackingGrids(
@@ -48,7 +50,8 @@ public:
   virtual void CleanupAllocatedMemory() = 0;
 };
 
-OpenCLVoxelizationHelperInterface* MakeHelperInterface();
+OpenCLVoxelizationHelperInterface* MakeHelperInterface(
+    const std::map<std::string, int32_t>& options);
 }  // namespace opencl_helpers
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

@@ -233,11 +233,13 @@ void test_pointcloud_voxelization(
       = common_robotics_utilities::color_builder
           ::MakeFromFloatColors<std_msgs::ColorRGBA>(
               0.0, 0.0, 0.25, 0.5);
+  // Voxelizer options (leave as default)
+  const std::map<std::string, int32_t> options;
   try
   {
     std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new CudaPointCloudVoxelizer());
+        new CudaPointCloudVoxelizer(options));
     const auto cuda_voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud});
@@ -262,7 +264,7 @@ void test_pointcloud_voxelization(
   {
     std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new OpenCLPointCloudVoxelizer());
+        new OpenCLPointCloudVoxelizer(options));
     const auto opencl_voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud});

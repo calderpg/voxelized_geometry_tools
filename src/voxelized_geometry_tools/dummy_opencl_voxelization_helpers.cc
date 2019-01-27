@@ -1,6 +1,8 @@
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
 
 #include <cstdint>
+#include <map>
+#include <string>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -28,7 +30,7 @@ public:
       const Eigen::Isometry3f&, const float, const float, const int32_t,
       const int32_t, const int32_t, const int64_t) override {}
 
-  bool PrepareFilterGrid(const int64_t, const void*) override { return false; }
+  void PrepareFilterGrid(const int64_t, const void*) override {}
 
   void FilterTrackingGrids(
        const int64_t, const int32_t, const float, const int32_t,
@@ -41,7 +43,8 @@ public:
   void CleanupAllocatedMemory() override {}
 };
 
-OpenCLVoxelizationHelperInterface* MakeHelperInterface()
+OpenCLVoxelizationHelperInterface* MakeHelperInterface(
+    const std::map<std::string, int32_t>&)
 {
   return new DummyOpenCLVoxelizationHelperInterface();
 }

@@ -294,6 +294,7 @@ public:
       const int32_t num_z_cells,
       const int64_t tracking_grid_starting_offset) override
   {
+    SetCudaDevice();
     const int32_t num_points = raw_points.size() / 3;
     // Copy the points
     const size_t points_size = sizeof(float) * raw_points.size();

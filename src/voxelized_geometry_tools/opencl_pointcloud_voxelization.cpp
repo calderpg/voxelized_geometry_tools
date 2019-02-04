@@ -71,6 +71,7 @@ CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
     const int32_t num_z_cells =
         static_cast<int32_t>(static_environment.GetNumZCells());
     // Do raycasting of the pointclouds
+#pragma omp parallel for
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
       const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);

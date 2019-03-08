@@ -201,6 +201,25 @@ visualization_msgs::Marker ExportIndexMapForDisplay(
   return display_rep;
 }
 
+visualization_msgs::Marker ExportIndicesForDisplay(
+    const CollisionMap& collision_map,
+    const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
+        indices,
+    const std_msgs::ColorRGBA& surface_color)
+{
+  const auto color_fn
+      = [&] (const CollisionCell&,
+             const common_robotics_utilities::voxel_grid::GridIndex&)
+  {
+    return surface_color;
+  };
+  auto display_rep = ExportVoxelGridIndicesToRViz<CollisionCell>(
+      collision_map, indices, collision_map.GetFrame(), color_fn);
+  display_rep.ns = "collision_map_surface";
+  display_rep.id = 1;
+  return display_rep;
+}
+
 CollisionMapMessage GetMessageRepresentation(const CollisionMap& map)
 {
   CollisionMapMessage map_message;
@@ -638,6 +657,25 @@ visualization_msgs::Marker ExportIndexMapForDisplay(
   };
   auto display_rep = ExportVoxelGridIndexMapToRViz<TaggedObjectCollisionCell>(
       collision_map, index_map, collision_map.GetFrame(), color_fn);
+  display_rep.ns = "tagged_object_collision_map_surface";
+  display_rep.id = 1;
+  return display_rep;
+}
+
+visualization_msgs::Marker ExportIndicesForDisplay(
+    const TaggedObjectCollisionMap& collision_map,
+    const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
+        indices,
+    const std_msgs::ColorRGBA& surface_color)
+{
+  const auto color_fn
+      = [&] (const TaggedObjectCollisionCell&,
+             const common_robotics_utilities::voxel_grid::GridIndex&)
+  {
+    return surface_color;
+  };
+  auto display_rep = ExportVoxelGridIndicesToRViz<TaggedObjectCollisionCell>(
+      collision_map, indices, collision_map.GetFrame(), color_fn);
   display_rep.ns = "tagged_object_collision_map_surface";
   display_rep.id = 1;
   return display_rep;

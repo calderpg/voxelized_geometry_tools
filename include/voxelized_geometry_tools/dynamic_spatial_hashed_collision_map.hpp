@@ -61,10 +61,12 @@ public:
 
   DynamicSpatialHashedCollisionMap(
       const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
-      const CollisionCell& default_value, const std::string& frame)
+      const CollisionCell& default_value, const size_t expected_chunks,
+      const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
           CollisionCell, std::vector<CollisionCell>>(
-              Eigen::Isometry3d::Identity(), chunk_sizes, default_value),
+              Eigen::Isometry3d::Identity(), chunk_sizes, default_value,
+              expected_chunks),
         frame_(frame)
   {
     if (!HasUniformCellSize())
@@ -77,10 +79,12 @@ public:
   DynamicSpatialHashedCollisionMap(
       const Eigen::Isometry3d& origin_transform,
       const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
-      const CollisionCell& default_value, const std::string& frame)
+      const CollisionCell& default_value, const size_t expected_chunks,
+      const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
           CollisionCell, std::vector<CollisionCell>>(
-              origin_transform, chunk_sizes, default_value), frame_(frame)
+              origin_transform, chunk_sizes, default_value, expected_chunks),
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {

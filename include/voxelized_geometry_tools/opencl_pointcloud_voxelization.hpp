@@ -20,7 +20,7 @@ namespace pointcloud_voxelization
 {
 class OpenCLPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
-  OpenCLPointCloudVoxelizer(
+  explicit OpenCLPointCloudVoxelizer(
       const std::map<std::string, int32_t>& options);
 
   voxelized_geometry_tools::CollisionMap VoxelizePointClouds(

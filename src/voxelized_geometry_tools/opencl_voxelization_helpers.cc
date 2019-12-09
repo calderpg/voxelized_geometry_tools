@@ -226,7 +226,7 @@ class RealOpenCLVoxelizationHelperInterface
     : public OpenCLVoxelizationHelperInterface
 {
 public:
-  RealOpenCLVoxelizationHelperInterface(
+  explicit RealOpenCLVoxelizationHelperInterface(
       const std::map<std::string, int32_t>& options)
   {
     std::vector<cl::Platform> all_platforms;
@@ -236,20 +236,20 @@ public:
     if (all_platforms.size() > 0 && platform_index >= 0
         && platform_index < static_cast<int32_t>(all_platforms.size()))
     {
-      auto& default_platform = all_platforms.at(platform_index);
+      auto& opencl_platform = all_platforms.at(platform_index);
       std::vector<cl::Device> all_devices;
-      default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+      opencl_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
       const int32_t device_index =
           RetrieveOptionOrDefault(options, "OPENCL_DEVICE_INDEX", 0);
       if (all_devices.size() > 0 && device_index >= 0
           && device_index < static_cast<int32_t>(all_devices.size()))
       {
-        auto& default_device = all_devices.at(device_index);
+        auto& opencl_device = all_devices.at(device_index);
         // Make context + queue
         context_ = std::unique_ptr<cl::Context>(
-            new cl::Context({default_device}));
+            new cl::Context({opencl_device}));
         queue_ = std::unique_ptr<cl::CommandQueue>(
-            new cl::CommandQueue(*context_, default_device));
+            new cl::CommandQueue(*context_, opencl_device));
         // Make kernel programs
         const std::string build_options = "-Werror -cl-fast-relaxed-math";
         cl::Program::Sources raycasting_sources;
@@ -264,28 +264,26 @@ public:
                                   filter_kernel_source.length()});
         filter_program_ = std::unique_ptr<cl::Program>(
             new cl::Program(*context_, filter_sources));
-        if (raycasting_program_->build({default_device}, build_options.c_str())
+        if (raycasting_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
           std::cerr << " Error building raycasting kernel: "
                     << raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                        default_device)
+                        opencl_device)
                     << std::endl;
           raycasting_program_.reset();
         }
-        if (filter_program_->build({default_device}, build_options.c_str())
+        if (filter_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
           std::cerr << " Error building filter kernel: "
                     << filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                        default_device)
+                        opencl_device)
                     << std::endl;
           filter_program_.reset();
         }
       }
-      else if (all_devices.size() > 0
-               && (device_index < 0
-                   || device_index >= static_cast<int32_t>(all_devices.size())))
+      else if (all_devices.size() > 0)
       {
         std::cerr << "OPENCL_DEVICE_INDEX = " << device_index
                   << " out of range for " << all_devices.size() << " devices"
@@ -296,10 +294,7 @@ public:
         std::cerr << "No OpenCL device available" << std::endl;
       }
     }
-    else if (all_platforms.size() > 0
-             && (platform_index < 0
-                 || platform_index
-                     >= static_cast<int32_t>(all_platforms.size())))
+    else if (all_platforms.size() > 0)
     {
       std::cerr << "OPENCL_PLATFORM_INDEX = " << platform_index
                 << " out of range for " << all_platforms.size() << " platforms"

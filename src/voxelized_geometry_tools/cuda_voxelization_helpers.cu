@@ -239,7 +239,7 @@ class RealCudaVoxelizationHelperInterface
     : public CudaVoxelizationHelperInterface
 {
 public:
-  RealCudaVoxelizationHelperInterface(
+  explicit RealCudaVoxelizationHelperInterface(
       const std::map<std::string, int32_t>& options)
   {
     const int32_t cuda_device =

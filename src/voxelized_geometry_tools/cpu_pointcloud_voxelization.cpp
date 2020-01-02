@@ -41,10 +41,10 @@ CollisionMap CpuPointCloudVoxelizer::VoxelizePointClouds(
   const double cell_size = static_environment.GetResolution();
   const double step_size = cell_size * step_size_multiplier;
   // For each cloud, raycast it into its own "tracking grid"
-  std::vector<CpuVoxelizationTrackingGrid> tracking_grids(
-      pointclouds.size(),
-      CpuVoxelizationTrackingGrid(
-          X_WG, grid_size, CpuVoxelizationTrackingCell()));
+  VectorCpuVoxelizationTrackingGrid tracking_grids(
+          pointclouds.size(),
+          CpuVoxelizationTrackingGrid(
+              X_WG, grid_size, CpuVoxelizationTrackingCell()));
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
@@ -141,7 +141,7 @@ voxelized_geometry_tools::CollisionMap
 CpuPointCloudVoxelizer::CombineAndFilterGrids(
     const CollisionMap& static_environment,
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<CpuVoxelizationTrackingGrid>& tracking_grids) const
+    const VectorCpuVoxelizationTrackingGrid& tracking_grids) const
 {
   CollisionMap filtered_grid = static_environment;
   // Because we want to improve performance and don't need to know where in the

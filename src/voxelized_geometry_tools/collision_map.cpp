@@ -30,9 +30,7 @@ CollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t CollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const std::function<uint64_t(
-        const CollisionCell&,
-        std::vector<uint8_t>&)>& value_serializer) const
+    const Serializer<CollisionCell>& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -48,27 +46,25 @@ uint64_t CollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t CollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const std::function<std::pair<CollisionCell, uint64_t>(
-        const std::vector<uint8_t>&,
-        const uint64_t)>& value_deserializer)
+    const Deserializer<CollisionCell>& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
-  const std::pair<uint32_t, uint64_t> number_of_components_deserialized
+  const auto number_of_components_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
-  number_of_components_ = number_of_components_deserialized.first;
-  current_position += number_of_components_deserialized.second;
-  const std::pair<std::string, uint64_t> frame_deserialized
+  number_of_components_ = number_of_components_deserialized.Value();
+  current_position += number_of_components_deserialized.BytesRead();
+  const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
           buffer, current_position);
-  frame_ = frame_deserialized.first;
-  current_position += frame_deserialized.second;
-  const std::pair<uint8_t, uint64_t> components_valid_deserialized
+  frame_ = frame_deserialized.Value();
+  current_position += frame_deserialized.BytesRead();
+  const auto components_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  components_valid_ = static_cast<bool>(components_valid_deserialized.first);
-  current_position += components_valid_deserialized.second;
+  components_valid_ = static_cast<bool>(components_valid_deserialized.Value());
+  current_position += components_valid_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
@@ -93,7 +89,7 @@ uint64_t CollisionMap::Serialize(
                                        ::SerializeMemcpyable<CollisionCell>);
 }
 
-std::pair<CollisionMap, uint64_t> CollisionMap::Deserialize(
+Deserialized<CollisionMap> CollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
   CollisionMap temp_map;
@@ -102,7 +98,7 @@ std::pair<CollisionMap, uint64_t> CollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<CollisionCell>);
-  return std::make_pair(temp_map, bytes_read);
+  return MakeDeserialized(temp_map, bytes_read);
 }
 
 void CollisionMap::SaveToFile(
@@ -166,11 +162,11 @@ CollisionMap CollisionMap::LoadFromFile(const std::string& filepath)
       const std::vector<uint8_t> decompressed
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
-      return CollisionMap::Deserialize(decompressed, 0).first;
+      return CollisionMap::Deserialize(decompressed, 0).Value();
     }
     else if (header_string == "CMGR")
     {
-      return CollisionMap::Deserialize(file_buffer, 0).first;
+      return CollisionMap::Deserialize(file_buffer, 0).Value();
     }
     else
     {
@@ -308,7 +304,8 @@ CollisionMap::IsConnectedComponentSurfaceIndex(
   return common_robotics_utilities::OwningMaybe<bool>(false);
 }
 
-common_robotics_utilities::OwningMaybe<bool> CollisionMap::CheckIfCandidateCorner(
+common_robotics_utilities::OwningMaybe<bool>
+CollisionMap::CheckIfCandidateCorner(
     const double x, const double y, const double z) const
 {
   return CheckIfCandidateCorner4d(Eigen::Vector4d(x, y, z, 1.0));
@@ -328,13 +325,15 @@ CollisionMap::CheckIfCandidateCorner4d(
   return CheckIfCandidateCorner(LocationToGridIndex4d(location));
 }
 
-common_robotics_utilities::OwningMaybe<bool> CollisionMap::CheckIfCandidateCorner(
+common_robotics_utilities::OwningMaybe<bool>
+CollisionMap::CheckIfCandidateCorner(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return CheckIfCandidateCorner(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::OwningMaybe<bool> CollisionMap::CheckIfCandidateCorner(
+common_robotics_utilities::OwningMaybe<bool>
+CollisionMap::CheckIfCandidateCorner(
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
   const auto current_cell = GetImmutable(x_index, y_index, z_index);
@@ -548,8 +547,7 @@ CollisionMap::ExtractEmptyComponentSurfaces() const
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
-std::map<uint32_t, std::pair<int32_t, int32_t>>
-CollisionMap::ComputeComponentTopology(
+TopologicalInvariants CollisionMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use, const bool verbose)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
@@ -609,7 +607,7 @@ CollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+SignedDistanceFieldResult<std::vector<float>>
 CollisionMap::ExtractSignedDistanceField(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel, const bool add_virtual_border) const

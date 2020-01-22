@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
@@ -17,6 +18,11 @@ class DynamicSpatialHashedCollisionMap final
             CollisionCell, std::vector<CollisionCell>>
 {
 private:
+  using common_robotics_utilities::serialization::Serializer;
+  using common_robotics_utilities::serialization::Deserializer;
+  using common_robotics_utilities::serialization::Deserialized;
+  using common_robotics_utilities::serialization::MakeDeserialized;
+
   std::string frame_;
 
   /// Implement the DynamicSpatialHashedVoxelGridBase interface.
@@ -30,16 +36,12 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const std::function<uint64_t(
-          const CollisionCell&,
-          std::vector<uint8_t>&)>& value_serializer) const override;
+      const Serializer<CollisionCell>& value_serializer) const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const std::function<std::pair<CollisionCell, uint64_t>(
-          const std::vector<uint8_t>&,
-          const uint64_t)>& value_deserializer) override;
+      const Deserializer<CollisionCell>& value_deserializer) override;
 
   bool OnMutableAccess(const Eigen::Vector4d& location) override;
 
@@ -48,8 +50,7 @@ public:
       const DynamicSpatialHashedCollisionMap& grid,
       std::vector<uint8_t>& buffer);
 
-  static std::pair<DynamicSpatialHashedCollisionMap, uint64_t>
-  Deserialize(
+  static Deserialized<DynamicSpatialHashedCollisionMap> Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   static void SaveToFile(const DynamicSpatialHashedCollisionMap& map,

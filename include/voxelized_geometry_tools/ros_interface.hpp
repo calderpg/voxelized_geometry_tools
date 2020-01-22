@@ -420,12 +420,12 @@ inline SignedDistanceField<BackingStore> LoadFromMessageRepresentation(
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_sdf);
     return SignedDistanceField<BackingStore>::Deserialize(
-        decompressed_sdf, 0).first;
+        decompressed_sdf, 0).Value();
   }
   else
   {
     return SignedDistanceField<BackingStore>::Deserialize(
-        message.serialized_sdf, 0).first;
+        message.serialized_sdf, 0).Value();
   }
 }
 

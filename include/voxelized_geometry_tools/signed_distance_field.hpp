@@ -110,6 +110,11 @@ class SignedDistanceField final
         ::VoxelGridBase<float, BackingStore>
 {
 private:
+  using common_robotics_utilities::serialization::Serializer;
+  using common_robotics_utilities::serialization::Deserializer;
+  using common_robotics_utilities::serialization::Deserialized;
+  using common_robotics_utilities::serialization::MakeDeserialized;
+
   std::string frame_;
   bool locked_ = false;
 
@@ -544,8 +549,7 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const std::function<uint64_t(
-        const float&, std::vector<uint8_t>&)>& value_serializer) const override
+      const Serializer<float>& value_serializer) const override
   {
     UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
@@ -559,23 +563,21 @@ private:
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const std::function<std::pair<float, uint64_t>(
-        const std::vector<uint8_t>&,
-        const uint64_t)>& value_deserializer) override
+      const Deserializer<float>& value_deserializer) override
   {
     UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
     // Deserialize SDF stuff
-    const std::pair<std::string, uint64_t> frame_deserialized
+    const auto frame_deserialized
         = common_robotics_utilities::serialization::DeserializeString<char>(
             buffer, current_position);
-    frame_ = frame_deserialized.first;
-    current_position += frame_deserialized.second;
-    const std::pair<uint8_t, uint64_t> locked_deserialized
+    frame_ = frame_deserialized.Value();
+    current_position += frame_deserialized.BytesRead();
+    const auto locked_deserialized
         = common_robotics_utilities::serialization
             ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-    locked_ = static_cast<bool>(locked_deserialized.first);
-    current_position += locked_deserialized.second;
+    locked_ = static_cast<bool>(locked_deserialized.Value());
+    current_position += locked_deserialized.BytesRead();
     // Figure out how many bytes were read
     const uint64_t bytes_read = current_position - starting_offset;
     return bytes_read;
@@ -601,7 +603,7 @@ public:
                                          ::SerializeMemcpyable<float>);
   }
 
-  static std::pair<SignedDistanceField<BackingStore>, uint64_t> Deserialize(
+  static Deserialized<SignedDistanceField<BackingStore>> Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
   {
     SignedDistanceField<BackingStore> temp_sdf;
@@ -610,7 +612,7 @@ public:
             buffer, starting_offset,
             common_robotics_utilities::serialization
                 ::DeserializeMemcpyable<float>);
-    return std::make_pair(temp_sdf, bytes_read);
+    return MakeDeserialized(temp_sdf, bytes_read);
   }
 
   static void SaveToFile(
@@ -675,12 +677,12 @@ public:
             = common_robotics_utilities::zlib_helpers
                 ::DecompressBytes(file_buffer);
         return SignedDistanceField<BackingStore>::Deserialize(
-            decompressed, 0).first;
+            decompressed, 0).Value();
       }
       else if (header_string == "SDFR")
       {
         return SignedDistanceField<BackingStore>::Deserialize(
-            file_buffer, 0).first;
+            file_buffer, 0).Value();
       }
       else
       {

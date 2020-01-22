@@ -240,11 +240,11 @@ CollisionMap LoadFromMessageRepresentation(const CollisionMapMessage& message)
     const std::vector<uint8_t> decompressed_map
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_map);
-    return CollisionMap::Deserialize(decompressed_map, 0).first;
+    return CollisionMap::Deserialize(decompressed_map, 0).Value();
   }
   else
   {
-    return CollisionMap::Deserialize(message.serialized_map, 0).first;
+    return CollisionMap::Deserialize(message.serialized_map, 0).Value();
   }
 }
 
@@ -346,12 +346,12 @@ DynamicSpatialHashedCollisionMap LoadFromMessageRepresentation(
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_map);
     return DynamicSpatialHashedCollisionMap::Deserialize(
-        decompressed_map, 0).first;
+        decompressed_map, 0).Value();
   }
   else
   {
     return DynamicSpatialHashedCollisionMap::Deserialize(
-        message.serialized_map, 0).first;
+        message.serialized_map, 0).Value();
   }
 }
 
@@ -703,12 +703,12 @@ TaggedObjectCollisionMap LoadFromMessageRepresentation(
     const std::vector<uint8_t> decompressed_map
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_map);
-    return TaggedObjectCollisionMap::Deserialize(decompressed_map, 0).first;
+    return TaggedObjectCollisionMap::Deserialize(decompressed_map, 0).Value();
   }
   else
   {
     return TaggedObjectCollisionMap::Deserialize(
-        message.serialized_map, 0).first;
+        message.serialized_map, 0).Value();
   }
 }
 }  // namespace ros_interface

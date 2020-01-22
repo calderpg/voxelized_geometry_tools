@@ -34,7 +34,7 @@ void test_estimate_distance(
   const std_msgs::ColorRGBA free_color = common_robotics_utilities::color_builder::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const std_msgs::ColorRGBA unknown_color = common_robotics_utilities::color_builder::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto map_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(map, collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceField(1e6, true, false, false).first;
+  const auto sdf = map.ExtractSignedDistanceField(1e6, true, false, false).SignedDistanceField();
   const auto sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
   // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
   visualization_msgs::Marker distance_rep;

@@ -86,16 +86,14 @@ void test_spatial_segments(
   }
   const auto sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, false);
-  std::cout << "(no border) SDF extrema: " << common_robotics_utilities::print::Print(sdf_result.second) << std::endl;
-  const auto& sdf = sdf_result.first;
+  const auto& sdf = sdf_result.SignedDistanceField();
   visualization_msgs::Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
   sdf_marker.id = 1;
   sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
   const auto virtual_border_sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, true);
-  std::cout << "(virtual border) SDF extrema: " << common_robotics_utilities::print::Print(virtual_border_sdf_result.second) << std::endl;
-  const auto& virtual_border_sdf = virtual_border_sdf_result.first;
+  const auto& virtual_border_sdf = virtual_border_sdf_result.SignedDistanceField();
   visualization_msgs::Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
   virtual_border_sdf_marker.id = 1;
   virtual_border_sdf_marker.ns = "environment_sdf_virtual_border";

@@ -671,7 +671,7 @@ public:
             reinterpret_cast<const char*>(file_header.data()));
       // Load the rest of the file
       std::vector<uint8_t> file_buffer(
-            (size_t)serialized_size - header_size, 0x00);
+            static_cast<size_t>(serialized_size - header_size), 0x00);
       input_file.read(reinterpret_cast<char*>(file_buffer.data()),
                       serialized_size - header_size);
       // Deserialize
@@ -925,22 +925,25 @@ public:
       else if (enable_edge_gradients)
       {
         // Get the "best" indices we can use
-        const int64_t low_x_index = std::max((int64_t)0, x_index - 1);
+        const int64_t low_x_index
+            = std::max(static_cast<int64_t>(0), x_index - 1);
         const int64_t high_x_index
             = std::min(this->GetNumXCells() - 1, x_index + 1);
-        const int64_t low_y_index = std::max((int64_t)0, y_index - 1);
+        const int64_t low_y_index
+            = std::max(static_cast<int64_t>(0), y_index - 1);
         const int64_t high_y_index
             = std::min(this->GetNumYCells() - 1, y_index + 1);
-        const int64_t low_z_index = std::max((int64_t)0, z_index - 1);
+        const int64_t low_z_index
+            = std::max(static_cast<int64_t>(0), z_index - 1);
         const int64_t high_z_index
             = std::min(this->GetNumZCells() - 1, z_index + 1);
         // Compute the axis increments
         const double x_increment
-            = (double)(high_x_index - low_x_index) * GetResolution();
+            = static_cast<double>(high_x_index - low_x_index) * GetResolution();
         const double y_increment
-            = (double)(high_y_index - low_y_index) * GetResolution();
+            = static_cast<double>(high_y_index - low_y_index) * GetResolution();
         const double z_increment
-            = (double)(high_z_index - low_z_index) * GetResolution();
+            = static_cast<double>(high_z_index - low_z_index) * GetResolution();
         // Compute the gradients for each axis - by default these are zero
         double gx = 0.0;
         double gy = 0.0;

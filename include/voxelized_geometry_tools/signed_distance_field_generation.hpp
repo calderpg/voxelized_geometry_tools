@@ -592,7 +592,8 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
         {
           min_distance = distance;
         }
-        new_sdf.SetValue(x_index, y_index, z_index, (float)distance);
+        new_sdf.SetValue(
+            x_index, y_index, z_index, static_cast<float>(distance));
       }
     }
   }

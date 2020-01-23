@@ -154,7 +154,7 @@ CollisionMap CollisionMap::LoadFromFile(const std::string& filepath)
           reinterpret_cast<const char*>(file_header.data()));
     // Load the rest of the file
     std::vector<uint8_t> file_buffer(
-          (size_t)serialized_size - header_size, 0x00);
+          static_cast<size_t>(serialized_size - header_size), 0x00);
     input_file.read(reinterpret_cast<char*>(file_buffer.data()),
                     serialized_size - header_size);
     // Deserialize

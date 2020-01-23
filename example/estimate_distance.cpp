@@ -135,7 +135,7 @@ void test_estimate_distance(
           gradient_rep.header.frame_id = "world";
           // Populate the options
           gradient_rep.ns = "coarse_gradient";
-          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
           gradient_rep.type = visualization_msgs::Marker::ARROW;
           gradient_rep.action = visualization_msgs::Marker::ADD;
           gradient_rep.lifetime = ros::Duration(0.0);
@@ -159,7 +159,7 @@ void test_estimate_distance(
           gradient_rep.header.frame_id = "world";
           // Populate the options
           gradient_rep.ns = "fine_gradient";
-          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
           gradient_rep.type = visualization_msgs::Marker::ARROW;
           gradient_rep.action = visualization_msgs::Marker::ADD;
           gradient_rep.lifetime = ros::Duration(0.0);
@@ -183,7 +183,7 @@ void test_estimate_distance(
           gradient_rep.header.frame_id = "world";
           // Populate the options
           gradient_rep.ns = "autodiff_gradient";
-          gradient_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
           gradient_rep.type = visualization_msgs::Marker::ARROW;
           gradient_rep.action = visualization_msgs::Marker::ADD;
           gradient_rep.lifetime = ros::Duration(0.0);

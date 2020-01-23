@@ -45,17 +45,18 @@ public:
   uint32_t& Component() { return component_; }
 };
 
+using CollisionCellSerializer
+    = common_robotics_utilities::serialization::Serializer<CollisionCell>;
+using CollisionCellDeserializer
+    = common_robotics_utilities::serialization::Deserializer<CollisionCell>;
+
 class CollisionMap
     : public common_robotics_utilities::voxel_grid
         ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>
 {
 private:
-  using common_robotics_utilities::serialization::Serializer;
-  using common_robotics_utilities::serialization::Deserializer;
-  using common_robotics_utilities::serialization::Deserialized;
-  using common_robotics_utilities::serialization::MakeDeserialized;
-  using signed_distance_field_generation::SignedDistanceFieldResult;
-  using topology_computation::TopologicalInvariants;
+  using DeserializedCollisionMap
+      = common_robotics_utilities::serialization::Deserialized<CollisionMap>;
 
   uint32_t number_of_components_ = 0u;
   std::string frame_;
@@ -71,12 +72,12 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const Serializer<CollisionCell>& value_serializer) const override;
+      const CollisionCellSerializer& value_serializer) const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const Deserializer<CollisionCell>& value_deserializer) override;
+      const CollisionCellDeserializer& value_deserializer) override;
 
   /// Invalidate connected components on mutable access.
   bool OnMutableAccess(const int64_t x_index,
@@ -87,7 +88,7 @@ public:
   static uint64_t Serialize(
       const CollisionMap& map, std::vector<uint8_t>& buffer);
 
-  static Deserialized<CollisionMap> Deserialize(
+  static DeserializedCollisionMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   static void SaveToFile(const CollisionMap& map,
@@ -226,11 +227,11 @@ public:
       common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractEmptyComponentSurfaces() const;
 
-  TopologicalInvariants ComputeComponentTopology(
+  topology_computation::TopologicalInvariants ComputeComponentTopology(
       const COMPONENT_TYPES component_types_to_use, const bool verbose);
 
   template<typename BackingStore=std::vector<float>>
-  SignedDistanceFieldResult<BackingStore>
+  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
   ExtractSignedDistanceField(const float oob_value,
                              const bool unknown_is_filled,
                              const bool use_parallel,
@@ -269,7 +270,8 @@ public:
             add_virtual_border);
   }
 
-  SignedDistanceFieldResult<std::vector<float>>
+  signed_distance_field_generation
+      ::SignedDistanceFieldResult<std::vector<float>>
   ExtractSignedDistanceField(const float oob_value,
                              const bool unknown_is_filled,
                              const bool use_parallel,

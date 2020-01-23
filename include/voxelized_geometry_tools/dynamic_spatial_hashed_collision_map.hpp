@@ -18,10 +18,9 @@ class DynamicSpatialHashedCollisionMap final
             CollisionCell, std::vector<CollisionCell>>
 {
 private:
-  using common_robotics_utilities::serialization::Serializer;
-  using common_robotics_utilities::serialization::Deserializer;
-  using common_robotics_utilities::serialization::Deserialized;
-  using common_robotics_utilities::serialization::MakeDeserialized;
+  using DeserializedDynamicSpatialHashedCollisionMap
+      = common_robotics_utilities::serialization
+          ::Deserialized<DynamicSpatialHashedCollisionMap>;
 
   std::string frame_;
 
@@ -36,12 +35,12 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const Serializer<CollisionCell>& value_serializer) const override;
+      const CollisionCellSerializer& value_serializer) const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const Deserializer<CollisionCell>& value_deserializer) override;
+      const CollisionCellDeserializer& value_deserializer) override;
 
   bool OnMutableAccess(const Eigen::Vector4d& location) override;
 
@@ -50,7 +49,7 @@ public:
       const DynamicSpatialHashedCollisionMap& grid,
       std::vector<uint8_t>& buffer);
 
-  static Deserialized<DynamicSpatialHashedCollisionMap> Deserialize(
+  static DeserializedDynamicSpatialHashedCollisionMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   static void SaveToFile(const DynamicSpatialHashedCollisionMap& map,

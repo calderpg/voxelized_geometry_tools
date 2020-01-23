@@ -86,14 +86,14 @@ void test_spatial_segments(
   }
   const auto sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, false);
-  const auto& sdf = sdf_result.SignedDistanceField();
+  const auto& sdf = sdf_result.DistanceField();
   visualization_msgs::Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
   sdf_marker.id = 1;
   sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
   const auto virtual_border_sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, true);
-  const auto& virtual_border_sdf = virtual_border_sdf_result.SignedDistanceField();
+  const auto& virtual_border_sdf = virtual_border_sdf_result.DistanceField();
   visualization_msgs::Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
   virtual_border_sdf_marker.id = 1;
   virtual_border_sdf_marker.ns = "environment_sdf_virtual_border";
@@ -125,8 +125,8 @@ void test_spatial_segments(
             maxima_rep.action = visualization_msgs::Marker::ADD;
             maxima_rep.lifetime = ros::Duration(0.0);
             maxima_rep.frame_locked = false;
-            maxima_rep.pose.position = common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location);
-            maxima_rep.pose.orientation = common_robotics_utilities::conversions::EigenQuaterniondToGeometryQuaternion(Eigen::Quaterniond::Identity());
+            maxima_rep.pose.position = common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location);
+            maxima_rep.pose.orientation = common_robotics_utilities::ros_conversions::EigenQuaterniondToGeometryQuaternion(Eigen::Quaterniond::Identity());
             maxima_rep.type = visualization_msgs::Marker::SPHERE;
             maxima_rep.scale.x = sdf.GetResolution();
             maxima_rep.scale.y = sdf.GetResolution();

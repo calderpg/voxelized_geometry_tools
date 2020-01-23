@@ -713,4 +713,3 @@ TaggedObjectCollisionMap LoadFromMessageRepresentation(
 }
 }  // namespace ros_interface
 }  // namespace voxelized_geometry_tools
-

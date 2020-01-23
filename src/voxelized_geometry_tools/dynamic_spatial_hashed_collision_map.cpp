@@ -30,7 +30,7 @@ DynamicSpatialHashedCollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const Serializer<CollisionCell>& value_serializer) const
+    const CollisionCellSerializer& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -42,7 +42,7 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const Deserializer<CollisionCell>& value_deserializer)
+    const CollisionCellDeserializer& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -70,7 +70,7 @@ uint64_t DynamicSpatialHashedCollisionMap::Serialize(
                                        ::SerializeMemcpyable<CollisionCell>);
 }
 
-Deserialized<DynamicSpatialHashedCollisionMap>
+DynamicSpatialHashedCollisionMap::DeserializedDynamicSpatialHashedCollisionMap
 DynamicSpatialHashedCollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
@@ -80,7 +80,8 @@ DynamicSpatialHashedCollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<CollisionCell>);
-  return MakeDeserialized(temp_map, bytes_read);
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      temp_map, bytes_read);
 }
 
 void DynamicSpatialHashedCollisionMap::SaveToFile(

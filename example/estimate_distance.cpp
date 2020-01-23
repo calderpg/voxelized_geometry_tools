@@ -34,7 +34,7 @@ void test_estimate_distance(
   const std_msgs::ColorRGBA free_color = common_robotics_utilities::color_builder::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const std_msgs::ColorRGBA unknown_color = common_robotics_utilities::color_builder::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto map_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(map, collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceField(1e6, true, false, false).SignedDistanceField();
+  const auto sdf = map.ExtractSignedDistanceField(1e6, true, false, false).DistanceField();
   const auto sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
   // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
   visualization_msgs::Marker distance_rep;
@@ -48,7 +48,7 @@ void test_estimate_distance(
   distance_rep.lifetime = ros::Duration(0.0);
   distance_rep.frame_locked = false;
   distance_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
   const double step = sdf.GetResolution() * 0.125 * 0.25;
   distance_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
   distance_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
@@ -141,9 +141,9 @@ void test_estimate_distance(
           gradient_rep.lifetime = ros::Duration(0.0);
           gradient_rep.frame_locked = false;
           gradient_rep.pose
-              = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
           gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;
@@ -165,9 +165,9 @@ void test_estimate_distance(
           gradient_rep.lifetime = ros::Duration(0.0);
           gradient_rep.frame_locked = false;
           gradient_rep.pose
-              = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
           gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;
@@ -189,9 +189,9 @@ void test_estimate_distance(
           gradient_rep.lifetime = ros::Duration(0.0);
           gradient_rep.frame_locked = false;
           gradient_rep.pose
-              = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
           gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;

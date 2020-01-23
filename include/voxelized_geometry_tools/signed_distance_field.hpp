@@ -110,10 +110,13 @@ class SignedDistanceField final
         ::VoxelGridBase<float, BackingStore>
 {
 private:
-  using common_robotics_utilities::serialization::Serializer;
-  using common_robotics_utilities::serialization::Deserializer;
-  using common_robotics_utilities::serialization::Deserialized;
-  using common_robotics_utilities::serialization::MakeDeserialized;
+  using FloatSerializer
+      = common_robotics_utilities::serialization::Serializer<float>;
+  using FloatDeserializer
+      = common_robotics_utilities::serialization::Deserializer<float>;
+  using DeserializedSignedDistanceField
+      = common_robotics_utilities::serialization
+          ::Deserialized<SignedDistanceField<BackingStore>>;
 
   std::string frame_;
   bool locked_ = false;
@@ -549,7 +552,7 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const Serializer<float>& value_serializer) const override
+      const FloatSerializer& value_serializer) const override
   {
     UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
@@ -563,7 +566,7 @@ private:
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const Deserializer<float>& value_deserializer) override
+      const FloatDeserializer& value_deserializer) override
   {
     UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
@@ -603,7 +606,7 @@ public:
                                          ::SerializeMemcpyable<float>);
   }
 
-  static Deserialized<SignedDistanceField<BackingStore>> Deserialize(
+  static DeserializedSignedDistanceField Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
   {
     SignedDistanceField<BackingStore> temp_sdf;
@@ -612,7 +615,8 @@ public:
             buffer, starting_offset,
             common_robotics_utilities::serialization
                 ::DeserializeMemcpyable<float>);
-    return MakeDeserialized(temp_sdf, bytes_read);
+    return common_robotics_utilities::serialization::MakeDeserialized(
+        temp_sdf, bytes_read);
   }
 
   static void SaveToFile(

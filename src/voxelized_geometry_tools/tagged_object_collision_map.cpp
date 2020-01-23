@@ -32,7 +32,7 @@ TaggedObjectCollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const Serializer<TaggedObjectCollisionCell>& value_serializer) const
+    const TaggedObjectCollisionCellSerializer& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -52,7 +52,7 @@ uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const Deserializer<TaggedObjectCollisionCell>& value_deserializer)
+    const TaggedObjectCollisionCellDeserializer& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -106,7 +106,8 @@ uint64_t TaggedObjectCollisionMap::Serialize(
                   ::SerializeMemcpyable<TaggedObjectCollisionCell>);
 }
 
-Deserialized<TaggedObjectCollisionMap> TaggedObjectCollisionMap::Deserialize(
+TaggedObjectCollisionMap::DeserializedTaggedObjectCollisionMap
+TaggedObjectCollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
   TaggedObjectCollisionMap temp_map;
@@ -115,7 +116,8 @@ Deserialized<TaggedObjectCollisionMap> TaggedObjectCollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<TaggedObjectCollisionCell>);
-  return MakeDeserialized(temp_map, bytes_read);
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      temp_map, bytes_read);
 }
 
 void TaggedObjectCollisionMap::SaveToFile(
@@ -502,7 +504,8 @@ TaggedObjectCollisionMap::ExtractEmptyComponentSurfaces() const
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
-TopologicalInvariants TaggedObjectCollisionMap::ComputeComponentTopology(
+topology_computation::TopologicalInvariants
+TaggedObjectCollisionMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use,
     const bool connect_across_objects, const bool verbose)
 {
@@ -564,7 +567,7 @@ TopologicalInvariants TaggedObjectCollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-SignedDistanceFieldResult<std::vector<float>>
+signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
 TaggedObjectCollisionMap::ExtractSignedDistanceField(
     const std::vector<uint32_t>& objects_to_use, const float oob_value,
     const bool unknown_is_filled, const bool use_parallel,
@@ -595,7 +598,7 @@ TaggedObjectCollisionMap::MakeAllObjectSDFs(
       oob_value, unknown_is_filled, use_parallel, add_virtual_border);
 }
 
-SignedDistanceFieldResult<std::vector<float>>
+signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceField(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel) const
@@ -713,7 +716,7 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
         : ExtractFreeAndNamedObjectsSignedDistanceField(
               std::numeric_limits<float>::infinity(), true, use_parallel);
   const SignedDistanceField<std::vector<float>>& sdf
-      = sdf_result.SignedDistanceField();
+      = sdf_result.DistanceField();
   const auto extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
   // This is not enough, we also need to limit the curvature of the

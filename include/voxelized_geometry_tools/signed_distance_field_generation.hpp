@@ -483,15 +483,15 @@ template<typename SDFBackingStore>
 class SignedDistanceFieldResult
 {
 private:
-  SignedDistanceField<SDFBackingStore> signed_distance_field_;
+  SignedDistanceField<SDFBackingStore> distance_field_;
   double maximum_ = 0.0;
   double minimum_ = 0.0;
 
 public:
   SignedDistanceFieldResult(
-      const SignedDistanceField<SDFBackingStore>& signed_distance_field,
+      const SignedDistanceField<SDFBackingStore>& distance_field,
       const double maximum, const double minimum)
-      : signed_distance_field_(signed_distance_field),
+      : distance_field_(distance_field),
         maximum_(maximum), minimum_(minimum)
   {
     if (minimum_ > maximum_)
@@ -500,14 +500,14 @@ public:
     }
   }
 
-  const SignedDistanceField<SDFBackingStore>& SignedDistanceField() const
+  const SignedDistanceField<SDFBackingStore>& DistanceField() const
   {
-    return signed_distance_field_;
+    return distance_field_;
   }
 
-  const SignedDistanceField<SDFBackingStore>& MutableSignedDistanceField()
+  const SignedDistanceField<SDFBackingStore>& MutableDistanceField()
   {
-    return signed_distance_field_;
+    return distance_field_;
   }
 
   double Maximum() const { return maximum_; }
@@ -748,10 +748,10 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
           const int64_t query_y_idx = y_idx + y_axis_query_offset;
           const int64_t query_z_idx = z_idx + z_axis_query_offset;
           const float free_sdf_value
-              = free_sdf_result.SignedDistanceField().GetImmutable(
+              = free_sdf_result.DistanceField().GetImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
           const float filled_sdf_value
-              = filled_sdf_result.SignedDistanceField().GetImmutable(
+              = filled_sdf_result.DistanceField().GetImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
           if (free_sdf_value >= 0.0)
           {

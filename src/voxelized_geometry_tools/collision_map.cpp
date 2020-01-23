@@ -30,7 +30,7 @@ CollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t CollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const Serializer<CollisionCell>& value_serializer) const
+    const CollisionCellSerializer& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -46,7 +46,7 @@ uint64_t CollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t CollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const Deserializer<CollisionCell>& value_deserializer)
+    const CollisionCellDeserializer& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -89,7 +89,7 @@ uint64_t CollisionMap::Serialize(
                                        ::SerializeMemcpyable<CollisionCell>);
 }
 
-Deserialized<CollisionMap> CollisionMap::Deserialize(
+CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
   CollisionMap temp_map;
@@ -98,7 +98,8 @@ Deserialized<CollisionMap> CollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<CollisionCell>);
-  return MakeDeserialized(temp_map, bytes_read);
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      temp_map, bytes_read);
 }
 
 void CollisionMap::SaveToFile(
@@ -547,7 +548,8 @@ CollisionMap::ExtractEmptyComponentSurfaces() const
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
-TopologicalInvariants CollisionMap::ComputeComponentTopology(
+topology_computation::TopologicalInvariants
+CollisionMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use, const bool verbose)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
@@ -607,7 +609,7 @@ TopologicalInvariants CollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-SignedDistanceFieldResult<std::vector<float>>
+signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
 CollisionMap::ExtractSignedDistanceField(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel, const bool add_virtual_border) const

@@ -401,7 +401,8 @@ public:
       }
     }
     return MakeSeparateObjectSDFs<BackingStore>(
-        common_robotics_utilities::utility::GetKeys(object_id_map),
+        common_robotics_utilities::utility
+            ::GetKeysFromMapLike<uint32_t, int32_t>(object_id_map),
         oob_value, unknown_is_filled, use_parallel, add_virtual_border);
   }
 

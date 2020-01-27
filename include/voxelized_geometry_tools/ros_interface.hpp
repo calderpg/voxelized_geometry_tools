@@ -14,6 +14,7 @@
 
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/conversions.hpp>
+#include <common_robotics_utilities/ros_conversions.hpp>
 #include <common_robotics_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
 #include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
@@ -59,11 +60,11 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
   display_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(
-          voxel_grid.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions
+          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
   display_rep.scale
-      = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
-          voxel_grid.GetCellSizes());
+      = common_robotics_utilities::ros_conversions
+          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
   for (int64_t x_index = 0; x_index < voxel_grid.GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < voxel_grid.GetNumYCells(); y_index++)
@@ -81,7 +82,7 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
               = voxel_grid.GridIndexToLocationInGridFrame(
                   x_index, y_index, z_index);
           const geometry_msgs::Point cell_point
-              = common_robotics_utilities::conversions
+              = common_robotics_utilities::ros_conversions
                   ::EigenVector4dToGeometryPoint(location);
           display_rep.points.push_back(cell_point);
           display_rep.colors.push_back(cell_color);
@@ -115,11 +116,11 @@ inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
   display_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(
-          voxel_grid.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions
+          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
   display_rep.scale
-      = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
-          voxel_grid.GetCellSizes());
+      = common_robotics_utilities::ros_conversions
+          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
   for (auto surface_itr = index_map.begin(); surface_itr != index_map.end();
        ++surface_itr)
   {
@@ -135,7 +136,7 @@ inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
         const Eigen::Vector4d location
             = voxel_grid.GridIndexToLocationInGridFrame(index);
         const geometry_msgs::Point cell_point
-            = common_robotics_utilities::conversions
+            = common_robotics_utilities::ros_conversions
                 ::EigenVector4dToGeometryPoint(location);
         display_rep.points.push_back(cell_point);
         display_rep.colors.push_back(cell_color);
@@ -168,11 +169,11 @@ inline visualization_msgs::Marker ExportVoxelGridIndicesToRViz(
   display_rep.lifetime = ros::Duration(0.0);
   display_rep.frame_locked = false;
   display_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(
-          voxel_grid.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions
+          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
   display_rep.scale
-      = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
-          voxel_grid.GetCellSizes());
+      = common_robotics_utilities::ros_conversions
+          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
   for (const GridIndex& index : indices)
   {
     const auto cell_value = voxel_grid.GetImmutable(index).Value();
@@ -183,7 +184,7 @@ inline visualization_msgs::Marker ExportVoxelGridIndicesToRViz(
       const Eigen::Vector4d location
           = voxel_grid.GridIndexToLocationInGridFrame(index);
       const geometry_msgs::Point cell_point
-          = common_robotics_utilities::conversions
+          = common_robotics_utilities::ros_conversions
               ::EigenVector4dToGeometryPoint(location);
       display_rep.points.push_back(cell_point);
       display_rep.colors.push_back(cell_color);
@@ -216,11 +217,11 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
   chunks_display_rep.lifetime = ros::Duration(0.0);
   chunks_display_rep.frame_locked = false;
   chunks_display_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(
-          dsh_voxel_grid.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions
+          ::EigenIsometry3dToGeometryPose(dsh_voxel_grid.GetOriginTransform());
   chunks_display_rep.scale
-      = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
-          dsh_voxel_grid.GetChunkSizes());
+      = common_robotics_utilities::ros_conversions
+          ::EigenVector3dToGeometryVector3(dsh_voxel_grid.GetChunkSizes());
   visualization_msgs::Marker cells_display_rep;
   // Populate the header
   cells_display_rep.header.frame_id = frame;
@@ -232,11 +233,11 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
   cells_display_rep.lifetime = ros::Duration(0.0);
   cells_display_rep.frame_locked = false;
   cells_display_rep.pose
-      = common_robotics_utilities::conversions::EigenIsometry3dToGeometryPose(
-          dsh_voxel_grid.GetOriginTransform());
+      = common_robotics_utilities::ros_conversions
+          ::EigenIsometry3dToGeometryPose(dsh_voxel_grid.GetOriginTransform());
   cells_display_rep.scale
-      = common_robotics_utilities::conversions::EigenVector3dToGeometryVector3(
-          dsh_voxel_grid.GetCellSizes());
+      = common_robotics_utilities::ros_conversions
+          ::EigenVector3dToGeometryVector3(dsh_voxel_grid.GetCellSizes());
   // Go through the chunks in the DSH voxel grid
   const common_robotics_utilities::voxel_grid::GridSizes& chunk_grid_sizes
       = dsh_voxel_grid.GetChunkGridSizes();
@@ -257,7 +258,7 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
       if (chunk_color.a > 0.0f)
       {
         const geometry_msgs::Point chunk_center_point
-            = common_robotics_utilities::conversions
+            = common_robotics_utilities::ros_conversions
                 ::EigenVector4dToGeometryPoint(chunk_center);
         chunks_display_rep.points.push_back(chunk_center_point);
         chunks_display_rep.colors.push_back(chunk_color);
@@ -284,7 +285,7 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
             if (cell_color.a > 0.0f)
             {
               const geometry_msgs::Point cell_center_point
-                  = common_robotics_utilities::conversions
+                  = common_robotics_utilities::ros_conversions
                       ::EigenVector4dToGeometryPoint(cell_center);
               cells_display_rep.points.push_back(cell_center_point);
               cells_display_rep.colors.push_back(cell_color);
@@ -420,12 +421,12 @@ inline SignedDistanceField<BackingStore> LoadFromMessageRepresentation(
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_sdf);
     return SignedDistanceField<BackingStore>::Deserialize(
-        decompressed_sdf, 0).first;
+        decompressed_sdf, 0).Value();
   }
   else
   {
     return SignedDistanceField<BackingStore>::Deserialize(
-        message.serialized_sdf, 0).first;
+        message.serialized_sdf, 0).Value();
   }
 }
 
@@ -562,4 +563,3 @@ TaggedObjectCollisionMap LoadFromMessageRepresentation(
     const TaggedObjectCollisionMapMessage& message);
 }  // namespace ros_interface
 }  // namespace voxelized_geometry_tools
-

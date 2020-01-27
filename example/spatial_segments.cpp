@@ -86,16 +86,14 @@ void test_spatial_segments(
   }
   const auto sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, false);
-  std::cout << "(no border) SDF extrema: " << common_robotics_utilities::print::Print(sdf_result.second) << std::endl;
-  const auto& sdf = sdf_result.first;
+  const auto& sdf = sdf_result.DistanceField();
   visualization_msgs::Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
   sdf_marker.id = 1;
   sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
   const auto virtual_border_sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, true);
-  std::cout << "(virtual border) SDF extrema: " << common_robotics_utilities::print::Print(virtual_border_sdf_result.second) << std::endl;
-  const auto& virtual_border_sdf = virtual_border_sdf_result.first;
+  const auto& virtual_border_sdf = virtual_border_sdf_result.DistanceField();
   visualization_msgs::Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
   virtual_border_sdf_marker.id = 1;
   virtual_border_sdf_marker.ns = "environment_sdf_virtual_border";
@@ -123,12 +121,12 @@ void test_spatial_segments(
             maxima_rep.header.frame_id = "world";
             // Populate the options
             maxima_rep.ns = "extrema";
-            maxima_rep.id = (int32_t)sdf.HashDataIndex(x_idx, y_idx, z_idx);
+            maxima_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
             maxima_rep.action = visualization_msgs::Marker::ADD;
             maxima_rep.lifetime = ros::Duration(0.0);
             maxima_rep.frame_locked = false;
-            maxima_rep.pose.position = common_robotics_utilities::conversions::EigenVector4dToGeometryPoint(location);
-            maxima_rep.pose.orientation = common_robotics_utilities::conversions::EigenQuaterniondToGeometryQuaternion(Eigen::Quaterniond::Identity());
+            maxima_rep.pose.position = common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location);
+            maxima_rep.pose.orientation = common_robotics_utilities::ros_conversions::EigenQuaterniondToGeometryQuaternion(Eigen::Quaterniond::Identity());
             maxima_rep.type = visualization_msgs::Marker::SPHERE;
             maxima_rep.scale.x = sdf.GetResolution();
             maxima_rep.scale.y = sdf.GetResolution();
@@ -144,18 +142,18 @@ void test_spatial_segments(
       }
     }
   }
-  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient((int64_t)0, (int64_t)0, (int64_t)0, true).Value()) << std::endl;
-  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient((int64_t)1, (int64_t)1, (int64_t)1, true).Value()) << std::endl;
-  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient((int64_t)2, (int64_t)2, (int64_t)2, true).Value()) << std::endl;
-  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient((int64_t)0, (int64_t)0, (int64_t)0, res).Value()) << std::endl;
-  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient((int64_t)1, (int64_t)1, (int64_t)1, res).Value()) << std::endl;
-  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient((int64_t)2, (int64_t)2, (int64_t)2, res).Value()) << std::endl;
-  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient((int64_t)0, (int64_t)0, (int64_t)0).Value()) << std::endl;
-  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient((int64_t)1, (int64_t)1, (int64_t)1).Value()) << std::endl;
-  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient((int64_t)2, (int64_t)2, (int64_t)2).Value()) << std::endl;
-  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable((int64_t)0, (int64_t)0, (int64_t)0).Value()) << std::endl;
-  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable((int64_t)1, (int64_t)1, (int64_t)1).Value()) << std::endl;
-  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable((int64_t)2, (int64_t)2, (int64_t)2).Value()) << std::endl;
+  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0), true).Value()) << std::endl;
+  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1), true).Value()) << std::endl;
+  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetCoarseGradient(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2), true).Value()) << std::endl;
+  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0), res).Value()) << std::endl;
+  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1), res).Value()) << std::endl;
+  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2), res).Value()) << std::endl;
+  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0)).Value()) << std::endl;
+  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1)).Value()) << std::endl;
+  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetAutoDiffGradient(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2)).Value()) << std::endl;
+  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0)).Value()) << std::endl;
+  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1)).Value()) << std::endl;
+  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2)).Value()) << std::endl;
   display_fn(display_markers);
 }
 

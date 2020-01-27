@@ -114,12 +114,11 @@ int main(int argc, char** argv)
     //// Let's make an SDF ////
     ///////////////////////////
     // We pick a reasonable out-of-bounds value
-    float oob_value = INFINITY;
+    const float oob_value = std::numeric_limits<float>::infinity();
     // We start by extracting the SDF from the CollisionMap
-    const std::pair<voxelized_geometry_tools::SignedDistanceField<std::vector<float>>, std::pair<double, double>> sdf_with_extrema = collision_map.ExtractSignedDistanceField(oob_value, true, false, false);
-    const voxelized_geometry_tools::SignedDistanceField<std::vector<float>>& sdf = sdf_with_extrema.first;
-    const std::pair<double, double>& sdf_extrema = sdf_with_extrema.second;
-    std::cout << "Maximum distance in the SDF: " << sdf_extrema.first << ", minimum distance in the SDF: " << sdf_extrema.second << std::endl;
+    const auto sdf_with_extrema = collision_map.ExtractSignedDistanceField(oob_value, true, false, false);
+    const voxelized_geometry_tools::SignedDistanceField<std::vector<float>>& sdf = sdf_with_extrema.DistanceField();
+    std::cout << "Maximum distance in the SDF: " << sdf_with_extrema.Maximum() << ", minimum distance in the SDF: " << sdf_with_extrema.Minimum() << std::endl;
     // Let's get some values
     const auto index_sdf_query = sdf.GetImmutable(x_index, y_index, z_index);
     // Is it in the grid?

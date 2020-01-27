@@ -13,9 +13,11 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/maybe.hpp>
+#include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/signed_distance_field_generation.hpp>
+#include <voxelized_geometry_tools/topology_computation.hpp>
 
 namespace voxelized_geometry_tools
 {
@@ -43,11 +45,19 @@ public:
   uint32_t& Component() { return component_; }
 };
 
+using CollisionCellSerializer
+    = common_robotics_utilities::serialization::Serializer<CollisionCell>;
+using CollisionCellDeserializer
+    = common_robotics_utilities::serialization::Deserializer<CollisionCell>;
+
 class CollisionMap
     : public common_robotics_utilities::voxel_grid
         ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>
 {
 private:
+  using DeserializedCollisionMap
+      = common_robotics_utilities::serialization::Deserialized<CollisionMap>;
+
   uint32_t number_of_components_ = 0u;
   std::string frame_;
   bool components_valid_ = false;
@@ -62,16 +72,12 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const std::function<uint64_t(
-          const CollisionCell&,
-          std::vector<uint8_t>&)>& value_serializer) const override;
+      const CollisionCellSerializer& value_serializer) const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const std::function<std::pair<CollisionCell, uint64_t>(
-          const std::vector<uint8_t>&,
-          const uint64_t)>& value_deserializer) override;
+      const CollisionCellDeserializer& value_deserializer) override;
 
   /// Invalidate connected components on mutable access.
   bool OnMutableAccess(const int64_t x_index,
@@ -82,7 +88,7 @@ public:
   static uint64_t Serialize(
       const CollisionMap& map, std::vector<uint8_t>& buffer);
 
-  static std::pair<CollisionMap, uint64_t> Deserialize(
+  static DeserializedCollisionMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   static void SaveToFile(const CollisionMap& map,
@@ -156,11 +162,13 @@ public:
 
   uint32_t UpdateConnectedComponents();
 
-  common_robotics_utilities::OwningMaybe<uint32_t> GetNumConnectedComponents() const
+  common_robotics_utilities::OwningMaybe<uint32_t>
+  GetNumConnectedComponents() const
   {
     if (components_valid_)
     {
-      return common_robotics_utilities::OwningMaybe<uint32_t>(number_of_components_);
+      return common_robotics_utilities::OwningMaybe<uint32_t>(
+          number_of_components_);
     }
     else
     {
@@ -219,12 +227,11 @@ public:
       common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractEmptyComponentSurfaces() const;
 
-  std::map<uint32_t, std::pair<int32_t, int32_t>>
-  ComputeComponentTopology(
+  topology_computation::TopologicalInvariants ComputeComponentTopology(
       const COMPONENT_TYPES component_types_to_use, const bool verbose);
 
   template<typename BackingStore=std::vector<float>>
-  std::pair<SignedDistanceField<BackingStore>, std::pair<double, double>>
+  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
   ExtractSignedDistanceField(const float oob_value,
                              const bool unknown_is_filled,
                              const bool use_parallel,
@@ -263,7 +270,8 @@ public:
             add_virtual_border);
   }
 
-  std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+  signed_distance_field_generation
+      ::SignedDistanceFieldResult<std::vector<float>>
   ExtractSignedDistanceField(const float oob_value,
                              const bool unknown_is_filled,
                              const bool use_parallel,

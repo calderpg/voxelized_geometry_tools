@@ -110,6 +110,14 @@ class SignedDistanceField final
         ::VoxelGridBase<float, BackingStore>
 {
 private:
+  using FloatSerializer
+      = common_robotics_utilities::serialization::Serializer<float>;
+  using FloatDeserializer
+      = common_robotics_utilities::serialization::Deserializer<float>;
+  using DeserializedSignedDistanceField
+      = common_robotics_utilities::serialization
+          ::Deserialized<SignedDistanceField<BackingStore>>;
+
   std::string frame_;
   bool locked_ = false;
 
@@ -544,8 +552,7 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const std::function<uint64_t(
-        const float&, std::vector<uint8_t>&)>& value_serializer) const override
+      const FloatSerializer& value_serializer) const override
   {
     UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
@@ -559,23 +566,21 @@ private:
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const std::function<std::pair<float, uint64_t>(
-        const std::vector<uint8_t>&,
-        const uint64_t)>& value_deserializer) override
+      const FloatDeserializer& value_deserializer) override
   {
     UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
     // Deserialize SDF stuff
-    const std::pair<std::string, uint64_t> frame_deserialized
+    const auto frame_deserialized
         = common_robotics_utilities::serialization::DeserializeString<char>(
             buffer, current_position);
-    frame_ = frame_deserialized.first;
-    current_position += frame_deserialized.second;
-    const std::pair<uint8_t, uint64_t> locked_deserialized
+    frame_ = frame_deserialized.Value();
+    current_position += frame_deserialized.BytesRead();
+    const auto locked_deserialized
         = common_robotics_utilities::serialization
             ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-    locked_ = static_cast<bool>(locked_deserialized.first);
-    current_position += locked_deserialized.second;
+    locked_ = static_cast<bool>(locked_deserialized.Value());
+    current_position += locked_deserialized.BytesRead();
     // Figure out how many bytes were read
     const uint64_t bytes_read = current_position - starting_offset;
     return bytes_read;
@@ -601,7 +606,7 @@ public:
                                          ::SerializeMemcpyable<float>);
   }
 
-  static std::pair<SignedDistanceField<BackingStore>, uint64_t> Deserialize(
+  static DeserializedSignedDistanceField Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
   {
     SignedDistanceField<BackingStore> temp_sdf;
@@ -610,7 +615,8 @@ public:
             buffer, starting_offset,
             common_robotics_utilities::serialization
                 ::DeserializeMemcpyable<float>);
-    return std::make_pair(temp_sdf, bytes_read);
+    return common_robotics_utilities::serialization::MakeDeserialized(
+        temp_sdf, bytes_read);
   }
 
   static void SaveToFile(
@@ -665,7 +671,7 @@ public:
             reinterpret_cast<const char*>(file_header.data()));
       // Load the rest of the file
       std::vector<uint8_t> file_buffer(
-            (size_t)serialized_size - header_size, 0x00);
+            static_cast<size_t>(serialized_size - header_size), 0x00);
       input_file.read(reinterpret_cast<char*>(file_buffer.data()),
                       serialized_size - header_size);
       // Deserialize
@@ -675,12 +681,12 @@ public:
             = common_robotics_utilities::zlib_helpers
                 ::DecompressBytes(file_buffer);
         return SignedDistanceField<BackingStore>::Deserialize(
-            decompressed, 0).first;
+            decompressed, 0).Value();
       }
       else if (header_string == "SDFR")
       {
         return SignedDistanceField<BackingStore>::Deserialize(
-            file_buffer, 0).first;
+            file_buffer, 0).Value();
       }
       else
       {
@@ -919,22 +925,25 @@ public:
       else if (enable_edge_gradients)
       {
         // Get the "best" indices we can use
-        const int64_t low_x_index = std::max((int64_t)0, x_index - 1);
+        const int64_t low_x_index
+            = std::max(static_cast<int64_t>(0), x_index - 1);
         const int64_t high_x_index
             = std::min(this->GetNumXCells() - 1, x_index + 1);
-        const int64_t low_y_index = std::max((int64_t)0, y_index - 1);
+        const int64_t low_y_index
+            = std::max(static_cast<int64_t>(0), y_index - 1);
         const int64_t high_y_index
             = std::min(this->GetNumYCells() - 1, y_index + 1);
-        const int64_t low_z_index = std::max((int64_t)0, z_index - 1);
+        const int64_t low_z_index
+            = std::max(static_cast<int64_t>(0), z_index - 1);
         const int64_t high_z_index
             = std::min(this->GetNumZCells() - 1, z_index + 1);
         // Compute the axis increments
         const double x_increment
-            = (double)(high_x_index - low_x_index) * GetResolution();
+            = static_cast<double>(high_x_index - low_x_index) * GetResolution();
         const double y_increment
-            = (double)(high_y_index - low_y_index) * GetResolution();
+            = static_cast<double>(high_y_index - low_y_index) * GetResolution();
         const double z_increment
-            = (double)(high_z_index - low_z_index) * GetResolution();
+            = static_cast<double>(high_z_index - low_z_index) * GetResolution();
         // Compute the gradients for each axis - by default these are zero
         double gx = 0.0;
         double gy = 0.0;

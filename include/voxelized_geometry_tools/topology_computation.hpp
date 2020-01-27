@@ -18,6 +18,40 @@ namespace voxelized_geometry_tools
 {
 namespace topology_computation
 {
+class NumberOfHolesAndVoids
+{
+private:
+  int32_t num_holes_ = 0;
+  int32_t num_voids_ = 0;
+
+public:
+  NumberOfHolesAndVoids() {}
+
+  NumberOfHolesAndVoids(const int32_t num_holes, const int32_t num_voids)
+      : num_holes_(num_holes), num_voids_(num_voids)
+  {
+    if (num_holes_ < 0)
+    {
+      throw std::invalid_argument("num_holes_ < 0");
+    }
+    if (num_voids_ < 0)
+    {
+      throw std::invalid_argument("num_voids_ < 0");
+    }
+  }
+
+  int32_t NumHoles() const { return num_holes_; }
+
+  int32_t NumVoids() const { return num_voids_; }
+};
+
+/// Map of connected component id -> number of holes and voids in that connected
+/// component. The first three topological invariants, also known as Betti
+/// numbers, are (1) the number of connected components, (2) the number of holes
+/// in each connected component, and (3) the number of voids in each connected
+/// component.
+using TopologicalInvariants = std::map<uint32_t, NumberOfHolesAndVoids>;
+
 using common_robotics_utilities::voxel_grid::GridIndex;
 
 template<typename T, typename BackingStore=std::vector<T>>
@@ -329,7 +363,7 @@ ExtractComponentSurfaces(
   return component_surfaces;
 }
 
-inline std::pair<int32_t, int32_t> ComputeHolesInSurface(
+inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
     const uint32_t component,
     const std::unordered_map<GridIndex, uint8_t>& surface,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
@@ -638,12 +672,11 @@ inline std::pair<int32_t, int32_t> ComputeHolesInSurface(
               << " surfaces = " << number_of_surfaces
               << " voids = " << number_of_voids << std::endl;
   }
-  return std::pair<int32_t, int32_t>(number_of_holes, number_of_voids);
+  return NumberOfHolesAndVoids(number_of_holes, number_of_voids);
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-std::map<uint32_t, std::pair<int32_t, int32_t>>
-ComputeComponentTopology(
+TopologicalInvariants ComputeComponentTopology(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& source_grid,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
@@ -656,7 +689,7 @@ ComputeComponentTopology(
                                                     get_component_fn,
                                                     is_surface_index_fn);
   // Compute the number of holes in each surface
-  std::map<uint32_t, std::pair<int32_t, int32_t>> component_holes_and_voids;
+  TopologicalInvariants component_holes_and_voids;
   for (auto component_surfaces_itr = component_surfaces.begin();
        component_surfaces_itr != component_surfaces.end();
        ++component_surfaces_itr)
@@ -664,11 +697,9 @@ ComputeComponentTopology(
     const uint32_t component_number = component_surfaces_itr->first;
     const std::unordered_map<GridIndex, uint8_t>& component_surface
         = component_surfaces_itr->second;
-    const std::pair<int32_t, int32_t> number_of_holes_and_voids
-        = ComputeHolesInSurface(component_number,
-                                component_surface,
-                                get_component_fn,
-                                verbose);
+    const NumberOfHolesAndVoids number_of_holes_and_voids
+        = ComputeHolesAndVoidsInSurface(
+            component_number, component_surface, get_component_fn, verbose);
     component_holes_and_voids[component_number] = number_of_holes_and_voids;
   }
   return component_holes_and_voids;

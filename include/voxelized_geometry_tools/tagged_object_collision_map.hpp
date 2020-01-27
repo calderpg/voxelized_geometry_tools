@@ -13,9 +13,11 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/maybe.hpp>
+#include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/signed_distance_field_generation.hpp>
+#include <voxelized_geometry_tools/topology_computation.hpp>
 
 namespace voxelized_geometry_tools
 {
@@ -62,12 +64,23 @@ public:
   uint32_t& SpatialSegment() { return spatial_segment_; }
 };
 
+using TaggedObjectCollisionCellSerializer
+    = common_robotics_utilities::serialization
+        ::Serializer<TaggedObjectCollisionCell>;
+using TaggedObjectCollisionCellDeserializer
+    = common_robotics_utilities::serialization
+        ::Deserializer<TaggedObjectCollisionCell>;
+
 class TaggedObjectCollisionMap
     : public common_robotics_utilities::voxel_grid
         ::VoxelGridBase<TaggedObjectCollisionCell,
                         std::vector<TaggedObjectCollisionCell>>
 {
 private:
+  using DeserializedTaggedObjectCollisionMap
+      = common_robotics_utilities::serialization
+          ::Deserialized<TaggedObjectCollisionMap>;
+
   uint32_t number_of_components_ = 0u;
   uint32_t number_of_spatial_segments_ = 0u;
   std::string frame_;
@@ -85,16 +98,14 @@ private:
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const std::function<uint64_t(
-          const TaggedObjectCollisionCell&,
-          std::vector<uint8_t>&)>& value_serializer) const override;
+      const TaggedObjectCollisionCellSerializer& value_serializer)
+      const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const std::function<std::pair<TaggedObjectCollisionCell, uint64_t>(
-          const std::vector<uint8_t>&,
-          const uint64_t)>& value_deserializer) override;
+      const TaggedObjectCollisionCellDeserializer& value_deserializer)
+      override;
 
   /// Invalidate connected components on mutable access.
   bool OnMutableAccess(const int64_t x_index,
@@ -105,7 +116,7 @@ public:
   static uint64_t Serialize(
       const TaggedObjectCollisionMap& map, std::vector<uint8_t>& buffer);
 
-  static std::pair<TaggedObjectCollisionMap, uint64_t> Deserialize(
+  static DeserializedTaggedObjectCollisionMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   static void SaveToFile(const TaggedObjectCollisionMap& map,
@@ -193,11 +204,13 @@ public:
 
   uint32_t UpdateConnectedComponents(const bool connect_across_objects);
 
-  common_robotics_utilities::OwningMaybe<uint32_t> GetNumConnectedComponents() const
+  common_robotics_utilities::OwningMaybe<uint32_t>
+  GetNumConnectedComponents() const
   {
     if (components_valid_)
     {
-      return common_robotics_utilities::OwningMaybe<uint32_t>(number_of_components_);
+      return common_robotics_utilities::OwningMaybe<uint32_t>(
+          number_of_components_);
     }
     else
     {
@@ -285,12 +298,12 @@ public:
       common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractEmptyComponentSurfaces() const;
 
-  std::map<uint32_t, std::pair<int32_t, int32_t>> ComputeComponentTopology(
+  topology_computation::TopologicalInvariants ComputeComponentTopology(
       const COMPONENT_TYPES component_types_to_use,
       const bool connect_across_objects, const bool verbose);
 
   template<typename BackingStore=std::vector<float>>
-  std::pair<SignedDistanceField<BackingStore>, std::pair<double, double>>
+  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
   ExtractSignedDistanceField(const std::vector<uint32_t>& objects_to_use,
                              const float oob_value,
                              const bool unknown_is_filled,
@@ -359,7 +372,8 @@ public:
       per_object_sdfs[object_id]
           = ExtractSignedDistanceField<BackingStore>(
               std::vector<uint32_t>{object_id}, oob_value,
-              unknown_is_filled, use_parallel, add_virtual_border).first;
+              unknown_is_filled, use_parallel, add_virtual_border)
+              .DistanceField();
     }
     return per_object_sdfs;
   }
@@ -387,12 +401,13 @@ public:
       }
     }
     return MakeSeparateObjectSDFs<BackingStore>(
-        common_robotics_utilities::utility::GetKeys(object_id_map),
+        common_robotics_utilities::utility
+            ::GetKeysFromMapLike<uint32_t, int32_t>(object_id_map),
         oob_value, unknown_is_filled, use_parallel, add_virtual_border);
   }
 
   template<typename BackingStore=std::vector<float>>
-  std::pair<SignedDistanceField<BackingStore>, std::pair<double, double>>
+  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
   ExtractFreeAndNamedObjectsSignedDistanceField(
       const float oob_value, const bool unknown_is_filled,
       const bool use_parallel) const
@@ -448,7 +463,8 @@ public:
              BackingStore>(
                 *this, object_filled_fn, oob_value, GetFrame(), use_parallel,
                 false);
-    SignedDistanceField<BackingStore> combined_sdf = free_sdf_result.first;
+    SignedDistanceField<BackingStore> combined_sdf
+        = free_sdf_result.DistanceField();
     for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
     {
       for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
@@ -456,9 +472,10 @@ public:
         for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
         {
           const float free_sdf_value
-              = free_sdf_result.first.GetImmutable(x_idx, y_idx, z_idx).Value();
+              = free_sdf_result.DistanceField().GetImmutable(
+                  x_idx, y_idx, z_idx).Value();
           const float named_objects_sdf_value
-              = named_objects_sdf_result.first.GetImmutable(
+              = named_objects_sdf_result.DistanceField().GetImmutable(
                   x_idx, y_idx, z_idx).Value();
           if (free_sdf_value >= 0.0)
           {
@@ -476,12 +493,14 @@ public:
       }
     }
     // Get the combined max/min values
-    const std::pair<double, double> combined_extrema(
-          free_sdf_result.second.first, named_objects_sdf_result.second.second);
-    return std::make_pair(combined_sdf, combined_extrema);
+    return signed_distance_field_generation
+        ::SignedDistanceFieldResult<BackingStore>(
+            combined_sdf, free_sdf_result.Maximum(),
+            named_objects_sdf_result.Minimum());
   }
 
-  std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+  signed_distance_field_generation
+      ::SignedDistanceFieldResult<std::vector<float>>
   ExtractSignedDistanceField(const std::vector<uint32_t>& objects_to_use,
                              const float oob_value,
                              const bool unknown_is_filled,
@@ -499,7 +518,8 @@ public:
       const float oob_value, const bool unknown_is_filled,
       const bool use_parallel, const bool add_virtual_border) const;
 
-  std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+  signed_distance_field_generation
+      ::SignedDistanceFieldResult<std::vector<float>>
   ExtractFreeAndNamedObjectsSignedDistanceField(
       const float oob_value, const bool unknown_is_filled,
       const bool use_parallel) const;

@@ -32,9 +32,7 @@ TaggedObjectCollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const std::function<uint64_t(
-        const TaggedObjectCollisionCell&,
-        std::vector<uint8_t>&)>& value_serializer) const
+    const TaggedObjectCollisionCellSerializer& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -54,38 +52,36 @@ uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const std::function<std::pair<TaggedObjectCollisionCell, uint64_t>(
-        const std::vector<uint8_t>&,
-        const uint64_t)>& value_deserializer)
+    const TaggedObjectCollisionCellDeserializer& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
-  const std::pair<uint32_t, uint64_t> number_of_components_deserialized
+  const auto number_of_components_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
-  number_of_components_ = number_of_components_deserialized.first;
-  current_position += number_of_components_deserialized.second;
-  const std::pair<uint32_t, uint64_t> number_of_spatial_segments_deserialized
+  number_of_components_ = number_of_components_deserialized.Value();
+  current_position += number_of_components_deserialized.BytesRead();
+  const auto number_of_spatial_segments_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
-  number_of_spatial_segments_ = number_of_spatial_segments_deserialized.first;
-  current_position += number_of_spatial_segments_deserialized.second;
-  const std::pair<std::string, uint64_t> frame_deserialized
+  number_of_spatial_segments_ = number_of_spatial_segments_deserialized.Value();
+  current_position += number_of_spatial_segments_deserialized.BytesRead();
+  const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
           buffer, current_position);
-  frame_ = frame_deserialized.first;
-  current_position += frame_deserialized.second;
-  const std::pair<uint8_t, uint64_t> components_valid_deserialized
+  frame_ = frame_deserialized.Value();
+  current_position += frame_deserialized.BytesRead();
+  const auto components_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  components_valid_ = static_cast<bool>(components_valid_deserialized.first);
-  current_position += components_valid_deserialized.second;
-  const std::pair<uint8_t, uint64_t> spatial_segments_valid_deserialized
+  components_valid_ = static_cast<bool>(components_valid_deserialized.Value());
+  current_position += components_valid_deserialized.BytesRead();
+  const auto spatial_segments_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
   spatial_segments_valid_
-      = static_cast<bool>(spatial_segments_valid_deserialized.first);
-  current_position += spatial_segments_valid_deserialized.second;
+      = static_cast<bool>(spatial_segments_valid_deserialized.Value());
+  current_position += spatial_segments_valid_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
@@ -110,7 +106,7 @@ uint64_t TaggedObjectCollisionMap::Serialize(
                   ::SerializeMemcpyable<TaggedObjectCollisionCell>);
 }
 
-std::pair<TaggedObjectCollisionMap, uint64_t>
+TaggedObjectCollisionMap::DeserializedTaggedObjectCollisionMap
 TaggedObjectCollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
@@ -120,7 +116,8 @@ TaggedObjectCollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<TaggedObjectCollisionCell>);
-  return std::make_pair(temp_map, bytes_read);
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      temp_map, bytes_read);
 }
 
 void TaggedObjectCollisionMap::SaveToFile(
@@ -176,7 +173,7 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
           reinterpret_cast<const char*>(file_header.data()));
     // Load the rest of the file
     std::vector<uint8_t> file_buffer(
-          (size_t)serialized_size - header_size, 0x00);
+          static_cast<size_t>(serialized_size - header_size), 0x00);
     input_file.read(reinterpret_cast<char*>(file_buffer.data()),
                     serialized_size - header_size);
     // Deserialize
@@ -185,11 +182,11 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
       const std::vector<uint8_t> decompressed
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
-      return TaggedObjectCollisionMap::Deserialize(decompressed, 0).first;
+      return TaggedObjectCollisionMap::Deserialize(decompressed, 0).Value();
     }
     else if (header_string == "TMGR")
     {
-      return TaggedObjectCollisionMap::Deserialize(file_buffer, 0).first;
+      return TaggedObjectCollisionMap::Deserialize(file_buffer, 0).Value();
     }
     else
     {
@@ -203,13 +200,15 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
   }
 }
 
-common_robotics_utilities::OwningMaybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool>
+TaggedObjectCollisionMap::IsSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::OwningMaybe<bool> TaggedObjectCollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool>
+TaggedObjectCollisionMap::IsSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -505,7 +504,7 @@ TaggedObjectCollisionMap::ExtractEmptyComponentSurfaces() const
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
-std::map<uint32_t, std::pair<int32_t, int32_t>>
+topology_computation::TopologicalInvariants
 TaggedObjectCollisionMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use,
     const bool connect_across_objects, const bool verbose)
@@ -568,7 +567,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
 TaggedObjectCollisionMap::ExtractSignedDistanceField(
     const std::vector<uint32_t>& objects_to_use, const float oob_value,
     const bool unknown_is_filled, const bool use_parallel,
@@ -599,7 +598,7 @@ TaggedObjectCollisionMap::MakeAllObjectSDFs(
       oob_value, unknown_is_filled, use_parallel, add_virtual_border);
 }
 
-std::pair<SignedDistanceField<std::vector<float>>, std::pair<double, double>>
+signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceField(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel) const
@@ -716,7 +715,8 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
               true, use_parallel, true)
         : ExtractFreeAndNamedObjectsSignedDistanceField(
               std::numeric_limits<float>::infinity(), true, use_parallel);
-  const SignedDistanceField<std::vector<float>>& sdf = sdf_result.first;
+  const SignedDistanceField<std::vector<float>>& sdf
+      = sdf_result.DistanceField();
   const auto extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
   // This is not enough, we also need to limit the curvature of the

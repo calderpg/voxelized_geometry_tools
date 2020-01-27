@@ -30,9 +30,7 @@ DynamicSpatialHashedCollisionMap::DoClone() const
 /// We need to serialize the frame and locked flag.
 uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const std::function<uint64_t(
-        const CollisionCell&,
-        std::vector<uint8_t>&)>& value_serializer) const
+    const CollisionCellSerializer& value_serializer) const
 {
   UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -44,17 +42,15 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
 /// We need to deserialize the frame and locked flag.
 uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const std::function<std::pair<CollisionCell, uint64_t>(
-        const std::vector<uint8_t>&,
-        const uint64_t)>& value_deserializer)
+    const CollisionCellDeserializer& value_deserializer)
 {
   UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
-  const std::pair<std::string, uint64_t> frame_deserialized
+  const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
           buffer, current_position);
-  frame_ = frame_deserialized.first;
-  current_position += frame_deserialized.second;
+  frame_ = frame_deserialized.Value();
+  current_position += frame_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
@@ -74,7 +70,7 @@ uint64_t DynamicSpatialHashedCollisionMap::Serialize(
                                        ::SerializeMemcpyable<CollisionCell>);
 }
 
-std::pair<DynamicSpatialHashedCollisionMap, uint64_t>
+DynamicSpatialHashedCollisionMap::DeserializedDynamicSpatialHashedCollisionMap
 DynamicSpatialHashedCollisionMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
@@ -84,7 +80,8 @@ DynamicSpatialHashedCollisionMap::Deserialize(
           buffer, starting_offset,
           common_robotics_utilities::serialization
               ::DeserializeMemcpyable<CollisionCell>);
-  return std::make_pair(temp_map, bytes_read);
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      temp_map, bytes_read);
 }
 
 void DynamicSpatialHashedCollisionMap::SaveToFile(
@@ -140,7 +137,7 @@ DynamicSpatialHashedCollisionMap::LoadFromFile(const std::string& filepath)
           reinterpret_cast<const char*>(file_header.data()));
     // Load the rest of the file
     std::vector<uint8_t> file_buffer(
-          (size_t)serialized_size - header_size, 0x00);
+          static_cast<size_t>(serialized_size - header_size), 0x00);
     input_file.read(reinterpret_cast<char*>(file_buffer.data()),
                     serialized_size - header_size);
     // Deserialize
@@ -150,12 +147,12 @@ DynamicSpatialHashedCollisionMap::LoadFromFile(const std::string& filepath)
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
       return DynamicSpatialHashedCollisionMap::Deserialize(
-          decompressed, 0).first;
+          decompressed, 0).Value();
     }
     else if (header_string == "DMGR")
     {
       return DynamicSpatialHashedCollisionMap::Deserialize(
-          file_buffer, 0).first;
+          file_buffer, 0).Value();
     }
     else
     {

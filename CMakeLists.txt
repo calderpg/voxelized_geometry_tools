@@ -75,6 +75,7 @@ add_compile_options(-O3)
 add_compile_options(-g)
 add_compile_options(-flto)
 add_compile_options(-Werror=non-virtual-dtor)
+add_compile_options(-Wold-style-cast)
 add_compile_options(-march=native)
 
 ## It's not clear if add_compile_options does the right things for flags that

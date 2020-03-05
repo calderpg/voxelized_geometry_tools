@@ -115,15 +115,85 @@ public:
 };
 using PointCloudWrapperPtr = std::shared_ptr<PointCloudWrapper>;
 
+class VoxelizerRuntime
+{
+public:
+  VoxelizerRuntime(const double raycasting_time, const double filtering_time)
+      : raycasting_time_(raycasting_time), filtering_time_(filtering_time)
+  {
+    if (raycasting_time_ < 0.0)
+    {
+      throw std::invalid_argument("raycasting_time < 0.0");
+    }
+    if (filtering_time_ < 0.0)
+    {
+      throw std::invalid_argument("filtering_time < 0.0");
+    }
+  }
+
+  double RaycastingTime() const { return raycasting_time_; }
+
+  double FilteringTime() const { return filtering_time_; }
+
+private:
+  double raycasting_time_ = 0.0;
+  double filtering_time_ = 0.0;
+};
+
 class PointCloudVoxelizationInterface
 {
 public:
   virtual ~PointCloudVoxelizationInterface() {}
 
-  virtual CollisionMap VoxelizePointClouds(
+  CollisionMap VoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds) const = 0;
+      const std::vector<PointCloudWrapperPtr>& pointclouds) const {
+    CollisionMap output_environment = static_environment;
+    const auto voxelizer_runtime = VoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options, pointclouds,
+        output_environment);
+    std::cout
+        << "Raycasting time " << voxelizer_runtime.RaycastingTime()
+        << ", filtering time " << voxelizer_runtime.FilteringTime()
+        << std::endl;
+    return output_environment;
+  }
+
+  VoxelizerRuntime VoxelizePointClouds(
+      const CollisionMap& static_environment, const double step_size_multiplier,
+      const PointCloudVoxelizationFilterOptions& filter_options,
+      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      CollisionMap& output_environment) const {
+    if (!static_environment.IsInitialized())
+    {
+      throw std::invalid_argument("!static_environment.IsInitialized()");
+    }
+    if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
+    {
+      throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
+    }
+    if (!output_environment.IsInitialized())
+    {
+      throw std::invalid_argument("!output_environment.IsInitialized()");
+    }
+    if (static_environment.GetGridSizes() != output_environment.GetGridSizes())
+    {
+      throw std::invalid_argument(
+          "static_environment.GetGridSizes() != "
+          "output_environment.GetGridSizes()");
+    }
+    return DoVoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options, pointclouds,
+        output_environment);
+  }
+
+protected:
+  virtual VoxelizerRuntime DoVoxelizePointClouds(
+      const CollisionMap& static_environment, const double step_size_multiplier,
+      const PointCloudVoxelizationFilterOptions& filter_options,
+      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      CollisionMap& output_environment) const = 0;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

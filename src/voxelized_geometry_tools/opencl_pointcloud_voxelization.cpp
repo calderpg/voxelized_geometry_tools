@@ -30,19 +30,12 @@ OpenCLPointCloudVoxelizer::OpenCLPointCloudVoxelizer(
   }
 }
 
-CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
+VoxelizerRuntime OpenCLPointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointCloudWrapperPtr>& pointclouds) const
+    const std::vector<PointCloudWrapperPtr>& pointclouds,
+    CollisionMap& output_environment) const
 {
-  if (!static_environment.IsInitialized())
-  {
-    throw std::invalid_argument("!static_environment.IsInitialized()");
-  }
-  if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
-  {
-    throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
-  }
   if (interface_->IsAvailable())
   {
     const std::chrono::time_point<std::chrono::steady_clock> start_time =
@@ -108,21 +101,16 @@ CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
         static_cast<int32_t>(pointclouds.size()), percent_seen_free,
         outlier_points_threshold, num_cameras_seen_free);
     // Retrieve & return
-    CollisionMap filtered_grid = static_environment;
     interface_->RetrieveFilteredGrid(
         static_environment.GetTotalCells(),
-        filtered_grid.GetMutableRawData().data());
+        output_environment.GetMutableRawData().data());
     // Cleanup device memory
     interface_->CleanupAllocatedMemory();
     const std::chrono::time_point<std::chrono::steady_clock> done_time =
         std::chrono::steady_clock::now();
-    std::cout
-        << "Raycasting time "
-        << std::chrono::duration<double>(raycasted_time - start_time).count()
-        << ", filtering time "
-        << std::chrono::duration<double>(done_time - raycasted_time).count()
-        << std::endl;
-    return filtered_grid;
+    return VoxelizerRuntime(
+        std::chrono::duration<double>(raycasted_time - start_time).count(),
+        std::chrono::duration<double>(done_time - raycasted_time).count());
   }
   else
   {
@@ -131,4 +119,3 @@ CollisionMap OpenCLPointCloudVoxelizer::VoxelizePointClouds(
 }
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools
-

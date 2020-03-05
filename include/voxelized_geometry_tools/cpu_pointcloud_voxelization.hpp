@@ -69,20 +69,21 @@ class CpuPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
   CpuPointCloudVoxelizer() {}
 
-  voxelized_geometry_tools::CollisionMap VoxelizePointClouds(
+private:
+  VoxelizerRuntime DoVoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds) const override;
+      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      CollisionMap& output_environment) const override;
 
-private:
   void RaycastPointCloud(
       const PointCloudWrapper& cloud, const double step_size,
       CpuVoxelizationTrackingGrid& tracking_grid) const;
 
-  voxelized_geometry_tools::CollisionMap CombineAndFilterGrids(
-      const CollisionMap& static_environment,
+  void CombineAndFilterGrids(
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const VectorCpuVoxelizationTrackingGrid& tracking_grids) const;
+      const VectorCpuVoxelizationTrackingGrid& tracking_grids,
+      CollisionMap& output_environment) const;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

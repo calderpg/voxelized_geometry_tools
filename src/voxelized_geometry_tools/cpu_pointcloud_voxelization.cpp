@@ -19,19 +19,12 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-CollisionMap CpuPointCloudVoxelizer::VoxelizePointClouds(
+VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointCloudWrapperPtr>& pointclouds) const
+    const std::vector<PointCloudWrapperPtr>& pointclouds,
+    CollisionMap& output_environment) const
 {
-  if (!static_environment.IsInitialized())
-  {
-    throw std::invalid_argument("!static_environment.IsInitialized()");
-  }
-  if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
-  {
-    throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
-  }
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
   // Pose of grid G in world W.
@@ -61,17 +54,12 @@ CollisionMap CpuPointCloudVoxelizer::VoxelizePointClouds(
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();
   // Combine & filter
-  const auto result = CombineAndFilterGrids(
-      static_environment, filter_options, tracking_grids);
+  CombineAndFilterGrids(filter_options, tracking_grids, output_environment);
   const std::chrono::time_point<std::chrono::steady_clock> done_time =
       std::chrono::steady_clock::now();
-  std::cout
-      << "Raycasting time "
-      << std::chrono::duration<double>(raycasted_time - start_time).count()
-      << ", filtering time "
-      << std::chrono::duration<double>(done_time - raycasted_time).count()
-      << std::endl;
-  return result;
+  return VoxelizerRuntime(
+      std::chrono::duration<double>(raycasted_time - start_time).count(),
+      std::chrono::duration<double>(done_time - raycasted_time).count());
 }
 
 void CpuPointCloudVoxelizer::RaycastPointCloud(
@@ -108,7 +96,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
       if (!(index == last_index))
       {
         auto query = tracking_grid.GetMutable(index);
-        // We must check query.second to see if the query is within bounds.
+        // We must check to see if the query is within bounds.
         if (query)
         {
           in_grid = true;
@@ -129,7 +117,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
     const common_robotics_utilities::voxel_grid::GridIndex index =
           tracking_grid.LocationToGridIndex4d(p_WP);
     auto query = tracking_grid.GetMutable(index);
-    // We must check query.second to see if the query is within bounds.
+    // We must check to see if the query is within bounds.
     if (query)
     {
       query.Value().seen_filled_count.fetch_add(1);
@@ -137,13 +125,11 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
   }
 }
 
-voxelized_geometry_tools::CollisionMap
-CpuPointCloudVoxelizer::CombineAndFilterGrids(
-    const CollisionMap& static_environment,
+void CpuPointCloudVoxelizer::CombineAndFilterGrids(
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const VectorCpuVoxelizationTrackingGrid& tracking_grids) const
+    const VectorCpuVoxelizationTrackingGrid& tracking_grids,
+    CollisionMap& filtered_grid) const
 {
-  CollisionMap filtered_grid = static_environment;
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
@@ -151,8 +137,7 @@ CpuPointCloudVoxelizer::CombineAndFilterGrids(
 #pragma omp parallel for
   for (size_t voxel = 0; voxel < filtered_grid_backing_store.size(); voxel++)
   {
-    voxelized_geometry_tools::CollisionCell& current_cell =
-        filtered_grid_backing_store.at(voxel);
+    auto& current_cell = filtered_grid_backing_store.at(voxel);
     // Filled cells stay filled, we don't work with them.
     // We only change cells that are unknown or empty.
     if (current_cell.Occupancy() <= 0.5)
@@ -193,7 +178,6 @@ CpuPointCloudVoxelizer::CombineAndFilterGrids(
       }
     }
   }
-  return filtered_grid;
 }
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

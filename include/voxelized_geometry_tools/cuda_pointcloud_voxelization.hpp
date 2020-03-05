@@ -23,12 +23,13 @@ public:
   explicit CudaPointCloudVoxelizer(
       const std::map<std::string, int32_t>& options);
 
-  voxelized_geometry_tools::CollisionMap VoxelizePointClouds(
+private:
+  VoxelizerRuntime DoVoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds) const override;
+      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      CollisionMap& output_environment) const override;
 
-private:
   std::unique_ptr<cuda_helpers::CudaVoxelizationHelperInterface> interface_;
 };
 }  // namespace pointcloud_voxelization

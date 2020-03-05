@@ -16,19 +16,15 @@ namespace pointcloud_voxelization
 {
 namespace cuda_helpers
 {
-bool IsAvailable() { return true; }
-
-#define CudaCheckErrors(msg) \
-    do { \
-        cudaError_t __err = cudaGetLastError(); \
-        if (__err != cudaSuccess) { \
-            fprintf(stderr, "Fatal error: %s (%s at %s:%d)\n", \
-                msg, cudaGetErrorString(__err), \
-                __FILE__, __LINE__); \
-            fprintf(stderr, "*** FAILED - ABORTING\n"); \
-            exit(1); \
-        } \
-    } while (0)
+void CudaCheckErrors(const std::string& msg)
+{
+  const cudaError_t last_error = cudaGetLastError();
+  if (last_error != cudaSuccess)
+  {
+    const std::string error_string(cudaGetErrorString(last_error));
+    throw std::runtime_error("[" + msg + "] Cuda error [" + error_string + "]");
+  }
+}
 
 __global__
 void RaycastPoint(
@@ -244,17 +240,27 @@ public:
   {
     const int32_t cuda_device =
         RetrieveOptionOrDefault(options, "CUDA_DEVICE", 0);
-    int32_t device_count = 0;
-    cudaGetDeviceCount(&device_count);
-    if (cuda_device >= 0 && cuda_device < device_count)
+    try
     {
-      cuda_device_num_ = cuda_device;
-      SetCudaDevice();
+      int32_t device_count = 0;
+      cudaGetDeviceCount(&device_count);
+      CudaCheckErrors("Failed to get device count");
+      if (cuda_device >= 0 && cuda_device < device_count)
+      {
+        cuda_device_num_ = cuda_device;
+        SetCudaDevice();
+      }
+      else
+      {
+        std::cerr << "CUDA_DEVICE = " << cuda_device << " out of range for "
+                  << device_count << " devices" << std::endl;
+        cuda_device_num_ = -1;
+      }
     }
-    else
+    catch (const std::runtime_error& ex)
     {
-      std::cerr << "CUDA_DEVICE = " << cuda_device << " out of range for "
-                << device_count << " devices" << std::endl;
+      std::cerr << "Failed to load CUDA runtime and set device: "
+                << ex.what() << std::endl;
       cuda_device_num_ = -1;
     }
   }

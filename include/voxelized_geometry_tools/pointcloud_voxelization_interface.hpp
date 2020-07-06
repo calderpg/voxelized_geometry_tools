@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -148,15 +149,20 @@ public:
   CollisionMap VoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds) const {
+      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      const std::function<void(const VoxelizerRuntime&)>&
+          runtime_log_fn = [] (const VoxelizerRuntime& voxelizer_runtime)
+          {
+            std::cout
+                << "Raycasting time " << voxelizer_runtime.RaycastingTime()
+                << ", filtering time " << voxelizer_runtime.FilteringTime()
+                << std::endl;
+          }) const {
     CollisionMap output_environment = static_environment;
     const auto voxelizer_runtime = VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, pointclouds,
         output_environment);
-    std::cout
-        << "Raycasting time " << voxelizer_runtime.RaycastingTime()
-        << ", filtering time " << voxelizer_runtime.FilteringTime()
-        << std::endl;
+    runtime_log_fn(voxelizer_runtime);
     return output_environment;
   }
 

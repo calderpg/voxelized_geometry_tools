@@ -100,19 +100,92 @@ public:
 
   virtual const Eigen::Isometry3d& GetPointCloudOriginTransform() const = 0;
 
-  virtual Eigen::Vector4d GetPointLocationDouble(
-      const int64_t point_index) const = 0;
+  virtual void SetPointCloudOriginTransform(
+      const Eigen::Isometry3d& origin_transform) = 0;
 
-  virtual Eigen::Vector4f GetPointLocationFloat(
-      const int64_t point_index) const = 0;
+  Eigen::Vector4d GetPointLocationVector4d(const int64_t point_index) const
+  {
+    Eigen::Vector4d point(0.0, 0.0, 0.0, 1.0);
+    CopyPointLocationIntoVector4d(point_index, point);
+    return point;
+  }
 
-  virtual void CopyPointLocationIntoVectorDouble(
+  Eigen::Vector4f GetPointLocationVector4f(const int64_t point_index) const
+  {
+    Eigen::Vector4f point(0.0f, 0.0f, 0.0f, 1.0f);
+    CopyPointLocationIntoVector4f(point_index, point);
+    return point;
+  }
+
+  void CopyPointLocationIntoVector4d(
+      const int64_t point_index, Eigen::Vector4d& point_location) const
+  {
+    CopyPointLocationIntoDoublePtr(point_index, point_location.data());
+    point_location(3) = 1.0;
+  }
+
+  void CopyPointLocationIntoVector4f(
+      const int64_t point_index, Eigen::Vector4f& point_location) const
+  {
+    CopyPointLocationIntoFloatPtr(point_index, point_location.data());
+    point_location(3) = 1.0f;
+  }
+
+  void CopyPointLocationIntoVectorDouble(
       const int64_t point_index, std::vector<double>& vector,
-      const int64_t vector_index) const = 0;
+      const int64_t vector_index) const
+  {
+    EnforceVectorIndexInRange(vector_index, vector);
+    CopyPointLocationIntoDoublePtr(point_index, vector.data() + vector_index);
+  }
 
-  virtual void CopyPointLocationIntoVectorFloat(
+  void CopyPointLocationIntoVectorFloat(
       const int64_t point_index, std::vector<float>& vector,
-      const int64_t vector_index) const = 0;
+      const int64_t vector_index) const
+  {
+    EnforceVectorIndexInRange(vector_index, vector);
+    CopyPointLocationIntoFloatPtr(point_index, vector.data() + vector_index);
+  }
+
+  void CopyPointLocationIntoDoublePtr(
+      const int64_t point_index, double* destination) const
+  {
+    EnforcePointIndexInRange(point_index);
+    CopyPointLocationIntoDoublePtrImpl(point_index, destination);
+  }
+
+  void CopyPointLocationIntoFloatPtr(
+      const int64_t point_index, float* destination) const
+  {
+    EnforcePointIndexInRange(point_index);
+    CopyPointLocationIntoFloatPtrImpl(point_index, destination);
+  }
+
+  void EnforcePointIndexInRange(const int64_t point_index) const
+  {
+    if (point_index < 0 || point_index >= Size())
+    {
+      throw std::out_of_range("point_index out of range");
+    }
+  }
+
+  template<typename T>
+  static void EnforceVectorIndexInRange(
+      const int64_t vector_index, const std::vector<T>& destination)
+  {
+    if (vector_index < 0 ||
+        (vector_index + 3) > static_cast<int64_t>(destination.size()))
+    {
+      throw std::out_of_range("vector_index out of range");
+    }
+  }
+
+protected:
+  virtual void CopyPointLocationIntoDoublePtrImpl(
+      const int64_t point_index, double* destination) const = 0;
+
+  virtual void CopyPointLocationIntoFloatPtrImpl(
+      const int64_t point_index, float* destination) const = 0;
 };
 using PointCloudWrapperPtr = std::shared_ptr<PointCloudWrapper>;
 

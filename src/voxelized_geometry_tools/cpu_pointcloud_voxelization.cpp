@@ -74,7 +74,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
   for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
-    const Eigen::Vector4d p_CP = cloud.GetPointLocationDouble(idx);
+    const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(idx);
     // Location of point P in world W
     const Eigen::Vector4d p_WP = X_WC * p_CP;
     // Ray from camera to point

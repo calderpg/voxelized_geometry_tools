@@ -1,3 +1,4 @@
+#include <cstring>
 #include <functional>
 #include <vector>
 
@@ -32,11 +33,6 @@ class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  void SetOriginTransform(const Eigen::Isometry3d& origin_transform)
-  {
-    origin_transform_ = origin_transform;
-  }
-
   void PushBack(const Eigen::Vector3d& point)
   {
     points_.push_back(point);
@@ -49,43 +45,28 @@ public:
     return origin_transform_;
   }
 
-  Eigen::Vector4d GetPointLocationDouble(
-      const int64_t point_index) const override
+  void SetPointCloudOriginTransform(
+      const Eigen::Isometry3d& origin_transform) override
   {
-    const auto& point = points_.at(static_cast<size_t>(point_index));
-    return Eigen::Vector4d(point.x(), point.y(), point.z(), 1.0);
-  }
-
-  Eigen::Vector4f GetPointLocationFloat(
-      const int64_t point_index) const override
-  {
-    return GetPointLocationDouble(point_index).cast<float>();
-  }
-
-  void CopyPointLocationIntoVectorDouble(
-      const int64_t point_index, std::vector<double>& vector,
-      const int64_t vector_index) const override
-  {
-    const auto& point = points_.at(static_cast<size_t>(point_index));
-    vector.at(static_cast<size_t>(vector_index) + 0) = point.x();
-    vector.at(static_cast<size_t>(vector_index) + 1) = point.y();
-    vector.at(static_cast<size_t>(vector_index) + 2) = point.z();
-  }
-
-  void CopyPointLocationIntoVectorFloat(
-      const int64_t point_index, std::vector<float>& vector,
-      const int64_t vector_index) const override
-  {
-    const auto& point = points_.at(static_cast<size_t>(point_index));
-    vector.at(static_cast<size_t>(vector_index) + 0) =
-        static_cast<float>(point.x());
-    vector.at(static_cast<size_t>(vector_index) + 1) =
-        static_cast<float>(point.y());
-    vector.at(static_cast<size_t>(vector_index) + 2) =
-        static_cast<float>(point.z());
+    origin_transform_ = origin_transform;
   }
 
 private:
+  void CopyPointLocationIntoDoublePtrImpl(
+      const int64_t point_index, double* destination) const override
+  {
+    const Eigen::Vector3d& point = points_.at(static_cast<size_t>(point_index));
+    std::memcpy(destination, point.data(), sizeof(double) * 3);
+  }
+
+  void CopyPointLocationIntoFloatPtrImpl(
+      const int64_t point_index, float* destination) const override
+  {
+    const Eigen::Vector3f point =
+        points_.at(static_cast<size_t>(point_index)).cast<float>();
+    std::memcpy(destination, point.data(), sizeof(float) * 3);
+  }
+
   common_robotics_utilities::math::VectorVector3d points_;
   Eigen::Isometry3d origin_transform_ = Eigen::Isometry3d::Identity();
 };
@@ -183,7 +164,7 @@ void test_pointcloud_voxelization(
   const Eigen::Isometry3d X_WC1O = X_WC1 * X_CO;
   PointCloudWrapperPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam1_cloud.get())
-      ->SetOriginTransform(X_WC1O);
+      ->SetPointCloudOriginTransform(X_WC1O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
   {
     for (double y = -2.0; y <= 2.0; y += 0.03125)
@@ -199,7 +180,7 @@ void test_pointcloud_voxelization(
   const Eigen::Isometry3d X_WC2O = X_WC2 * X_CO;
   PointCloudWrapperPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam2_cloud.get())
-      ->SetOriginTransform(X_WC2O);
+      ->SetPointCloudOriginTransform(X_WC2O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
   {
     for (double y = -2.0; y <= 2.0; y += 0.03125)

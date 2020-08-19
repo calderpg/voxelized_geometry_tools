@@ -66,9 +66,9 @@ void RaycastPoint(
     int32_t previous_x_cell = -1;
     int32_t previous_y_cell = -1;
     int32_t previous_z_cell = -1;
+    bool ray_crossed_grid = false;
     for (float step = 0.0; step < num_steps; step += 1.0)
     {
-      bool in_grid = false;
       const float elapsed_ratio = step / num_steps;
       const float cx = (rx * elapsed_ratio) + ox;
       const float cy = (ry * elapsed_ratio) + oy;
@@ -97,13 +97,13 @@ void RaycastPoint(
         if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
             && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
         {
-          in_grid = true;
+          ray_crossed_grid = true;
           const int32_t cell_index =
               (x_cell * stride1) + (y_cell * stride2) + z_cell;
           // Increase free count
           atomicAdd(&(device_tracking_grid_ptr[cell_index * 2]), 1);
         }
-        else if (in_grid)
+        else if (ray_crossed_grid)
         {
           // We've left the grid and there's no reason to keep going.
           break;

@@ -226,9 +226,12 @@ public:
       const std::function<void(const VoxelizerRuntime&)>&
           runtime_log_fn = [] (const VoxelizerRuntime& voxelizer_runtime)
           {
+            const double raycasting_time = voxelizer_runtime.RaycastingTime();
+            const double filtering_time = voxelizer_runtime.FilteringTime();
             std::cout
-                << "Raycasting time " << voxelizer_runtime.RaycastingTime()
-                << ", filtering time " << voxelizer_runtime.FilteringTime()
+                << "Raycasting time " << raycasting_time
+                << ", filtering time " << filtering_time
+                << ", total time " << raycasting_time + filtering_time
                 << std::endl;
           }) const {
     CollisionMap output_environment = static_environment;

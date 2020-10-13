@@ -44,6 +44,7 @@ catkin_package(INCLUDE_DIRS
                LIBRARIES
                ${PROJECT_NAME}
                ${PROJECT_NAME}_pointcloud_voxelization
+               ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
                ${PROJECT_NAME}_ros_interface
                CATKIN_DEPENDS
                roscpp
@@ -162,7 +163,7 @@ target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization
                       ${PROJECT_NAME}_opencl_voxelization_helpers
                       ${PROJECT_NAME} ${catkin_LIBRARIES})
 
-# ROS interface library
+# ROS interface libraries
 add_library(${PROJECT_NAME}_ros_interface
             include/${PROJECT_NAME}/ros_interface.hpp
             src/${PROJECT_NAME}/ros_interface.cpp)
@@ -170,6 +171,15 @@ add_dependencies(${PROJECT_NAME}_ros_interface ${catkin_EXPORTED_TARGETS}
                                                ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_ros_interface ${PROJECT_NAME}
                                                     ${catkin_LIBRARIES})
+
+add_library(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+            include/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.hpp
+            src/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.cpp)
+add_dependencies(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+                 ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+                      ${PROJECT_NAME}_pointcloud_voxelization
+                      ${catkin_LIBRARIES})
 
 # Examples
 add_executable(voxelized_geometry_tools_tutorial example/tutorial.cpp)
@@ -207,6 +217,7 @@ install(TARGETS ${PROJECT_NAME}
                 ${PROJECT_NAME}_cuda_voxelization_helpers
                 ${PROJECT_NAME}_opencl_voxelization_helpers
                 ${PROJECT_NAME}_pointcloud_voxelization
+                ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
                 ${PROJECT_NAME}_ros_interface
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

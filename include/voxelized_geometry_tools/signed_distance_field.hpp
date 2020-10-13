@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -542,11 +543,12 @@ private:
   /// Implement the VoxelGridBase interface.
 
   /// We need to implement cloning.
-  common_robotics_utilities::voxel_grid::VoxelGridBase<float, BackingStore>*
+  std::unique_ptr<common_robotics_utilities::voxel_grid
+      ::VoxelGridBase<float, BackingStore>>
   DoClone() const override
   {
-    return new SignedDistanceField<BackingStore>(
-        static_cast<const SignedDistanceField<BackingStore>&>(*this));
+    return std::unique_ptr<SignedDistanceField<BackingStore>>(
+        new SignedDistanceField<BackingStore>(*this));
   }
 
   /// We need to serialize the frame and locked flag.

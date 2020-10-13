@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -18,13 +19,13 @@
 namespace voxelized_geometry_tools
 {
 /// We need to implement cloning.
-common_robotics_utilities::voxel_grid
+std::unique_ptr<common_robotics_utilities::voxel_grid
     ::DynamicSpatialHashedVoxelGridBase<
-        CollisionCell, std::vector<CollisionCell>>*
+        CollisionCell, std::vector<CollisionCell>>>
 DynamicSpatialHashedCollisionMap::DoClone() const
 {
-  return new DynamicSpatialHashedCollisionMap(
-      static_cast<const DynamicSpatialHashedCollisionMap&>(*this));
+  return std::unique_ptr<DynamicSpatialHashedCollisionMap>(
+      new DynamicSpatialHashedCollisionMap(*this));
 }
 
 /// We need to serialize the frame and locked flag.

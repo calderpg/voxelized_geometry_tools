@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -65,8 +66,8 @@ private:
   /// Implement the VoxelGridBase interface.
 
   /// We need to implement cloning.
-  common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>*
+  std::unique_ptr<common_robotics_utilities::voxel_grid
+      ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.

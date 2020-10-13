@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -27,9 +28,9 @@ private:
   /// Implement the DynamicSpatialHashedVoxelGridBase interface.
 
   /// We need to implement cloning.
-  common_robotics_utilities::voxel_grid
+  std::unique_ptr<common_robotics_utilities::voxel_grid
       ::DynamicSpatialHashedVoxelGridBase<
-          CollisionCell, std::vector<CollisionCell>>*
+          CollisionCell, std::vector<CollisionCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.

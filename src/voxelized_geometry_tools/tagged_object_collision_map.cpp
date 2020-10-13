@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -20,13 +21,13 @@
 namespace voxelized_geometry_tools
 {
 /// We need to implement cloning.
-common_robotics_utilities::voxel_grid
+std::unique_ptr<common_robotics_utilities::voxel_grid
     ::VoxelGridBase<TaggedObjectCollisionCell,
-                    std::vector<TaggedObjectCollisionCell>>*
+                    std::vector<TaggedObjectCollisionCell>>>
 TaggedObjectCollisionMap::DoClone() const
 {
-  return new TaggedObjectCollisionMap(
-      static_cast<const TaggedObjectCollisionMap&>(*this));
+  return std::unique_ptr<TaggedObjectCollisionMap>(
+      new TaggedObjectCollisionMap(*this));
 }
 
 /// We need to serialize the frame and locked flag.

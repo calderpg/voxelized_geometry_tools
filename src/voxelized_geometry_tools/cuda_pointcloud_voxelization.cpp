@@ -71,6 +71,7 @@ VoxelizerRuntime CudaPointCloudVoxelizer::DoVoxelizePointClouds(
       const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
       const Eigen::Isometry3f pointcloud_origin_transform_float =
           pointcloud->GetPointCloudOriginTransform().cast<float>();
+      const float max_range = static_cast<float>(pointcloud->MaxRange());
       // Copy pointcloud
       std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
       for (int64_t point = 0; point < pointcloud->Size(); point++)
@@ -80,7 +81,7 @@ VoxelizerRuntime CudaPointCloudVoxelizer::DoVoxelizePointClouds(
       }
       // Raycast
       interface_->RaycastPoints(
-          raw_points, pointcloud_origin_transform_float.data(),
+          raw_points, pointcloud_origin_transform_float.data(), max_range,
           inverse_grid_origin_transform_float.data(), inverse_step_size,
           inverse_cell_size, num_x_cells, num_y_cells, num_z_cells,
           device_tracking_grid_offsets.at(idx));

@@ -26,6 +26,7 @@ public:
   virtual void RaycastPoints(
       const std::vector<float>& raw_points,
       const Eigen::Isometry3f& pointcloud_origin_transform,
+      const float max_range,
       const Eigen::Isometry3f& inverse_grid_origin_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,

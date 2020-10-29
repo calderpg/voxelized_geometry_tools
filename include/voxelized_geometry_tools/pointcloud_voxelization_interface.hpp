@@ -96,6 +96,8 @@ public:
 
   virtual ~PointCloudWrapper() {}
 
+  virtual double MaxRange() const = 0;
+
   virtual int64_t Size() const = 0;
 
   virtual const Eigen::Isometry3d& GetPointCloudOriginTransform() const = 0;
@@ -187,6 +189,7 @@ protected:
   virtual void CopyPointLocationIntoFloatPtrImpl(
       const int64_t point_index, float* destination) const = 0;
 };
+
 using PointCloudWrapperPtr = std::shared_ptr<PointCloudWrapper>;
 
 class VoxelizerRuntime

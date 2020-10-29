@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstring>
+#include <limits>
 #include <map>
 #include <stdexcept>
 #include <vector>
@@ -17,6 +18,8 @@ class PointCloud2Wrapper : public PointCloudWrapper
 {
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  double MaxRange() const override { return max_range_; }
 
   int64_t Size() const override
   {
@@ -37,7 +40,7 @@ public:
 protected:
   PointCloud2Wrapper(
       const sensor_msgs::PointCloud2* const cloud_ptr,
-      const Eigen::Isometry3d& origin_transform);
+      const Eigen::Isometry3d& origin_transform, const double max_range);
 
 private:
   void CopyPointLocationIntoDoublePtrImpl(
@@ -68,6 +71,7 @@ private:
   const sensor_msgs::PointCloud2* const cloud_ptr_ = nullptr;
   size_t xyz_offset_from_point_start_ = 0;
   Eigen::Isometry3d origin_transform_ = Eigen::Isometry3d::Identity();
+  double max_range_ = std::numeric_limits<double>::infinity();
 };
 
 class NonOwningPointCloud2Wrapper : public PointCloud2Wrapper
@@ -77,8 +81,9 @@ public:
 
   NonOwningPointCloud2Wrapper(
       const sensor_msgs::PointCloud2* const cloud_ptr,
-      const Eigen::Isometry3d& origin_transform)
-      : PointCloud2Wrapper(cloud_ptr, origin_transform) {}
+      const Eigen::Isometry3d& origin_transform,
+      const double max_range = std::numeric_limits<double>::infinity())
+      : PointCloud2Wrapper(cloud_ptr, origin_transform, max_range) {}
 };
 
 class OwningPointCloud2Wrapper : public PointCloud2Wrapper
@@ -88,8 +93,9 @@ public:
 
   OwningPointCloud2Wrapper(
       const sensor_msgs::PointCloud2ConstPtr& cloud_ptr,
-      const Eigen::Isometry3d& origin_transform)
-      : PointCloud2Wrapper(cloud_ptr.get(), origin_transform),
+      const Eigen::Isometry3d& origin_transform,
+      const double max_range = std::numeric_limits<double>::infinity())
+      : PointCloud2Wrapper(cloud_ptr.get(), origin_transform, max_range),
         owned_cloud_ptr_(cloud_ptr) {}
 
 private:

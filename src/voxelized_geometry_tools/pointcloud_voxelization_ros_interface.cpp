@@ -15,12 +15,17 @@ namespace pointcloud_voxelization
 {
 PointCloud2Wrapper::PointCloud2Wrapper(
     const sensor_msgs::PointCloud2* const cloud_ptr,
-    const Eigen::Isometry3d& origin_transform)
-    : cloud_ptr_(cloud_ptr), origin_transform_(origin_transform)
+    const Eigen::Isometry3d& origin_transform, const double max_range)
+    : cloud_ptr_(cloud_ptr), origin_transform_(origin_transform),
+      max_range_(max_range)
 {
   if (cloud_ptr_ == nullptr)
   {
     throw std::invalid_argument("cloud_ptr_ == nullptr");
+  }
+  if (max_range_ <= 0.0)
+  {
+    throw std::runtime_error("max_range_ <= 0.0");
   }
   // Figure out what the size and offset for XYZ fields in the pointcloud are.
   std::map<std::string, uint8_t> field_type_map;

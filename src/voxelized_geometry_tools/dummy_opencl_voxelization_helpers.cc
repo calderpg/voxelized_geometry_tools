@@ -26,7 +26,7 @@ public:
   }
 
   void RaycastPoints(
-      const std::vector<float>&, const Eigen::Isometry3f&,
+      const std::vector<float>&, const Eigen::Isometry3f&, const float,
       const Eigen::Isometry3f&, const float, const float, const int32_t,
       const int32_t, const int32_t, const int64_t) override {}
 

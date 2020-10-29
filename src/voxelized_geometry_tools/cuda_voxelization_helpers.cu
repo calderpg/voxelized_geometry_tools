@@ -30,6 +30,7 @@ __global__
 void RaycastPoint(
     const float* const device_points_ptr, const int32_t num_points,
     const float* const device_pointcloud_origin_transform_ptr,
+    const float max_range,
     const float* const device_tracking_grid_inverse_origin_transform_ptr,
     const float inverse_step_size, const float inverse_cell_size,
     const int32_t num_x_cells, const int32_t num_y_cells,
@@ -39,106 +40,117 @@ void RaycastPoint(
   const int32_t point_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (point_index < num_points)
   {
-    const float ox = device_pointcloud_origin_transform_ptr[12];
-    const float oy = device_pointcloud_origin_transform_ptr[13];
-    const float oz = device_pointcloud_origin_transform_ptr[14];
     const float px = device_points_ptr[(point_index * 3) + 0];
     const float py = device_points_ptr[(point_index * 3) + 1];
     const float pz = device_points_ptr[(point_index * 3) + 2];
-    const float wx = device_pointcloud_origin_transform_ptr[0] * px
-                     + device_pointcloud_origin_transform_ptr[4] * py
-                     + device_pointcloud_origin_transform_ptr[8] * pz
-                     + device_pointcloud_origin_transform_ptr[12];
-    const float wy = device_pointcloud_origin_transform_ptr[1] * px
-                     + device_pointcloud_origin_transform_ptr[5] * py
-                     + device_pointcloud_origin_transform_ptr[9] * pz
-                     + device_pointcloud_origin_transform_ptr[13];
-    const float wz = device_pointcloud_origin_transform_ptr[2] * px
-                     + device_pointcloud_origin_transform_ptr[6] * py
-                     + device_pointcloud_origin_transform_ptr[10] * pz
-                     + device_pointcloud_origin_transform_ptr[14];
-    const float rx = wx - ox;
-    const float ry = wy - oy;
-    const float rz = wz - oz;
-    const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
-    const float num_steps =
-        floor(current_ray_length * inverse_step_size);
-    int32_t previous_x_cell = -1;
-    int32_t previous_y_cell = -1;
-    int32_t previous_z_cell = -1;
-    bool ray_crossed_grid = false;
-    for (float step = 0.0; step < num_steps; step += 1.0)
+    // Skip invalid points marked with NaN or infinity
+    if (isfinite(px) && isfinite(py) && isfinite(pz))
     {
-      const float elapsed_ratio = step / num_steps;
-      const float cx = (rx * elapsed_ratio) + ox;
-      const float cy = (ry * elapsed_ratio) + oy;
-      const float cz = (rz * elapsed_ratio) + oz;
-      const float gx =
-          device_tracking_grid_inverse_origin_transform_ptr[0] * cx
-          + device_tracking_grid_inverse_origin_transform_ptr[4] * cy
-          + device_tracking_grid_inverse_origin_transform_ptr[8] * cz
-          + device_tracking_grid_inverse_origin_transform_ptr[12];
-      const float gy =
-          device_tracking_grid_inverse_origin_transform_ptr[1] * cx
-          + device_tracking_grid_inverse_origin_transform_ptr[5] * cy
-          + device_tracking_grid_inverse_origin_transform_ptr[9] * cz
-          + device_tracking_grid_inverse_origin_transform_ptr[13];
-      const float gz =
-          device_tracking_grid_inverse_origin_transform_ptr[2] * cx
-          + device_tracking_grid_inverse_origin_transform_ptr[6] * cy
-          + device_tracking_grid_inverse_origin_transform_ptr[10] * cz
-          + device_tracking_grid_inverse_origin_transform_ptr[14];
-      const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-      const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-      const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
-      if (x_cell != previous_x_cell || y_cell != previous_y_cell
-          || z_cell != previous_z_cell)
+      const float ox = device_pointcloud_origin_transform_ptr[12];
+      const float oy = device_pointcloud_origin_transform_ptr[13];
+      const float oz = device_pointcloud_origin_transform_ptr[14];
+      const float wx = device_pointcloud_origin_transform_ptr[0] * px
+                       + device_pointcloud_origin_transform_ptr[4] * py
+                       + device_pointcloud_origin_transform_ptr[8] * pz
+                       + device_pointcloud_origin_transform_ptr[12];
+      const float wy = device_pointcloud_origin_transform_ptr[1] * px
+                       + device_pointcloud_origin_transform_ptr[5] * py
+                       + device_pointcloud_origin_transform_ptr[9] * pz
+                       + device_pointcloud_origin_transform_ptr[13];
+      const float wz = device_pointcloud_origin_transform_ptr[2] * px
+                       + device_pointcloud_origin_transform_ptr[6] * py
+                       + device_pointcloud_origin_transform_ptr[10] * pz
+                       + device_pointcloud_origin_transform_ptr[14];
+      const float rx = wx - ox;
+      const float ry = wy - oy;
+      const float rz = wz - oz;
+      const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
+      const float num_steps = floor(current_ray_length * inverse_step_size);
+      int32_t previous_x_cell = -1;
+      int32_t previous_y_cell = -1;
+      int32_t previous_z_cell = -1;
+      bool ray_crossed_grid = false;
+      for (float step = 0.0; step < num_steps; step += 1.0)
       {
+        const float elapsed_ratio = step / num_steps;
+        if ((elapsed_ratio * current_ray_length) > max_range)
+        {
+          // We've gone beyond max range of the sensor
+          break;
+        }
+        const float cx = (rx * elapsed_ratio) + ox;
+        const float cy = (ry * elapsed_ratio) + oy;
+        const float cz = (rz * elapsed_ratio) + oz;
+        const float gx =
+            device_tracking_grid_inverse_origin_transform_ptr[0] * cx
+            + device_tracking_grid_inverse_origin_transform_ptr[4] * cy
+            + device_tracking_grid_inverse_origin_transform_ptr[8] * cz
+            + device_tracking_grid_inverse_origin_transform_ptr[12];
+        const float gy =
+            device_tracking_grid_inverse_origin_transform_ptr[1] * cx
+            + device_tracking_grid_inverse_origin_transform_ptr[5] * cy
+            + device_tracking_grid_inverse_origin_transform_ptr[9] * cz
+            + device_tracking_grid_inverse_origin_transform_ptr[13];
+        const float gz =
+            device_tracking_grid_inverse_origin_transform_ptr[2] * cx
+            + device_tracking_grid_inverse_origin_transform_ptr[6] * cy
+            + device_tracking_grid_inverse_origin_transform_ptr[10] * cz
+            + device_tracking_grid_inverse_origin_transform_ptr[14];
+        const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
+        const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
+        const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
+        if (x_cell != previous_x_cell || y_cell != previous_y_cell
+            || z_cell != previous_z_cell)
+        {
+          if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
+              && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
+          {
+            ray_crossed_grid = true;
+            const int32_t cell_index =
+                (x_cell * stride1) + (y_cell * stride2) + z_cell;
+            // Increase free count
+            atomicAdd(&(device_tracking_grid_ptr[cell_index * 2]), 1);
+          }
+          else if (ray_crossed_grid)
+          {
+            // We've left the grid and there's no reason to keep going.
+            break;
+          }
+        }
+        previous_x_cell = x_cell;
+        previous_y_cell = y_cell;
+        previous_z_cell = z_cell;
+      }
+      // Set the point itself as filled, if it is in range
+      if (current_ray_length <= max_range)
+      {
+        const float gx =
+            device_tracking_grid_inverse_origin_transform_ptr[0] * wx
+            + device_tracking_grid_inverse_origin_transform_ptr[4] * wy
+            + device_tracking_grid_inverse_origin_transform_ptr[8] * wz
+            + device_tracking_grid_inverse_origin_transform_ptr[12];
+        const float gy =
+            device_tracking_grid_inverse_origin_transform_ptr[1] * wx
+            + device_tracking_grid_inverse_origin_transform_ptr[5] * wy
+            + device_tracking_grid_inverse_origin_transform_ptr[9] * wz
+            + device_tracking_grid_inverse_origin_transform_ptr[13];
+        const float gz =
+            device_tracking_grid_inverse_origin_transform_ptr[2] * wx
+            + device_tracking_grid_inverse_origin_transform_ptr[6] * wy
+            + device_tracking_grid_inverse_origin_transform_ptr[10] * wz
+            + device_tracking_grid_inverse_origin_transform_ptr[14];
+        const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
+        const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
+        const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
         if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
             && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
         {
-          ray_crossed_grid = true;
           const int32_t cell_index =
               (x_cell * stride1) + (y_cell * stride2) + z_cell;
-          // Increase free count
-          atomicAdd(&(device_tracking_grid_ptr[cell_index * 2]), 1);
-        }
-        else if (ray_crossed_grid)
-        {
-          // We've left the grid and there's no reason to keep going.
-          break;
+          // Increase filled count
+          atomicAdd(&(device_tracking_grid_ptr[(cell_index * 2) + 1]), 1);
         }
       }
-      previous_x_cell = x_cell;
-      previous_y_cell = y_cell;
-      previous_z_cell = z_cell;
-    }
-    // Set the point itself as filled
-    const float gx =
-        device_tracking_grid_inverse_origin_transform_ptr[0] * wx
-        + device_tracking_grid_inverse_origin_transform_ptr[4] * wy
-        + device_tracking_grid_inverse_origin_transform_ptr[8] * wz
-        + device_tracking_grid_inverse_origin_transform_ptr[12];
-    const float gy =
-        device_tracking_grid_inverse_origin_transform_ptr[1] * wx
-        + device_tracking_grid_inverse_origin_transform_ptr[5] * wy
-        + device_tracking_grid_inverse_origin_transform_ptr[9] * wz
-        + device_tracking_grid_inverse_origin_transform_ptr[13];
-    const float gz =
-        device_tracking_grid_inverse_origin_transform_ptr[2] * wx
-        + device_tracking_grid_inverse_origin_transform_ptr[6] * wy
-        + device_tracking_grid_inverse_origin_transform_ptr[10] * wz
-        + device_tracking_grid_inverse_origin_transform_ptr[14];
-    const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-    const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-    const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
-    if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-        && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-    {
-      const int32_t cell_index =
-          (x_cell * stride1) + (y_cell * stride2) + z_cell;
-      // Increase filled count
-      atomicAdd(&(device_tracking_grid_ptr[(cell_index * 2) + 1]), 1);
     }
   }
 }
@@ -292,7 +304,7 @@ public:
 
   void RaycastPoints(
       const std::vector<float>& raw_points,
-      const float* const pointcloud_origin_transform,
+      const float* const pointcloud_origin_transform, const float max_range,
       const float* const inverse_grid_origin_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
@@ -337,7 +349,7 @@ public:
         device_tracking_grids_ptr_ + tracking_grid_starting_offset;
     RaycastPoint<<<num_blocks, num_threads>>>(
         device_points_ptr, num_points, device_pointcloud_origin_transform_ptr,
-        device_tracking_grid_inverse_origin_transform_ptr,
+        max_range, device_tracking_grid_inverse_origin_transform_ptr,
         inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
         num_z_cells, stride1, stride2, device_tracking_grid_ptr);
     // Free the device memory

@@ -1,5 +1,6 @@
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <vector>
 
 #include <Eigen/Geometry>
@@ -36,6 +37,11 @@ public:
   void PushBack(const Eigen::Vector3d& point)
   {
     points_.push_back(point);
+  }
+
+  double MaxRange() const override
+  {
+    return std::numeric_limits<double>::infinity();
   }
 
   int64_t Size() const override { return static_cast<int64_t>(points_.size()); }

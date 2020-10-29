@@ -17,189 +17,199 @@ namespace pointcloud_voxelization
 {
 namespace opencl_helpers
 {
+const char* kRaycastPointKernelCode = R"(
+void kernel RaycastPoint(
+    global const float* points, global const float* pointcloud_origin_transform,
+    const float max_range, global const float* inverse_grid_origin_transform,
+    const float inverse_step_size, const float inverse_cell_size,
+    const int stride1, const int stride2, const int num_x_cells,
+    const int num_y_cells, const int num_z_cells, global int* tracking_grid,
+    const int tracking_grid_starting_offset)
+{
+  const int point_index = get_global_id(0);
+  const float px = points[(point_index * 3) + 0];
+  const float py = points[(point_index * 3) + 1];
+  const float pz = points[(point_index * 3) + 2];
+  // Skip invalid points marked with NaN or infinity
+  if (isfinite(px) && isfinite(py) && isfinite(pz))
+  {
+    const float ox = pointcloud_origin_transform[12];
+    const float oy = pointcloud_origin_transform[13];
+    const float oz = pointcloud_origin_transform[14];
+    const float wx = pointcloud_origin_transform[0] * px
+                     + pointcloud_origin_transform[4] * py
+                     + pointcloud_origin_transform[8] * pz
+                     + pointcloud_origin_transform[12];
+    const float wy = pointcloud_origin_transform[1] * px
+                     + pointcloud_origin_transform[5] * py
+                     + pointcloud_origin_transform[9] * pz
+                     + pointcloud_origin_transform[13];
+    const float wz = pointcloud_origin_transform[2] * px
+                     + pointcloud_origin_transform[6] * py
+                     + pointcloud_origin_transform[10] * pz
+                     + pointcloud_origin_transform[14];
+    const float rx = wx - ox;
+    const float ry = wy - oy;
+    const float rz = wz - oz;
+    const float current_ray_length = sqrt((rx * rx) + (ry * ry) + (rz * rz));
+    const float num_steps = floor(current_ray_length * inverse_step_size);
+    int previous_x_cell = -1;
+    int previous_y_cell = -1;
+    int previous_z_cell = -1;
+    bool ray_crossed_grid = false;
+    for (float step = 0.0; step < num_steps; step += 1.0)
+    {
+      const float elapsed_ratio = step / num_steps;
+      if ((elapsed_ratio * current_ray_length) > max_range)
+      {
+        // We've gone beyond max range of the sensor
+        break;
+      }
+      const float cx = (rx * elapsed_ratio) + ox;
+      const float cy = (ry * elapsed_ratio) + oy;
+      const float cz = (rz * elapsed_ratio) + oz;
+      const float gx =
+          inverse_grid_origin_transform[0] * cx
+          + inverse_grid_origin_transform[4] * cy
+          + inverse_grid_origin_transform[8] * cz
+          + inverse_grid_origin_transform[12];
+      const float gy =
+          inverse_grid_origin_transform[1] * cx
+          + inverse_grid_origin_transform[5] * cy
+          + inverse_grid_origin_transform[9] * cz
+          + inverse_grid_origin_transform[13];
+      const float gz =
+          inverse_grid_origin_transform[2] * cx
+          + inverse_grid_origin_transform[6] * cy
+          + inverse_grid_origin_transform[10] * cz
+          + inverse_grid_origin_transform[14];
+      const int x_cell = (int)(gx * inverse_cell_size);
+      const int y_cell = (int)(gy * inverse_cell_size);
+      const int z_cell = (int)(gz * inverse_cell_size);
+      if (x_cell != previous_x_cell || y_cell != previous_y_cell
+          || z_cell != previous_z_cell)
+      {
+        if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
+           && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
+        {
+          ray_crossed_grid = true;
+          const int cell_index =
+              (x_cell * stride1) + (y_cell * stride2) + z_cell;
+          const int tracking_grid_index =
+              tracking_grid_starting_offset + (cell_index * 2);
+          atomic_add(&(tracking_grid[tracking_grid_index]), 1);
+        }
+        else if (ray_crossed_grid)
+        {
+          break;
+        }
+      }
+      previous_x_cell = x_cell;
+      previous_y_cell = y_cell;
+      previous_z_cell = z_cell;
+    }
+    // Set the point itself as filled, if it is in range
+    if (current_ray_length <= max_range)
+    {
+      const float gx =
+          inverse_grid_origin_transform[0] * wx
+          + inverse_grid_origin_transform[4] * wy
+          + inverse_grid_origin_transform[8] * wz
+          + inverse_grid_origin_transform[12];
+      const float gy =
+          inverse_grid_origin_transform[1] * wx
+          + inverse_grid_origin_transform[5] * wy
+          + inverse_grid_origin_transform[9] * wz
+          + inverse_grid_origin_transform[13];
+      const float gz =
+          inverse_grid_origin_transform[2] * wx
+          + inverse_grid_origin_transform[6] * wy
+          + inverse_grid_origin_transform[10] * wz
+          + inverse_grid_origin_transform[14];
+      const int x_cell = (int)(gx * inverse_cell_size);
+      const int y_cell = (int)(gy * inverse_cell_size);
+      const int z_cell = (int)(gz * inverse_cell_size);
+      if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
+          && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
+      {
+        const int cell_index = (x_cell * stride1) + (y_cell * stride2) + z_cell;
+        const int tracking_grid_index =
+            tracking_grid_starting_offset + (cell_index * 2);
+        atomic_add(&(tracking_grid[tracking_grid_index + 1]), 1);
+      }
+    }
+  }
+}
+)";
+
+const char* kFilterGridsKernelCode = R"(
+void kernel FilterGrids(
+    const int num_cells, const int num_grids, global const int* tracking_grid,
+    global float* filter_grid, const float percent_seen_free,
+    const int outlier_points_threshold, const int num_cameras_seen_free)
+{
+  const int voxel_index = get_global_id(0);
+  const int filter_grid_index = voxel_index * 2;
+  const float current_occupancy = filter_grid[filter_grid_index];
+  if (current_occupancy <= 0.5)
+  {
+    int cameras_seen_filled = 0;
+    int cameras_seen_free = 0;
+    for (int idx = 0; idx < num_grids; idx++)
+    {
+      const int tracking_grid_offset = num_cells * 2 * idx;
+      const int tracking_grid_index =
+          tracking_grid_offset + filter_grid_index;
+      const int free_count = tracking_grid[tracking_grid_index];
+      const int filled_count = tracking_grid[tracking_grid_index + 1];
+      const int filtered_filled_count =
+          (filled_count >= outlier_points_threshold) ? filled_count : 0;
+      if (free_count > 0 && filtered_filled_count > 0)
+      {
+        const float current_percent_seen_free =
+            (float)(free_count) / (float)(free_count + filtered_filled_count);
+        if (current_percent_seen_free >= percent_seen_free)
+        {
+          cameras_seen_free += 1;
+        }
+        else
+        {
+          cameras_seen_filled += 1;
+        }
+      }
+      else if (free_count > 0)
+      {
+        cameras_seen_free += 1;
+      }
+      else if (filtered_filled_count > 0)
+      {
+        cameras_seen_filled += 1;
+      }
+    }
+    if (cameras_seen_filled > 0)
+    {
+      filter_grid[filter_grid_index] = 1.0;
+    }
+    else if (cameras_seen_free >= num_cameras_seen_free)
+    {
+      filter_grid[filter_grid_index] = 0.0;
+    }
+    else
+    {
+      filter_grid[filter_grid_index] = 0.5;
+    }
+  }
+}
+)";
+
 static std::string GetRaycastingKernelCode()
 {
-  const std::string kernel_code =
-      "void kernel RaycastPoint("
-      "    global const float* points,"
-      "    global const float* pointcloud_origin_transform,"
-      "    global const float* inverse_grid_origin_transform,"
-      "    const float inverse_step_size, const float inverse_cell_size,"
-      "    const int stride1, const int stride2, const int num_x_cells,"
-      "    const int num_y_cells, const int num_z_cells,"
-      "    global int* tracking_grid, const int tracking_grid_starting_offset)"
-      "{"
-      "  const int point_index = get_global_id(0);"
-      "  const float ox = pointcloud_origin_transform[12];"
-      "  const float oy = pointcloud_origin_transform[13];"
-      "  const float oz = pointcloud_origin_transform[14];"
-      "  const float px = points[(point_index * 3) + 0];"
-      "  const float py = points[(point_index * 3) + 1];"
-      "  const float pz = points[(point_index * 3) + 2];"
-      "  const float wx = pointcloud_origin_transform[0] * px"
-      "                   + pointcloud_origin_transform[4] * py"
-      "                   + pointcloud_origin_transform[8] * pz"
-      "                   + pointcloud_origin_transform[12];"
-      "  const float wy = pointcloud_origin_transform[1] * px"
-      "                   + pointcloud_origin_transform[5] * py"
-      "                   + pointcloud_origin_transform[9] * pz"
-      "                   + pointcloud_origin_transform[13];"
-      "  const float wz = pointcloud_origin_transform[2] * px"
-      "                   + pointcloud_origin_transform[6] * py"
-      "                   + pointcloud_origin_transform[10] * pz"
-      "                   + pointcloud_origin_transform[14];"
-      "  const float rx = wx - ox;"
-      "  const float ry = wy - oy;"
-      "  const float rz = wz - oz;"
-      "  const float current_ray_length ="
-      "      sqrt((rx * rx) + (ry * ry) + (rz * rz));"
-      "  const float num_steps = floor(current_ray_length * inverse_step_size);"
-      "  int previous_x_cell = -1;"
-      "  int previous_y_cell = -1;"
-      "  int previous_z_cell = -1;"
-      "  bool ray_crossed_grid = false;"
-      "  for (float step = 0.0; step < num_steps; step += 1.0)"
-      "  {"
-      "    const float elapsed_ratio = step / num_steps;"
-      "    const float cx = (rx * elapsed_ratio) + ox;"
-      "    const float cy = (ry * elapsed_ratio) + oy;"
-      "    const float cz = (rz * elapsed_ratio) + oz;"
-      "    const float gx ="
-      "        inverse_grid_origin_transform[0] * cx"
-      "        + inverse_grid_origin_transform[4] * cy"
-      "        + inverse_grid_origin_transform[8] * cz"
-      "        + inverse_grid_origin_transform[12];"
-      "    const float gy ="
-      "        inverse_grid_origin_transform[1] * cx"
-      "        + inverse_grid_origin_transform[5] * cy"
-      "        + inverse_grid_origin_transform[9] * cz"
-      "        + inverse_grid_origin_transform[13];"
-      "    const float gz ="
-      "        inverse_grid_origin_transform[2] * cx"
-      "        + inverse_grid_origin_transform[6] * cy"
-      "        + inverse_grid_origin_transform[10] * cz"
-      "        + inverse_grid_origin_transform[14];"
-      "    const int x_cell = (int)(gx * inverse_cell_size);"
-      "    const int y_cell = (int)(gy * inverse_cell_size);"
-      "    const int z_cell = (int)(gz * inverse_cell_size);"
-      "    if (x_cell != previous_x_cell || y_cell != previous_y_cell"
-      "        || z_cell != previous_z_cell)"
-      "    {"
-      "      if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0"
-      "         && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)"
-      "      {"
-      "        ray_crossed_grid = true;"
-      "        const int cell_index ="
-      "            (x_cell * stride1) + (y_cell * stride2) + z_cell;"
-      "        const int tracking_grid_index ="
-      "            tracking_grid_starting_offset + (cell_index * 2);"
-      "        atomic_add(&(tracking_grid[tracking_grid_index]), 1);"
-      "      }"
-      "      else if (ray_crossed_grid)"
-      "      {"
-      "        break;"
-      "      }"
-      "    }"
-      "    previous_x_cell = x_cell;"
-      "    previous_y_cell = y_cell;"
-      "    previous_z_cell = z_cell;"
-      "  }"
-      "  const float gx ="
-      "      inverse_grid_origin_transform[0] * wx"
-      "      + inverse_grid_origin_transform[4] * wy"
-      "      + inverse_grid_origin_transform[8] * wz"
-      "      + inverse_grid_origin_transform[12];"
-      "  const float gy ="
-      "      inverse_grid_origin_transform[1] * wx"
-      "      + inverse_grid_origin_transform[5] * wy"
-      "      + inverse_grid_origin_transform[9] * wz"
-      "      + inverse_grid_origin_transform[13];"
-      "  const float gz ="
-      "      inverse_grid_origin_transform[2] * wx"
-      "      + inverse_grid_origin_transform[6] * wy"
-      "      + inverse_grid_origin_transform[10] * wz"
-      "      + inverse_grid_origin_transform[14];"
-      "  const int x_cell = (int)(gx * inverse_cell_size);"
-      "  const int y_cell = (int)(gy * inverse_cell_size);"
-      "  const int z_cell = (int)(gz * inverse_cell_size);"
-      "  if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0"
-      "      && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)"
-      "  {"
-      "    const int cell_index ="
-      "        (x_cell * stride1) + (y_cell * stride2) + z_cell;"
-      "    const int tracking_grid_index ="
-      "        tracking_grid_starting_offset + (cell_index * 2);"
-      "    atomic_add(&(tracking_grid[tracking_grid_index + 1]), 1);"
-      "  }"
-      "}";
-  return kernel_code;
+  return std::string(kRaycastPointKernelCode);
 }
 
 static std::string GetFilterKernelCode()
 {
-  const std::string kernel_code =
-      "void kernel FilterGrids("
-      "    const int num_cells, const int num_grids,"
-      "    global const int* tracking_grid,"
-      "    global float* filter_grid,"
-      "    const float percent_seen_free, const int outlier_points_threshold,"
-      "    const int num_cameras_seen_free)"
-      "{"
-      "  const int voxel_index = get_global_id(0);"
-      "  const int filter_grid_index = voxel_index * 2;"
-      "  const float current_occupancy = filter_grid[filter_grid_index];"
-      "  if (current_occupancy <= 0.5)"
-      "  {"
-      "    int cameras_seen_filled = 0;"
-      "    int cameras_seen_free = 0;"
-      "    for (int idx = 0; idx < num_grids; idx++)"
-      "    {"
-      "      const int tracking_grid_offset = num_cells * 2 * idx;"
-      "      const int tracking_grid_index ="
-      "          tracking_grid_offset + filter_grid_index;"
-      "      const int free_count = tracking_grid[tracking_grid_index];"
-      "      const int filled_count ="
-      "          tracking_grid[tracking_grid_index + 1];"
-      "      const int filtered_filled_count ="
-      "          (filled_count >= outlier_points_threshold) ? filled_count : 0;"
-      "      if (free_count > 0 && filtered_filled_count > 0)"
-      "      {"
-      "        const float current_percent_seen_free ="
-      "            (float)(free_count)"
-      "            / (float)(free_count + filtered_filled_count);"
-      "        if (current_percent_seen_free >= percent_seen_free)"
-      "        {"
-      "          cameras_seen_free += 1;"
-      "        }"
-      "        else"
-      "        {"
-      "          cameras_seen_filled += 1;"
-      "        }"
-      "      }"
-      "      else if (free_count > 0)"
-      "      {"
-      "        cameras_seen_free += 1;"
-      "      }"
-      "      else if (filtered_filled_count > 0)"
-      "      {"
-      "        cameras_seen_filled += 1;"
-      "      }"
-      "    }"
-      "    if (cameras_seen_filled > 0)"
-      "    {"
-      "      filter_grid[filter_grid_index] = 1.0;"
-      "    }"
-      "    else if (cameras_seen_free >= num_cameras_seen_free)"
-      "    {"
-      "      filter_grid[filter_grid_index] = 0.0;"
-      "    }"
-      "    else"
-      "    {"
-      "      filter_grid[filter_grid_index] = 0.5;"
-      "    }"
-      "  }"
-      "}";
-  return kernel_code;
+  return std::string(kFilterGridsKernelCode);
 }
 
 int32_t RetrieveOptionOrDefault(
@@ -355,6 +365,7 @@ public:
   void RaycastPoints(
       const std::vector<float>& raw_points,
       const Eigen::Isometry3f& pointcloud_origin_transform,
+      const float max_range,
       const Eigen::Isometry3f& inverse_grid_origin_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
@@ -397,17 +408,18 @@ public:
     cl::Kernel raycasting_kernel(*raycasting_program_, "RaycastPoint");
     raycasting_kernel.setArg(0, device_points_buffer);
     raycasting_kernel.setArg(1, device_pointcloud_origin_transform_buffer);
-    raycasting_kernel.setArg(2, device_inverse_grid_origin_transform_buffer);
-    raycasting_kernel.setArg(3, inverse_step_size);
-    raycasting_kernel.setArg(4, inverse_cell_size);
-    raycasting_kernel.setArg(5, stride1);
-    raycasting_kernel.setArg(6, stride2);
-    raycasting_kernel.setArg(7, num_x_cells);
-    raycasting_kernel.setArg(8, num_y_cells);
-    raycasting_kernel.setArg(9, num_z_cells);
-    raycasting_kernel.setArg(10, *device_tracking_grid_buffer_);
+    raycasting_kernel.setArg(2, max_range);
+    raycasting_kernel.setArg(3, device_inverse_grid_origin_transform_buffer);
+    raycasting_kernel.setArg(4, inverse_step_size);
+    raycasting_kernel.setArg(5, inverse_cell_size);
+    raycasting_kernel.setArg(6, stride1);
+    raycasting_kernel.setArg(7, stride2);
+    raycasting_kernel.setArg(8, num_x_cells);
+    raycasting_kernel.setArg(9, num_y_cells);
+    raycasting_kernel.setArg(10, num_z_cells);
+    raycasting_kernel.setArg(11, *device_tracking_grid_buffer_);
     raycasting_kernel.setArg(
-        11, static_cast<int32_t>(tracking_grid_starting_offset));
+        12, static_cast<int32_t>(tracking_grid_starting_offset));
     err = queue_->enqueueNDRangeKernel(
         raycasting_kernel, cl::NullRange, cl::NDRange(raw_points.size() / 3),
         cl::NullRange);

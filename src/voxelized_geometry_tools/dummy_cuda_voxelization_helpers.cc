@@ -24,9 +24,9 @@ public:
   }
 
   void RaycastPoints(
-      const std::vector<float>&, const float* const, const float * const,
-      const float, const float, const int32_t, const int32_t, const int32_t,
-      const int64_t) override {}
+      const std::vector<float>&, const float* const, const float,
+      const float * const, const float, const float, const int32_t,
+      const int32_t, const int32_t, const int64_t) override {}
 
   void PrepareFilterGrid(const int64_t, const void*) override {}
 

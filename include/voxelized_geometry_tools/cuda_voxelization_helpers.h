@@ -23,7 +23,7 @@ public:
 
   virtual void RaycastPoints(
       const std::vector<float>& raw_points,
-      const float* const pointcloud_origin_transform,
+      const float* const pointcloud_origin_transform, const float max_range,
       const float* const inverse_grid_origin_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,

@@ -70,57 +70,69 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
   const Eigen::Isometry3d& X_WC = cloud.GetPointCloudOriginTransform();
   // Get the origin of X_WC
   const Eigen::Vector4d p_WCo = X_WC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
+  // Get the max range
+  const double max_range = cloud.MaxRange();
 #pragma omp parallel for
   for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
     const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(idx);
-    // Location of point P in world W
-    const Eigen::Vector4d p_WP = X_WC * p_CP;
-    // Ray from camera to point
-    const Eigen::Vector4d ray = p_WP - p_WCo;
-    const double ray_length = ray.norm();
-    // Step along ray
-    const int32_t num_steps =
-        std::max(1, static_cast<int32_t>(std::floor(ray_length / step_size)));
-    common_robotics_utilities::voxel_grid::GridIndex last_index(-1, -1, -1);
-    for (int32_t step = 0; step < num_steps; step++)
+    // Skip invalid points marked with NaN or infinity
+    if (std::isfinite(p_CP(0)) && std::isfinite(p_CP(1)) &&
+        std::isfinite(p_CP(2)))
     {
-      bool in_grid = false;
-      const double ratio =
-          static_cast<double>(step) / static_cast<double>(num_steps);
-      const Eigen::Vector4d p_WQ = p_WCo + (ray * ratio);
-      const common_robotics_utilities::voxel_grid::GridIndex index =
-          tracking_grid.LocationToGridIndex4d(p_WQ);
-      // We don't want to double count in the same cell multiple times
-      if (!(index == last_index))
+      // Location of point P in world W
+      const Eigen::Vector4d p_WP = X_WC * p_CP;
+      // Ray from camera to point
+      const Eigen::Vector4d ray = p_WP - p_WCo;
+      const double ray_length = ray.norm();
+      // Step along ray
+      const int32_t num_steps =
+          std::max(1, static_cast<int32_t>(std::floor(ray_length / step_size)));
+      common_robotics_utilities::voxel_grid::GridIndex last_index(-1, -1, -1);
+      bool ray_crossed_grid = false;
+      for (int32_t step = 0; step < num_steps; step++)
       {
-        auto query = tracking_grid.GetMutable(index);
-        // We must check to see if the query is within bounds.
-        if (query)
+        const double ratio =
+            static_cast<double>(step) / static_cast<double>(num_steps);
+        if ((ratio * ray_length) > max_range)
         {
-          in_grid = true;
-          query.Value().seen_free_count.fetch_add(1);
+          // We've gone beyond max range of the sensor
+          break;
         }
-        else
+        const Eigen::Vector4d p_WQ = p_WCo + (ray * ratio);
+        const common_robotics_utilities::voxel_grid::GridIndex index =
+            tracking_grid.LocationToGridIndex4d(p_WQ);
+        // We don't want to double count in the same cell multiple times
+        if (!(index == last_index))
         {
-          if (in_grid)
+          auto query = tracking_grid.GetMutable(index);
+          // We must check to see if the query is within bounds.
+          if (query)
+          {
+            ray_crossed_grid = true;
+            query.Value().seen_free_count.fetch_add(1);
+          }
+          else if (ray_crossed_grid)
           {
             // We've left the grid and there's no reason to keep going.
             break;
           }
         }
+        last_index = index;
       }
-      last_index = index;
-    }
-    // Set the point itself as filled
-    const common_robotics_utilities::voxel_grid::GridIndex index =
-          tracking_grid.LocationToGridIndex4d(p_WP);
-    auto query = tracking_grid.GetMutable(index);
-    // We must check to see if the query is within bounds.
-    if (query)
-    {
-      query.Value().seen_filled_count.fetch_add(1);
+      // Set the point itself as filled, if it is in range
+      if (ray_length <= max_range)
+      {
+        const common_robotics_utilities::voxel_grid::GridIndex index =
+              tracking_grid.LocationToGridIndex4d(p_WP);
+        auto query = tracking_grid.GetMutable(index);
+        // We must check to see if the query is within bounds.
+        if (query)
+        {
+          query.Value().seen_filled_count.fetch_add(1);
+        }
+      }
     }
   }
 }

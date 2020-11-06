@@ -1,15 +1,16 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(voxelized_geometry_tools)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS roscpp
-                                        std_msgs
-                                        geometry_msgs
-                                        visualization_msgs
-                                        message_generation
-                                        common_robotics_utilities)
+find_package(ament_cmake_ros REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+
+find_package(common_robotics_utilities REQUIRED)
+
 find_package(Eigen3 REQUIRED)
 set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
 find_package(OpenMP)
@@ -21,40 +22,15 @@ find_package(OpenCL)
 #######################################
 
 ## Generate messages in the 'msg' folder
-add_message_files(DIRECTORY msg
-                  FILES
-                  CollisionMapMessage.msg
-                  DynamicSpatialHashedCollisionMapMessage.msg
-                  SignedDistanceFieldMessage.msg
-                  TaggedObjectCollisionMapMessage.msg)
 
-## Generate added messages and services with any dependencies listed here
-generate_messages(DEPENDENCIES geometry_msgs std_msgs)
-
-###################################
-## catkin specific configuration ##
-###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## LIBRARIES: libraries you create in this project
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project
-catkin_package(INCLUDE_DIRS
-               include
-               LIBRARIES
-               ${PROJECT_NAME}
-               ${PROJECT_NAME}_pointcloud_voxelization
-               ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
-               ${PROJECT_NAME}_ros_interface
-               CATKIN_DEPENDS
-               roscpp
-               std_msgs
-               geometry_msgs
-               visualization_msgs
-               message_runtime
-               common_robotics_utilities
-               DEPENDS
-               Eigen3)
+rosidl_generate_interfaces(
+  ${PROJECT_NAME}_interfaces
+  msg/CollisionMapMessage.msg
+  msg/DynamicSpatialHashedCollisionMapMessage.msg
+  msg/SignedDistanceFieldMessage.msg
+  msg/TaggedObjectCollisionMapMessage.msg
+  DEPENDENCIES std_msgs
+)
 
 ###########
 ## Build ##
@@ -62,23 +38,24 @@ catkin_package(INCLUDE_DIRS
 
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
-include_directories(include SYSTEM ${catkin_INCLUDE_DIRS}
-                                   ${Eigen3_INCLUDE_DIRS})
+include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS})
 
 ## Build options
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 add_compile_options(-Wall)
 add_compile_options(-Wextra)
 add_compile_options(-Werror)
 add_compile_options(-Wconversion)
-add_compile_options(-Wshadow)
+# add_compile_options(-Wshadow)
 add_compile_options(-O3)
 add_compile_options(-g)
 add_compile_options(-flto)
-add_compile_options(-Werror=non-virtual-dtor)
-add_compile_options(-Wold-style-cast)
+# add_compile_options(-Werror=non-virtual-dtor)
+# add_compile_options(-Wold-style-cast)
 add_compile_options(-Wmaybe-uninitialized)
 add_compile_options(-march=native)
+
+add_definitions(-DVOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION=2)
 
 ## It's not clear if add_compile_options does the right things for flags that
 ## may differ between languages and target type.
@@ -100,9 +77,18 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/collision_map.cpp
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
-add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS}
-                                 ${PROJECT_NAME}_gencpp)
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+ament_target_dependencies(${PROJECT_NAME}
+                          common_robotics_utilities
+                          geometry_msgs
+                          rclcpp
+                          std_msgs
+                          visualization_msgs)
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_interfaces)
+target_include_directories(${PROJECT_NAME}
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_c>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp>"
+)
 
 # Cuda voxelization helpers library
 if(CUDA_FOUND)
@@ -156,76 +142,107 @@ add_library(${PROJECT_NAME}_pointcloud_voxelization
             src/${PROJECT_NAME}/cuda_pointcloud_voxelization.cpp
             src/${PROJECT_NAME}/opencl_pointcloud_voxelization.cpp
             src/${PROJECT_NAME}/pointcloud_voxelization.cpp)
-add_dependencies(${PROJECT_NAME}_pointcloud_voxelization
-                 ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
 target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization
                       ${PROJECT_NAME}_cuda_voxelization_helpers
                       ${PROJECT_NAME}_opencl_voxelization_helpers
-                      ${PROJECT_NAME} ${catkin_LIBRARIES})
+                      ${PROJECT_NAME})
 
 # ROS interface libraries
 add_library(${PROJECT_NAME}_ros_interface
             include/${PROJECT_NAME}/ros_interface.hpp
             src/${PROJECT_NAME}/ros_interface.cpp)
-add_dependencies(${PROJECT_NAME}_ros_interface ${catkin_EXPORTED_TARGETS}
-                                               ${PROJECT_NAME}_gencpp)
-target_link_libraries(${PROJECT_NAME}_ros_interface ${PROJECT_NAME}
-                                                    ${catkin_LIBRARIES})
+ament_target_dependencies(${PROJECT_NAME}_ros_interface
+                          common_robotics_utilities
+                          rclcpp
+                          std_msgs
+                          visualization_msgs)
+add_dependencies(${PROJECT_NAME}_ros_interface
+                 ${PROJECT_NAME}_interfaces)
+target_include_directories(
+    ${PROJECT_NAME}_ros_interface
+    PUBLIC
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_c>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp>"
+)
+target_link_libraries(${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_library(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
             include/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.hpp
             src/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.cpp)
-add_dependencies(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
-                 ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+ament_target_dependencies(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+                          sensor_msgs)
 target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
-                      ${PROJECT_NAME}_pointcloud_voxelization
-                      ${catkin_LIBRARIES})
+                      ${PROJECT_NAME}_pointcloud_voxelization)
 
 # Examples
 add_executable(voxelized_geometry_tools_tutorial example/tutorial.cpp)
-add_dependencies(voxelized_geometry_tools_tutorial
-    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+ament_target_dependencies(voxelized_geometry_tools_tutorial
+    rclcpp visualization_msgs common_robotics_utilities)
 target_link_libraries(voxelized_geometry_tools_tutorial
-    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(estimate_distance_example example/estimate_distance.cpp)
-add_dependencies(estimate_distance_example
-    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+ament_target_dependencies(estimate_distance_example
+    rclcpp geometry_msgs std_msgs visualization_msgs
+    common_robotics_utilities)
 target_link_libraries(estimate_distance_example
-    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(spatial_segments example/spatial_segments.cpp)
-add_dependencies(spatial_segments
-    ${PROJECT_NAME} ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+ament_target_dependencies(spatial_segments
+    rclcpp visualization_msgs common_robotics_utilities)
 target_link_libraries(spatial_segments
-    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME} ${catkin_LIBRARIES})
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(pointcloud_voxelization example/pointcloud_voxelization.cpp)
-add_dependencies(pointcloud_voxelization
-    ${PROJECT_NAME}_pointcloud_voxelization ${PROJECT_NAME}
-    ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_gencpp)
+ament_target_dependencies(spatial_segments
+    rclcpp std_msgs visualization_msgs common_robotics_utilities)
+
 target_link_libraries(pointcloud_voxelization
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
-    ${PROJECT_NAME} ${catkin_LIBRARIES})
+    ${PROJECT_NAME})
 
 #############
 ## Install ##
 #############
 
 ## Mark library for installation
-install(TARGETS ${PROJECT_NAME}
-                ${PROJECT_NAME}_cuda_voxelization_helpers
-                ${PROJECT_NAME}_opencl_voxelization_helpers
-                ${PROJECT_NAME}_pointcloud_voxelization
-                ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
-                ${PROJECT_NAME}_ros_interface
-    ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-    RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+install(TARGETS
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_cuda_voxelization_helpers
+  ${PROJECT_NAME}_opencl_voxelization_helpers
+  ${PROJECT_NAME}_pointcloud_voxelization
+  ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+  ${PROJECT_NAME}_ros_interface
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  RUNTIME DESTINATION bin
 )
+
 ## Mark cpp header files for installation
-install(DIRECTORY include/${PROJECT_NAME}/
-    DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-    FILES_MATCHING PATTERN "*.hpp"
-    PATTERN ".svn" EXCLUDE
+install(
+  DIRECTORY include/
+  DESTINATION include
+  FILES_MATCHING PATTERN "*.hpp"
+  PATTERN ".svn" EXCLUDE
 )
+
+ament_export_definitions(-DVOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION=2)
+ament_export_include_directories(include)
+ament_export_libraries(
+  ${PROJECT_NAME}
+  ${PROJECT_NAME}_pointcloud_voxelization
+  ${PROJECT_NAME}_pointcloud_voxelization_ros_interface
+  ${PROJECT_NAME}_ros_interface
+)
+ament_export_dependencies(
+  rclcpp
+  sensor_msgs
+  std_msgs
+  geometry_msgs
+  visualization_msgs
+  common_robotics_utilities
+  Eigen3
+)
+
+ament_package()

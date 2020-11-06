@@ -6,15 +6,28 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <sensor_msgs/PointCloud2.h>
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <sensor_msgs/msg/point_field.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+#include <sensor_msgs/PointField.h>
+#endif
+
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+using PointField = sensor_msgs::msg::PointField;
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+using PointField = sensor_msgs::PointField;
+#endif
+
 PointCloud2Wrapper::PointCloud2Wrapper(
-    const sensor_msgs::PointCloud2* const cloud_ptr,
+    const PointCloud2* const cloud_ptr,
     const Eigen::Isometry3d& origin_transform, const double max_range)
     : cloud_ptr_(cloud_ptr), origin_transform_(origin_transform),
       max_range_(max_range)
@@ -36,15 +49,15 @@ PointCloud2Wrapper::PointCloud2Wrapper(
     field_offset_map[field.name] = static_cast<size_t>(field.offset);
   }
   // Check field types
-  if (field_type_map.at("x") != sensor_msgs::PointField::FLOAT32)
+  if (field_type_map.at("x") != PointField::FLOAT32)
   {
     throw std::invalid_argument("PointCloud x field is not FLOAT32");
   }
-  if (field_type_map.at("y") != sensor_msgs::PointField::FLOAT32)
+  if (field_type_map.at("y") != PointField::FLOAT32)
   {
     throw std::invalid_argument("PointCloud y field is not FLOAT32");
   }
-  if (field_type_map.at("z") != sensor_msgs::PointField::FLOAT32)
+  if (field_type_map.at("z") != PointField::FLOAT32)
   {
     throw std::invalid_argument("PointCloud z field is not FLOAT32");
   }

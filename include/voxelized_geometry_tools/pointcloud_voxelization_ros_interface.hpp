@@ -7,13 +7,26 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <sensor_msgs/PointCloud2.h>
+#else
+#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
+#endif
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+using PointCloud2 = sensor_msgs::msg::PointCloud2;
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+using PointCloud2 = sensor_msgs::PointCloud2;
+#endif
+
 class PointCloud2Wrapper : public PointCloudWrapper
 {
 public:
@@ -39,7 +52,7 @@ public:
 
 protected:
   PointCloud2Wrapper(
-      const sensor_msgs::PointCloud2* const cloud_ptr,
+      const PointCloud2* const cloud_ptr,
       const Eigen::Isometry3d& origin_transform, const double max_range);
 
 private:
@@ -68,7 +81,7 @@ private:
     return starting_offset;
   }
 
-  const sensor_msgs::PointCloud2* const cloud_ptr_ = nullptr;
+  const PointCloud2* const cloud_ptr_ = nullptr;
   size_t xyz_offset_from_point_start_ = 0;
   Eigen::Isometry3d origin_transform_ = Eigen::Isometry3d::Identity();
   double max_range_ = std::numeric_limits<double>::infinity();
@@ -80,7 +93,7 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   NonOwningPointCloud2Wrapper(
-      const sensor_msgs::PointCloud2* const cloud_ptr,
+      const PointCloud2* const cloud_ptr,
       const Eigen::Isometry3d& origin_transform,
       const double max_range = std::numeric_limits<double>::infinity())
       : PointCloud2Wrapper(cloud_ptr, origin_transform, max_range) {}
@@ -92,14 +105,14 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   OwningPointCloud2Wrapper(
-      const sensor_msgs::PointCloud2ConstPtr& cloud_ptr,
+      const std::shared_ptr<const PointCloud2>& cloud_ptr,
       const Eigen::Isometry3d& origin_transform,
       const double max_range = std::numeric_limits<double>::infinity())
       : PointCloud2Wrapper(cloud_ptr.get(), origin_transform, max_range),
         owned_cloud_ptr_(cloud_ptr) {}
 
 private:
-  sensor_msgs::PointCloud2ConstPtr owned_cloud_ptr_;
+  std::shared_ptr<const PointCloud2> owned_cloud_ptr_;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

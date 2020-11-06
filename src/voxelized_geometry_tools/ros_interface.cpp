@@ -3,10 +3,9 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-
+#endif
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
@@ -14,19 +13,25 @@
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
-#include <voxelized_geometry_tools/CollisionMapMessage.h>
 #include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <voxelized_geometry_tools/msg/collision_map_message.hpp>
+#include <voxelized_geometry_tools/msg/tagged_object_collision_map_message.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+#include <voxelized_geometry_tools/CollisionMapMessage.h>
 #include <voxelized_geometry_tools/TaggedObjectCollisionMapMessage.h>
+#endif
 
 namespace voxelized_geometry_tools
 {
 namespace ros_interface
 {
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
   const auto color_fn
       = [&] (const CollisionCell& cell,
@@ -53,40 +58,40 @@ visualization_msgs::Marker ExportForDisplay(
   return display_rep;
 }
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  visualization_msgs::Marker collision_only_marker
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  Marker collision_only_marker
       = ExportForDisplay(collision_map, collision_color, no_color, no_color);
   collision_only_marker.ns = "collision_only";
-  visualization_msgs::Marker free_only_marker
+  Marker free_only_marker
       = ExportForDisplay(collision_map, no_color, free_color, no_color);
   free_only_marker.ns = "free_only";
-  visualization_msgs::Marker unknown_only_marker
+  Marker unknown_only_marker
       = ExportForDisplay(collision_map, no_color, no_color, unknown_color);
   unknown_only_marker.ns = "unknown_only";
-  visualization_msgs::MarkerArray display_messages;
+  MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
                               unknown_only_marker};
   return display_messages;
 }
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
       = [&] (const CollisionCell& cell,
              const common_robotics_utilities::voxel_grid::GridIndex& index)
@@ -119,41 +124,41 @@ visualization_msgs::Marker ExportSurfacesForDisplay(
   return display_rep;
 }
 
-visualization_msgs::MarkerArray ExportSurfacesForSeparateDisplay(
+MarkerArray ExportSurfacesForSeparateDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  visualization_msgs::Marker collision_only_marker
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  Marker collision_only_marker
       = ExportSurfacesForDisplay(
           collision_map, collision_color, no_color, no_color);
   collision_only_marker.ns = "collision_surfaces_only";
-  visualization_msgs::Marker free_only_marker
+  Marker free_only_marker
       = ExportSurfacesForDisplay(
           collision_map, no_color, free_color, no_color);
   free_only_marker.ns = "free_surfaces_only";
-  visualization_msgs::Marker unknown_only_marker
+  Marker unknown_only_marker
       = ExportSurfacesForDisplay(
           collision_map, no_color, no_color, unknown_color);
   unknown_only_marker.ns = "unknown_surfaces_only";
-  visualization_msgs::MarkerArray display_messages;
+  MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
                               unknown_only_marker};
   return display_messages;
 }
 
-visualization_msgs::Marker ExportConnectedComponentsForDisplay(
+Marker ExportConnectedComponentsForDisplay(
     const CollisionMap& collision_map,
     const bool color_unknown_components)
 {
-  const std_msgs::ColorRGBA unknown_color
+  const ColorRGBA unknown_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.5, 0.5, 0.5, 1.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.5, 0.5, 0.5, 1.0);
   const auto color_fn
       = [&] (const CollisionCell& cell,
              const common_robotics_utilities::voxel_grid::GridIndex&)
@@ -182,11 +187,11 @@ visualization_msgs::Marker ExportConnectedComponentsForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportIndexMapForDisplay(
+Marker ExportIndexMapForDisplay(
     const CollisionMap& collision_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
-    const std_msgs::ColorRGBA& surface_color)
+    const ColorRGBA& surface_color)
 {
   const auto color_fn
       = [&] (const CollisionCell&,
@@ -201,11 +206,11 @@ visualization_msgs::Marker ExportIndexMapForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportIndicesForDisplay(
+Marker ExportIndicesForDisplay(
     const CollisionMap& collision_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
-    const std_msgs::ColorRGBA& surface_color)
+    const ColorRGBA& surface_color)
 {
   const auto color_fn
       = [&] (const CollisionCell&,
@@ -247,11 +252,11 @@ CollisionMap LoadFromMessageRepresentation(const CollisionMapMessage& message)
   }
 }
 
-visualization_msgs::MarkerArray ExportForDisplay(
+MarkerArray ExportForDisplay(
     const DynamicSpatialHashedCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
   const auto color_fn
       = [&] (const CollisionCell& cell,
@@ -277,39 +282,39 @@ visualization_msgs::MarkerArray ExportForDisplay(
   display_rep.first.id = 1;
   display_rep.second.ns = "dsh_collision_map_cells";
   display_rep.second.id = 1;
-  visualization_msgs::MarkerArray display_markers;
+  MarkerArray display_markers;
   display_markers.markers = {display_rep.first, display_rep.second};
   return display_markers;
 }
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const DynamicSpatialHashedCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  visualization_msgs::MarkerArray collision_only_markers
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  MarkerArray collision_only_markers
       = ExportForDisplay(collision_map, collision_color, no_color, no_color);
   for (auto& collision_only_marker : collision_only_markers.markers)
   {
    collision_only_marker.ns += "_collision_only";
   }
-  visualization_msgs::MarkerArray free_only_markers
+  MarkerArray free_only_markers
       = ExportForDisplay(collision_map, no_color, free_color, no_color);
   for (auto& free_only_marker : free_only_markers.markers)
   {
     free_only_marker.ns += "_free_only";
   }
-  visualization_msgs::MarkerArray unknown_only_markers
+  MarkerArray unknown_only_markers
       = ExportForDisplay(collision_map, no_color, no_color, unknown_color);
   for (auto& unknown_only_marker : unknown_only_markers.markers)
   {
     unknown_only_marker.ns += "_unknown_only";
   }
-  visualization_msgs::MarkerArray display_messages;
+  MarkerArray display_messages;
   display_messages.markers.insert(display_messages.markers.end(),
                                   collision_only_markers.markers.begin(),
                                   collision_only_markers.markers.end());
@@ -353,11 +358,11 @@ DynamicSpatialHashedCollisionMap LoadFromMessageRepresentation(
   }
 }
 
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
@@ -384,13 +389,13 @@ visualization_msgs::Marker ExportForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map)
+    const std::map<uint32_t, ColorRGBA>& object_color_map)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const bool specifies_colors = object_color_map.empty();
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
@@ -422,40 +427,40 @@ visualization_msgs::Marker ExportForDisplay(
   return display_rep;
 }
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  visualization_msgs::Marker collision_only_marker
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  Marker collision_only_marker
       = ExportForDisplay(collision_map, collision_color, no_color, no_color);
   collision_only_marker.ns = "tagged_object_collision_only";
-  visualization_msgs::Marker free_only_marker
+  Marker free_only_marker
       = ExportForDisplay(collision_map, no_color, free_color, no_color);
   free_only_marker.ns = "tagged_object_free_only";
-  visualization_msgs::Marker unknown_only_marker
+  Marker unknown_only_marker
       = ExportForDisplay(collision_map, no_color, no_color, unknown_color);
   unknown_only_marker.ns = "tagged_object_unknown_only";
-  visualization_msgs::MarkerArray display_messages;
+  MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
                               unknown_only_marker};
   return display_messages;
 }
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
              const common_robotics_utilities::voxel_grid::GridIndex& index)
@@ -488,13 +493,13 @@ visualization_msgs::Marker ExportSurfacesForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map)
+    const std::map<uint32_t, ColorRGBA>& object_color_map)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const bool specifies_colors = object_color_map.empty();
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
@@ -533,41 +538,41 @@ visualization_msgs::Marker ExportSurfacesForDisplay(
   return display_rep;
 }
 
-visualization_msgs::MarkerArray ExportSurfacesForSeparateDisplay(
+MarkerArray ExportSurfacesForSeparateDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color)
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color)
 {
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  visualization_msgs::Marker collision_only_marker
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  Marker collision_only_marker
       = ExportSurfacesForDisplay(
           collision_map, collision_color, no_color, no_color);
   collision_only_marker.ns = "tagged_object_collision_surfaces_only";
-  visualization_msgs::Marker free_only_marker
+  Marker free_only_marker
       = ExportSurfacesForDisplay(
           collision_map, no_color, free_color, no_color);
   free_only_marker.ns = "tagged_object_free_surfaces_only";
-  visualization_msgs::Marker unknown_only_marker
+  Marker unknown_only_marker
       = ExportSurfacesForDisplay(
           collision_map, no_color, no_color, unknown_color);
   unknown_only_marker.ns = "tagged_object_unknown_surfaces_only";
-  visualization_msgs::MarkerArray display_messages;
+  MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
                               unknown_only_marker};
   return display_messages;
 }
 
-visualization_msgs::Marker ExportConnectedComponentsForDisplay(
+Marker ExportConnectedComponentsForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const bool color_unknown_components)
 {
-  const std_msgs::ColorRGBA unknown_color
+  const ColorRGBA unknown_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.5, 0.5, 0.5, 1.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.5, 0.5, 0.5, 1.0);
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
              const common_robotics_utilities::voxel_grid::GridIndex&)
@@ -596,15 +601,15 @@ visualization_msgs::Marker ExportConnectedComponentsForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportSpatialSegmentForDisplay(
+Marker ExportSpatialSegmentForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const uint32_t object_id, const uint32_t spatial_segment)
 {
   const uint32_t number_of_segments
       = collision_map.GetNumSpatialSegments().Value();
-  const std_msgs::ColorRGBA no_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+          ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell& cell,
              const common_robotics_utilities::voxel_grid::GridIndex&)
@@ -619,7 +624,7 @@ visualization_msgs::Marker ExportSpatialSegmentForDisplay(
       else
       {
         return common_robotics_utilities::color_builder
-            ::InterpolateHotToCold<std_msgs::ColorRGBA>(
+            ::InterpolateHotToCold<ColorRGBA>(
                 static_cast<double>(cell.SpatialSegment()),
                 0.0,
                 static_cast<double>(number_of_segments));
@@ -641,11 +646,11 @@ visualization_msgs::Marker ExportSpatialSegmentForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportIndexMapForDisplay(
+Marker ExportIndexMapForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
-    const std_msgs::ColorRGBA& surface_color)
+    const ColorRGBA& surface_color)
 {
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell&,
@@ -660,11 +665,11 @@ visualization_msgs::Marker ExportIndexMapForDisplay(
   return display_rep;
 }
 
-visualization_msgs::Marker ExportIndicesForDisplay(
+Marker ExportIndicesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
-    const std_msgs::ColorRGBA& surface_color)
+    const ColorRGBA& surface_color)
 {
   const auto color_fn
       = [&] (const TaggedObjectCollisionCell&,

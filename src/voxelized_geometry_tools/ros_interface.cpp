@@ -223,7 +223,6 @@ visualization_msgs::Marker ExportIndicesForDisplay(
 CollisionMapMessage GetMessageRepresentation(const CollisionMap& map)
 {
   CollisionMapMessage map_message;
-  map_message.header.stamp = ros::Time::now();
   map_message.header.frame_id = map.GetFrame();
   std::vector<uint8_t> buffer;
   CollisionMap::Serialize(map, buffer);
@@ -327,7 +326,6 @@ DynamicSpatialHashedCollisionMapMessage GetMessageRepresentation(
     const DynamicSpatialHashedCollisionMap& map)
 {
   DynamicSpatialHashedCollisionMapMessage map_message;
-  map_message.header.stamp = ros::Time::now();
   map_message.header.frame_id = map.GetFrame();
   std::vector<uint8_t> buffer;
   DynamicSpatialHashedCollisionMap::Serialize(map, buffer);
@@ -685,7 +683,6 @@ TaggedObjectCollisionMapMessage GetMessageRepresentation(
     const TaggedObjectCollisionMap& map)
 {
   TaggedObjectCollisionMapMessage map_message;
-  map_message.header.stamp = ros::Time::now();
   map_message.header.frame_id = map.GetFrame();
   std::vector<uint8_t> buffer;
   TaggedObjectCollisionMap::Serialize(map, buffer);

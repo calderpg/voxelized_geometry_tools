@@ -401,7 +401,6 @@ inline SignedDistanceFieldMessage GetMessageRepresentation(
     const SignedDistanceField<BackingStore>& sdf)
 {
   SignedDistanceFieldMessage sdf_message;
-  sdf_message.header.stamp = ros::Time::now();
   sdf_message.header.frame_id = sdf.GetFrame();
   std::vector<uint8_t> buffer;
   SignedDistanceField<BackingStore>::Serialize(sdf, buffer);

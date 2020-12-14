@@ -25,8 +25,13 @@ int main(int argc, char** argv)
 
     rclcpp::init(argc, argv);
     auto node = std::make_shared<rclcpp::Node>("sdf_tools_tutorial");
-    auto visualization_pub_ptr = node->create_publisher<Marker>(
+    auto visualization_pub = node->create_publisher<Marker>(
         "sdf_tools_tutorial_visualization", rclcpp::QoS(1).transient_local());
+    const std::function<void(const Marker&)> display_fn
+      = [&] (const Marker& marker)
+    {
+      visualization_pub->publish(marker);
+    };
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
     using ColorRGBA = std_msgs::ColorRGBA;
     using Marker = visualization_msgs::Marker;
@@ -39,7 +44,11 @@ int main(int argc, char** argv)
     // Make a publisher for visualization messages
     ros::Publisher visualization_pub = nh.advertise<Marker>(
         "sdf_tools_tutorial_visualization", 1, true);
-    ros::Publisher * visualization_pub_ptr = &visualization_pub;
+    const std::function<void(const Marker&)> display_fn
+      = [&] (const Marker& marker)
+    {
+      visualization_pub.publish(marker);
+    };
 #endif
     // In preparation, we want to set a couple common paramters
     const double resolution = 0.25;
@@ -128,12 +137,12 @@ int main(int argc, char** argv)
     collision_map_marker.ns = "collision_map";
     collision_map_marker.id = 1;
     // Send it off for display
-    visualization_pub_ptr->publish(collision_map_marker);
+    display_fn(collision_map_marker);
     // Now, let's draw the connected components
     Marker connected_components_marker = voxelized_geometry_tools::ros_interface::ExportConnectedComponentsForDisplay(collision_map, false); // Generally, you don't want a special color for unknown [P(occupancy) = 0.5] components
     connected_components_marker.ns = "connected_components";
     connected_components_marker.id = 1;
-    visualization_pub_ptr->publish(connected_components_marker);
+    display_fn(connected_components_marker);
     ///////////////////////////
     //// Let's make an SDF ////
     ///////////////////////////
@@ -170,7 +179,7 @@ int main(int argc, char** argv)
     Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay<std::vector<float>>(sdf, 0.5); // Set the alpha for display
     sdf_marker.ns = "sdf";
     sdf_marker.id = 1;
-    visualization_pub_ptr->publish(sdf_marker);
+    display_fn(sdf_marker);
     std::cout << "...done" << std::endl;
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
     rclcpp::spin(node);

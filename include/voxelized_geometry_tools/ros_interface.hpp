@@ -8,9 +8,19 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+#include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <ros/ros.h>
 #include <std_msgs/ColorRGBA.h>
+#include <visualization_msgs/Marker.h>
 #include <visualization_msgs/MarkerArray.h>
+#else
+#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
+#endif
 
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/conversions.hpp>
@@ -20,44 +30,74 @@
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
-#include <voxelized_geometry_tools/CollisionMapMessage.h>
 #include <voxelized_geometry_tools/dynamic_spatial_hashed_collision_map.hpp>
-#include <voxelized_geometry_tools/DynamicSpatialHashedCollisionMapMessage.h>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
-#include <voxelized_geometry_tools/SignedDistanceFieldMessage.h>
 #include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <voxelized_geometry_tools/msg/collision_map_message.hpp>
+#include <voxelized_geometry_tools/msg/dynamic_spatial_hashed_collision_map_message.hpp>
+#include <voxelized_geometry_tools/msg/signed_distance_field_message.hpp>
+#include <voxelized_geometry_tools/msg/tagged_object_collision_map_message.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+#include <voxelized_geometry_tools/CollisionMapMessage.h>
+#include <voxelized_geometry_tools/DynamicSpatialHashedCollisionMapMessage.h>
+#include <voxelized_geometry_tools/SignedDistanceFieldMessage.h>
 #include <voxelized_geometry_tools/TaggedObjectCollisionMapMessage.h>
+#endif
 
 namespace voxelized_geometry_tools
 {
 namespace ros_interface
 {
-inline std_msgs::ColorRGBA LookupComponentColor(
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+using ColorRGBA = std_msgs::msg::ColorRGBA;
+using Point = geometry_msgs::msg::Point;
+using Marker = visualization_msgs::msg::Marker;
+using MarkerArray = visualization_msgs::msg::MarkerArray;
+
+using CollisionMapMessage = msg::CollisionMapMessage;
+using DynamicSpatialHashedCollisionMapMessage = msg::DynamicSpatialHashedCollisionMapMessage;
+using SignedDistanceFieldMessage = msg::SignedDistanceFieldMessage;
+using TaggedObjectCollisionMapMessage = msg::TaggedObjectCollisionMapMessage;
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+using ColorRGBA = std_msgs::ColorRGBA;
+using Point = geometry_msgs::Point;
+using Marker = visualization_msgs::Marker;
+using MarkerArray = visualization_msgs::MarkerArray;
+#endif
+
+inline ColorRGBA LookupComponentColor(
     const uint32_t component, const float alpha=1.0f)
 {
   return common_robotics_utilities::color_builder
-      ::LookupUniqueColor<std_msgs::ColorRGBA>(component, alpha);
+      ::LookupUniqueColor<ColorRGBA>(component, alpha);
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline visualization_msgs::Marker ExportVoxelGridToRViz(
+inline Marker ExportVoxelGridToRViz(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& voxel_grid,
     const std::string& frame,
-    const std::function<std_msgs::ColorRGBA(
+    const std::function<ColorRGBA(
         const T&, const common_robotics_utilities
                       ::voxel_grid::GridIndex&)>& voxel_color_fn)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
-  visualization_msgs::Marker display_rep;
+  Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame;
   // Populate the options
   display_rep.ns = "";
   display_rep.id = 0;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.type = Marker::CUBE_LIST;
+  display_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  display_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   display_rep.lifetime = ros::Duration(0.0);
+#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -73,7 +113,7 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
       {
         const auto cell_value
             = voxel_grid.GetImmutable(x_index, y_index, z_index).Value();
-        const std_msgs::ColorRGBA cell_color
+        const ColorRGBA cell_color
             = voxel_color_fn(cell_value, GridIndex(x_index, y_index, z_index));
         if (cell_color.a > 0.0f)
         {
@@ -81,7 +121,7 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
           const Eigen::Vector4d location
               = voxel_grid.GridIndexToLocationInGridFrame(
                   x_index, y_index, z_index);
-          const geometry_msgs::Point cell_point
+          const Point cell_point
               = common_robotics_utilities::ros_conversions
                   ::EigenVector4dToGeometryPoint(location);
           display_rep.points.push_back(cell_point);
@@ -94,26 +134,30 @@ inline visualization_msgs::Marker ExportVoxelGridToRViz(
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
+inline Marker ExportVoxelGridIndexMapToRViz(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& voxel_grid,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std::string& frame,
-    const std::function<std_msgs::ColorRGBA(
+    const std::function<ColorRGBA(
         const T&, const common_robotics_utilities
                       ::voxel_grid::GridIndex&)>& voxel_color_fn)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
-  visualization_msgs::Marker display_rep;
+  Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame;
   // Populate the options
   display_rep.ns = "";
   display_rep.id = 0;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.type = Marker::CUBE_LIST;
+  display_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  display_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   display_rep.lifetime = ros::Duration(0.0);
+#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -129,13 +173,13 @@ inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
     if (valid > 0)
     {
       const auto cell_value = voxel_grid.GetImmutable(index).Value();
-      const std_msgs::ColorRGBA cell_color = voxel_color_fn(cell_value, index);
+      const ColorRGBA cell_color = voxel_color_fn(cell_value, index);
       if (cell_color.a > 0.0f)
       {
         // Convert indices into a real-world location
         const Eigen::Vector4d location
             = voxel_grid.GridIndexToLocationInGridFrame(index);
-        const geometry_msgs::Point cell_point
+        const Point cell_point
             = common_robotics_utilities::ros_conversions
                 ::EigenVector4dToGeometryPoint(location);
         display_rep.points.push_back(cell_point);
@@ -147,26 +191,30 @@ inline visualization_msgs::Marker ExportVoxelGridIndexMapToRViz(
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline visualization_msgs::Marker ExportVoxelGridIndicesToRViz(
+inline Marker ExportVoxelGridIndicesToRViz(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& voxel_grid,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
     const std::string& frame,
-    const std::function<std_msgs::ColorRGBA(
+    const std::function<ColorRGBA(
         const T&, const common_robotics_utilities
                       ::voxel_grid::GridIndex&)>& voxel_color_fn)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
-  visualization_msgs::Marker display_rep;
+  Marker display_rep;
   // Populate the header
   display_rep.header.frame_id = frame;
   // Populate the options
   display_rep.ns = "";
   display_rep.id = 0;
-  display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  display_rep.action = visualization_msgs::Marker::ADD;
+  display_rep.type = Marker::CUBE_LIST;
+  display_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  display_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   display_rep.lifetime = ros::Duration(0.0);
+#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -177,13 +225,13 @@ inline visualization_msgs::Marker ExportVoxelGridIndicesToRViz(
   for (const GridIndex& index : indices)
   {
     const auto cell_value = voxel_grid.GetImmutable(index).Value();
-    const std_msgs::ColorRGBA cell_color = voxel_color_fn(cell_value, index);
+    const ColorRGBA cell_color = voxel_color_fn(cell_value, index);
     if (cell_color.a > 0.0f)
     {
       // Convert indices into a real-world location
       const Eigen::Vector4d location
           = voxel_grid.GridIndexToLocationInGridFrame(index);
-      const geometry_msgs::Point cell_point
+      const Point cell_point
           = common_robotics_utilities::ros_conversions
               ::EigenVector4dToGeometryPoint(location);
       display_rep.points.push_back(cell_point);
@@ -194,27 +242,31 @@ inline visualization_msgs::Marker ExportVoxelGridIndicesToRViz(
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline std::pair<visualization_msgs::Marker, visualization_msgs::Marker>
+inline std::pair<Marker, Marker>
 ExportDynamicSpatialHashedVoxelGridToRViz(
     const common_robotics_utilities::voxel_grid
         ::DynamicSpatialHashedVoxelGridBase<T, BackingStore>& dsh_voxel_grid,
     const std::string& frame,
-    const std::function<std_msgs::ColorRGBA(
+    const std::function<ColorRGBA(
         const T&, const Eigen::Vector4d&)>& chunk_color_fn,
-    const std::function<std_msgs::ColorRGBA(
+    const std::function<ColorRGBA(
         const T&, const Eigen::Vector4d&)>& cell_color_fn)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   using common_robotics_utilities::voxel_grid::DSHVGFillStatus;
-  visualization_msgs::Marker chunks_display_rep;
+  Marker chunks_display_rep;
   // Populate the header
   chunks_display_rep.header.frame_id = frame;
   // Populate the options
   chunks_display_rep.ns = "";
   chunks_display_rep.id = 0;
-  chunks_display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  chunks_display_rep.action = visualization_msgs::Marker::ADD;
+  chunks_display_rep.type = Marker::CUBE_LIST;
+  chunks_display_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  chunks_display_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   chunks_display_rep.lifetime = ros::Duration(0.0);
+#endif
   chunks_display_rep.frame_locked = false;
   chunks_display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -222,15 +274,19 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
   chunks_display_rep.scale
       = common_robotics_utilities::ros_conversions
           ::EigenVector3dToGeometryVector3(dsh_voxel_grid.GetChunkSizes());
-  visualization_msgs::Marker cells_display_rep;
+  Marker cells_display_rep;
   // Populate the header
   cells_display_rep.header.frame_id = frame;
   // Populate the options
   cells_display_rep.ns = "";
   cells_display_rep.id = 0;
-  cells_display_rep.type = visualization_msgs::Marker::CUBE_LIST;
-  cells_display_rep.action = visualization_msgs::Marker::ADD;
+  cells_display_rep.type = Marker::CUBE_LIST;
+  cells_display_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  cells_display_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   cells_display_rep.lifetime = ros::Duration(0.0);
+#endif
   cells_display_rep.frame_locked = false;
   cells_display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -252,12 +308,12 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
     {
       const Eigen::Vector4d chunk_center
           = current_chunk.GetChunkCenterInGridFrame();
-      const std_msgs::ColorRGBA chunk_color
+      const ColorRGBA chunk_color
           = chunk_color_fn(current_chunk.GetImmutable(chunk_center).Value(),
                            chunk_center);
       if (chunk_color.a > 0.0f)
       {
-        const geometry_msgs::Point chunk_center_point
+        const Point chunk_center_point
             = common_robotics_utilities::ros_conversions
                 ::EigenVector4dToGeometryPoint(chunk_center);
         chunks_display_rep.points.push_back(chunk_center_point);
@@ -278,13 +334,13 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
             const GridIndex internal_index(x_index, y_index, z_index);
             const Eigen::Vector4d cell_center
                 = current_chunk.GetCellLocationInGridFrame(internal_index);
-            const std_msgs::ColorRGBA cell_color
+            const ColorRGBA cell_color
                 = cell_color_fn(
                     current_chunk.GetImmutableInternal(internal_index).Value(),
                     cell_center);
             if (cell_color.a > 0.0f)
             {
-              const geometry_msgs::Point cell_center_point
+              const Point cell_center_point
                   = common_robotics_utilities::ros_conversions
                       ::EigenVector4dToGeometryPoint(cell_center);
               cells_display_rep.points.push_back(cell_center_point);
@@ -301,7 +357,7 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
 /// Export SDF to RViz display.
 
 template<typename BackingStore=std::vector<float>>
-inline visualization_msgs::Marker ExportSDFForDisplay(
+inline Marker ExportSDFForDisplay(
     const SignedDistanceField<BackingStore>& sdf,
     const float alpha = 0.01f)
 {
@@ -331,7 +387,7 @@ inline visualization_msgs::Marker ExportSDFForDisplay(
       = [&] (const float& distance,
              const common_robotics_utilities::voxel_grid::GridIndex&)
   {
-    std_msgs::ColorRGBA new_color;
+    ColorRGBA new_color;
     new_color.a
         = common_robotics_utilities::utility::ClampValue(alpha, 0.0f, 1.0f);
     if (distance > 0.0)
@@ -364,16 +420,16 @@ inline visualization_msgs::Marker ExportSDFForDisplay(
 }
 
 template<typename BackingStore=std::vector<float>>
-inline visualization_msgs::Marker ExportSDFForDisplayCollisionOnly(
+inline Marker ExportSDFForDisplayCollisionOnly(
     const SignedDistanceField<BackingStore>& sdf,
     const float alpha = 0.01f)
 {
-  const std_msgs::ColorRGBA filled_color
+  const ColorRGBA filled_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(1.0, 0.0, 0.0, alpha);
-  const std_msgs::ColorRGBA free_color
+          ::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 0.0, alpha);
+  const ColorRGBA free_color
       = common_robotics_utilities::color_builder
-        ::MakeFromFloatColors<std_msgs::ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+        ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
       = [&] (const float& distance,
              const common_robotics_utilities::voxel_grid::GridIndex&)
@@ -431,45 +487,45 @@ inline SignedDistanceField<BackingStore> LoadFromMessageRepresentation(
 
 /// Export CollisionMap to RViz for display.
 
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::MarkerArray ExportSurfacesForSeparateDisplay(
+MarkerArray ExportSurfacesForSeparateDisplay(
     const CollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportConnectedComponentsForDisplay(
+Marker ExportConnectedComponentsForDisplay(
     const CollisionMap& collision_map,
     const bool color_unknown_components);
 
-visualization_msgs::Marker ExportIndexMapForDisplay(
+Marker ExportIndexMapForDisplay(
     const CollisionMap& collision_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
-    const std_msgs::ColorRGBA& surface_color);
+    const ColorRGBA& surface_color);
 
-visualization_msgs::Marker ExportIndicesForDisplay(
+Marker ExportIndicesForDisplay(
     const CollisionMap& collision_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
-    const std_msgs::ColorRGBA& surface_color);
+    const ColorRGBA& surface_color);
 
 /// Convert CollisionMap to and from ROS messages.
 
@@ -479,17 +535,17 @@ CollisionMap LoadFromMessageRepresentation(const CollisionMapMessage& message);
 
 /// Export DynamicSpatialHashedCollisionMap to RViz for display.
 
-visualization_msgs::MarkerArray ExportForDisplay(
+MarkerArray ExportForDisplay(
     const DynamicSpatialHashedCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const DynamicSpatialHashedCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
 DynamicSpatialHashedCollisionMapMessage GetMessageRepresentation(
     const DynamicSpatialHashedCollisionMap& map);
@@ -499,59 +555,59 @@ DynamicSpatialHashedCollisionMap LoadFromMessageRepresentation(
 
 /// Export TaggedObjectCollisionMap to RViz for display.
 
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportForDisplay(
+Marker ExportForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map
-        =std::map<uint32_t, std_msgs::ColorRGBA>());
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
 
-visualization_msgs::MarkerArray ExportForSeparateDisplay(
+MarkerArray ExportForSeparateDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportSurfacesForDisplay(
+Marker ExportSurfacesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, std_msgs::ColorRGBA>& object_color_map
-        =std::map<uint32_t, std_msgs::ColorRGBA>());
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
 
-visualization_msgs::MarkerArray ExportSurfacesForSeparateDisplay(
+MarkerArray ExportSurfacesForSeparateDisplay(
     const TaggedObjectCollisionMap& collision_map,
-    const std_msgs::ColorRGBA& collision_color,
-    const std_msgs::ColorRGBA& free_color,
-    const std_msgs::ColorRGBA& unknown_color);
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
 
-visualization_msgs::Marker ExportConnectedComponentsForDisplay(
+Marker ExportConnectedComponentsForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const bool color_unknown_components);
 
-visualization_msgs::Marker ExportSpatialSegmentForDisplay(
+Marker ExportSpatialSegmentForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const uint32_t object_id, const uint32_t spatial_segment);
 
-visualization_msgs::Marker ExportIndexMapForDisplay(
+Marker ExportIndexMapForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
-    const std_msgs::ColorRGBA& surface_color);
+    const ColorRGBA& surface_color);
 
-visualization_msgs::Marker ExportIndicesForDisplay(
+Marker ExportIndicesForDisplay(
     const TaggedObjectCollisionMap& collision_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
-    const std_msgs::ColorRGBA& surface_color);
+    const ColorRGBA& surface_color);
 
 /// Convert TaggedObjectCollisionMap to and from ROS messages.
 

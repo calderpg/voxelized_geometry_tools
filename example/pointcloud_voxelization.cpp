@@ -7,8 +7,19 @@
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/math.hpp>
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <ros/ros.h>
+#include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
+#else
+#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
+#endif
+
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/cuda_pointcloud_voxelization.hpp>
@@ -28,6 +39,14 @@ using voxelized_geometry_tools::pointcloud_voxelization
     ::PointCloudVoxelizationInterface;
 using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapper;
 using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapperPtr;
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+using ColorRGBA = std_msgs::msg::ColorRGBA;
+using MarkerArray = visualization_msgs::msg::MarkerArray;
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+using ColorRGBA = std_msgs::ColorRGBA;
+using MarkerArray = visualization_msgs::MarkerArray;
+#endif
 
 class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 {
@@ -134,8 +153,7 @@ void check_voxelization(const voxelized_geometry_tools::CollisionMap& occupancy)
 }
 
 void test_pointcloud_voxelization(
-    const std::function<void(
-      const visualization_msgs::MarkerArray&)>& display_fn)
+    const std::function<void(const MarkerArray&)>& display_fn)
 {
   // Make the static environment
   const Eigen::Isometry3d X_WG(Eigen::Translation3d(-1.0, -1.0, -1.0));
@@ -207,18 +225,18 @@ void test_pointcloud_voxelization(
   const PointCloudVoxelizationFilterOptions filter_options(
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
   // Voxelize them
-  visualization_msgs::MarkerArray display_markers;
-  const std_msgs::ColorRGBA free_color
+  MarkerArray display_markers;
+  const ColorRGBA free_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(
+          ::MakeFromFloatColors<ColorRGBA>(
               0.0, 0.25, 0.0, 0.5);
-  const std_msgs::ColorRGBA filled_color
+  const ColorRGBA filled_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(
+          ::MakeFromFloatColors<ColorRGBA>(
               0.25, 0.0, 0.0, 0.5);
-  const std_msgs::ColorRGBA unknown_color
+  const ColorRGBA unknown_color
       = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<std_msgs::ColorRGBA>(
+          ::MakeFromFloatColors<ColorRGBA>(
               0.0, 0.0, 0.25, 0.5);
   // Voxelizer options (leave as default)
   const std::map<std::string, int32_t> options;
@@ -303,22 +321,44 @@ void test_pointcloud_voxelization(
 
 int main(int argc, char** argv)
 {
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("pointcloud_voxelization_test");
+  auto display_pub = node->create_publisher<MarkerArray>(
+      "pointcloud_occupancy", rclcpp::QoS(1).transient_local());
+  const std::function<void(const MarkerArray&)>& display_fn
+      = [&] (const MarkerArray& markers)
+  {
+    display_pub->publish(markers);
+  };
+  const int32_t iterations =
+      static_cast<int32_t>(node->declare_parameter(
+          "iterations", rclcpp::ParameterValue(1)).get<int32_t>());
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   ros::init(argc, argv, "pointcloud_voxelization_test");
   ros::NodeHandle nh;
   ros::NodeHandle nhp("~");
-  ros::Publisher display_pub
-      = nh.advertise<visualization_msgs::MarkerArray>(
-          "pointcloud_occupancy", 1, true);
-  const std::function<void(const visualization_msgs::MarkerArray&)>& display_fn
-      = [&] (const visualization_msgs::MarkerArray& markers)
+  ros::Publisher display_pub = nh.advertise<MarkerArray>(
+      "pointcloud_occupancy", 1, true);
+  const std::function<void(const MarkerArray&)>& display_fn
+      = [&] (const MarkerArray& markers)
   {
     display_pub.publish(markers);
   };
   const int32_t iterations = nhp.param(std::string("iterations"), 1);
+#endif
+
   for (int32_t iter = 0; iter < iterations; iter++)
   {
     test_pointcloud_voxelization(display_fn);
   }
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+  ros::spin();
+#endif
   return 0;
 }
 

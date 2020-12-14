@@ -2,21 +2,54 @@
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <ros/ros.h>
+#include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
+#else
+#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
+#endif
 #include <functional>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
 int main(int argc, char** argv)
 {
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+    using ColorRGBA = std_msgs::msg::ColorRGBA;
+    using Marker = visualization_msgs::msg::Marker;
+
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<rclcpp::Node>("sdf_tools_tutorial");
+    auto visualization_pub = node->create_publisher<Marker>(
+        "sdf_tools_tutorial_visualization", rclcpp::QoS(1).transient_local());
+    const std::function<void(const Marker&)> display_fn
+      = [&] (const Marker& marker)
+    {
+      visualization_pub->publish(marker);
+    };
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+    using ColorRGBA = std_msgs::ColorRGBA;
+    using Marker = visualization_msgs::Marker;
+
     // Make a ROS node, which we'll use to publish copies of the data in the CollisionMap and SDF
     // and Rviz markers that allow us to visualize them.
     ros::init(argc, argv, "sdf_tools_tutorial");
     // Get a handle to the current node
     ros::NodeHandle nh;
     // Make a publisher for visualization messages
-    ros::Publisher visualization_pub = nh.advertise<visualization_msgs::Marker>("sdf_tools_tutorial_visualization", 1, true);
+    ros::Publisher visualization_pub = nh.advertise<Marker>(
+        "sdf_tools_tutorial_visualization", 1, true);
+    const std::function<void(const Marker&)> display_fn
+      = [&] (const Marker& marker)
+    {
+      visualization_pub.publish(marker);
+    };
+#endif
     // In preparation, we want to set a couple common paramters
     const double resolution = 0.25;
     const double x_size = 10.0;
@@ -83,33 +116,33 @@ int main(int argc, char** argv)
     // Let's display the results to Rviz
     // First, the CollisionMap itself
     // We need to provide colors to use
-    std_msgs::ColorRGBA collision_color;
+    ColorRGBA collision_color;
     collision_color.r = 1.0;
     collision_color.g = 0.0;
     collision_color.b = 0.0;
     collision_color.a = 0.5;
-    std_msgs::ColorRGBA free_color;
+    ColorRGBA free_color;
     free_color.r = 0.0;
     free_color.g = 1.0;
     free_color.b = 0.0;
     free_color.a = 0.5;
-    std_msgs::ColorRGBA unknown_color;
+    ColorRGBA unknown_color;
     unknown_color.r = 1.0;
     unknown_color.g = 1.0;
     unknown_color.b = 0.0;
     unknown_color.a = 0.5;
-    visualization_msgs::Marker collision_map_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(collision_map, collision_color, free_color, unknown_color);
+    Marker collision_map_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(collision_map, collision_color, free_color, unknown_color);
     // To be safe, you'll need to set these yourself. The namespace (ns) value should distinguish between different things being displayed
     // while the id value lets you have multiple versions of the same message at once. Always set this to 1 if you only want one copy.
     collision_map_marker.ns = "collision_map";
     collision_map_marker.id = 1;
     // Send it off for display
-    visualization_pub.publish(collision_map_marker);
+    display_fn(collision_map_marker);
     // Now, let's draw the connected components
-    visualization_msgs::Marker connected_components_marker = voxelized_geometry_tools::ros_interface::ExportConnectedComponentsForDisplay(collision_map, false); // Generally, you don't want a special color for unknown [P(occupancy) = 0.5] components
+    Marker connected_components_marker = voxelized_geometry_tools::ros_interface::ExportConnectedComponentsForDisplay(collision_map, false); // Generally, you don't want a special color for unknown [P(occupancy) = 0.5] components
     connected_components_marker.ns = "connected_components";
     connected_components_marker.id = 1;
-    visualization_pub.publish(connected_components_marker);
+    display_fn(connected_components_marker);
     ///////////////////////////
     //// Let's make an SDF ////
     ///////////////////////////
@@ -143,10 +176,16 @@ int main(int argc, char** argv)
         std::cout << "Location gradient query result - gradient " << common_robotics_utilities::print::Print(location_gradient_query.Value()) << std::endl;
     }
     // Let's display the results to Rviz
-    visualization_msgs::Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay<std::vector<float>>(sdf, 0.5); // Set the alpha for display
+    Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay<std::vector<float>>(sdf, 0.5); // Set the alpha for display
     sdf_marker.ns = "sdf";
     sdf_marker.id = 1;
-    visualization_pub.publish(sdf_marker);
+    display_fn(sdf_marker);
     std::cout << "...done" << std::endl;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+    ros::spin();
+#endif
     return 0;
 }

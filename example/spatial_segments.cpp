@@ -2,15 +2,35 @@
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+#include <rclcpp/rclcpp.hpp>
+#include <std_msgs/msg/color_rgba.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 #include <ros/ros.h>
+#include <std_msgs/ColorRGBA.h>
 #include <visualization_msgs/MarkerArray.h>
+#else
+#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
+#endif
+
 #include <functional>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+using ColorRGBA = std_msgs::msg::ColorRGBA;
+using Marker = visualization_msgs::msg::Marker;
+using MarkerArray = visualization_msgs::msg::MarkerArray;
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
+using ColorRGBA = std_msgs::ColorRGBA;
+using Marker = visualization_msgs::Marker;
+using MarkerArray = visualization_msgs::MarkerArray;
+#endif
+
 void test_spatial_segments(
-    const std::function<void(
-      const visualization_msgs::MarkerArray&)>& display_fn)
+    const std::function<void(const MarkerArray&)>& display_fn)
 {
   const double res = 1.0;
   const int64_t x_size = 100;
@@ -42,12 +62,12 @@ void test_spatial_segments(
       }
     }
   }
-  visualization_msgs::MarkerArray display_markers;
-  visualization_msgs::Marker env_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(tocmap);
+  MarkerArray display_markers;
+  Marker env_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(tocmap);
   env_marker.id = 1;
   env_marker.ns = "environment";
   display_markers.markers.push_back(env_marker);
-  visualization_msgs::Marker components_marker = voxelized_geometry_tools::ros_interface::ExportConnectedComponentsForDisplay(tocmap, false);
+  Marker components_marker = voxelized_geometry_tools::ros_interface::ExportConnectedComponentsForDisplay(tocmap, false);
   components_marker.id = 1;
   components_marker.ns = "environment_components";
   display_markers.markers.push_back(components_marker);
@@ -60,7 +80,7 @@ void test_spatial_segments(
   {
     for (uint32_t spatial_segment = 1u; spatial_segment <= number_of_spatial_segments_manual_border; spatial_segment++)
     {
-      visualization_msgs::Marker segment_marker = voxelized_geometry_tools::ros_interface::ExportSpatialSegmentForDisplay(tocmap, object_id, spatial_segment);
+      Marker segment_marker = voxelized_geometry_tools::ros_interface::ExportSpatialSegmentForDisplay(tocmap, object_id, spatial_segment);
       if (segment_marker.points.size() > 0)
       {
         segment_marker.ns += "_no_border";
@@ -76,7 +96,7 @@ void test_spatial_segments(
   {
     for (uint32_t spatial_segment = 1u; spatial_segment <= number_of_spatial_segments_virtual_border; spatial_segment++)
     {
-      visualization_msgs::Marker segment_marker = voxelized_geometry_tools::ros_interface::ExportSpatialSegmentForDisplay(tocmap, object_id, spatial_segment);
+      Marker segment_marker = voxelized_geometry_tools::ros_interface::ExportSpatialSegmentForDisplay(tocmap, object_id, spatial_segment);
       if (segment_marker.points.size() > 0)
       {
         segment_marker.ns += "_virtual_border";
@@ -87,14 +107,14 @@ void test_spatial_segments(
   const auto sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, false);
   const auto& sdf = sdf_result.DistanceField();
-  visualization_msgs::Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
+  Marker sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
   sdf_marker.id = 1;
   sdf_marker.ns = "environment_sdf_no_border";
   display_markers.markers.push_back(sdf_marker);
   const auto virtual_border_sdf_result
       = tocmap.ExtractSignedDistanceField(std::vector<uint32_t>(), std::numeric_limits<float>::infinity(), true, false, true);
   const auto& virtual_border_sdf = virtual_border_sdf_result.DistanceField();
-  visualization_msgs::Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
+  Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
   virtual_border_sdf_marker.id = 1;
   virtual_border_sdf_marker.ns = "environment_sdf_virtual_border";
   display_markers.markers.push_back(virtual_border_sdf_marker);
@@ -116,22 +136,26 @@ void test_spatial_segments(
           const double distance = (extrema - location.block<3, 1>(0, 0)).norm();
           if (distance < sdf.GetResolution())
           {
-            visualization_msgs::Marker maxima_rep;
+            Marker maxima_rep;
             // Populate the header
             maxima_rep.header.frame_id = "world";
             // Populate the options
             maxima_rep.ns = "extrema";
             maxima_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
-            maxima_rep.action = visualization_msgs::Marker::ADD;
+            maxima_rep.action = Marker::ADD;
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+            maxima_rep.lifetime = rclcpp::Duration(0, 0);
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
             maxima_rep.lifetime = ros::Duration(0.0);
+#endif
             maxima_rep.frame_locked = false;
             maxima_rep.pose.position = common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location);
             maxima_rep.pose.orientation = common_robotics_utilities::ros_conversions::EigenQuaterniondToGeometryQuaternion(Eigen::Quaterniond::Identity());
-            maxima_rep.type = visualization_msgs::Marker::SPHERE;
+            maxima_rep.type = Marker::SPHERE;
             maxima_rep.scale.x = sdf.GetResolution();
             maxima_rep.scale.y = sdf.GetResolution();
             maxima_rep.scale.z = sdf.GetResolution();
-            maxima_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<std_msgs::ColorRGBA>(1.0, 0.5, 0.0, 1.0);
+            maxima_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(1.0, 0.5, 0.0, 1.0);
             display_markers.markers.push_back(maxima_rep);
           }
         }
@@ -159,17 +183,35 @@ void test_spatial_segments(
 
 int main(int argc, char** argv)
 {
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<rclcpp::Node>("compute_spatial_segments_test");
+  auto display_pub = node->create_publisher<MarkerArray>(
+      "display_test_voxel_grid", rclcpp::QoS(1).transient_local());
+  const std::function<void(const MarkerArray&)>& display_fn
+      = [&] (const MarkerArray& markers)
+  {
+    display_pub->publish(markers);
+  };
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   ros::init(argc, argv, "compute_spatial_segments_test");
   ros::NodeHandle nh;
-  ros::Publisher display_pub
-      = nh.advertise<visualization_msgs::MarkerArray>(
-          "display_test_voxel_grid", 1, true);
-  const std::function<void(const visualization_msgs::MarkerArray&)>& display_fn
-      = [&] (const visualization_msgs::MarkerArray& markers)
+  ros::Publisher display_pub = nh.advertise<MarkerArray>(
+      "display_test_voxel_grid", 1, true);
+  const std::function<void(const MarkerArray&)>& display_fn
+      = [&] (const MarkerArray& markers)
   {
     display_pub.publish(markers);
   };
+#endif
+
   test_spatial_segments(display_fn);
+
+#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
   ros::spin();
+#endif
   return 0;
 }

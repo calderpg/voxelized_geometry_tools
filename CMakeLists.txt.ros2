@@ -225,6 +225,15 @@ install(TARGETS
   RUNTIME DESTINATION bin
 )
 
+# Mark examples for installation
+install(TARGETS
+  voxelized_geometry_tools_tutorial
+  estimate_distance_example
+  spatial_segments
+  pointcloud_voxelization
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
 ## Mark cpp header files for installation
 install(
   DIRECTORY include/

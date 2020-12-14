@@ -226,6 +226,16 @@ install(TARGETS ${PROJECT_NAME}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
+
+# Mark examples for installation
+install(TARGETS
+  voxelized_geometry_tools_tutorial
+  estimate_distance_example
+  spatial_segments
+  pointcloud_voxelization
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 ## Mark cpp header files for installation
 install(DIRECTORY include/${PROJECT_NAME}/
     DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}

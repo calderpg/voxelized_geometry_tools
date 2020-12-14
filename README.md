@@ -52,7 +52,7 @@ catkin_make  # the entire workspace
 catkin_make --pkg voxelized_geometry_tools  # the package only
 ```
 
-*For ROS 2 Dashing +*
+*For ROS 2 Dashing+*
 ```sh
 cd ~/ws
 colcon build  # the entire workspace
@@ -61,9 +61,9 @@ colcon build --packages-select voxelized_geometry_tools  # the package only
 
 ## Running examples
 
-Since examples are not installed, these end up build tree.
-In ROS 1, `catkin_make` devel spaces aid execution. 
-In ROS 2, there is no such aid.
+Use [`rosrun`](http://wiki.ros.org/rosbash#rosrun) or
+[`ros2 run`](https://index.ros.org/doc/ros2/Tutorials/Understanding-ROS2-Nodes/#ros2-run)
+accordingly.
 
 *For ROS 1 Kinetic+*
 ```sh
@@ -72,9 +72,9 @@ source ./devel/setup.bash
 rosrun voxelized_geometry_tools <example>
 ```
 
-*For ROS 2 Dashing +*
+*For ROS 2 Dashing+*
 ```sh
 cd ~/ws
 source ./install/setup.bash
-./build/voxelized_geometry_tools/<example>
+ros2 run voxelized_geometry_tools <example>
 ```

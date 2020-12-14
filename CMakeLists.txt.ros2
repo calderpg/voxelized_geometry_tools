@@ -78,12 +78,6 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
 ament_target_dependencies(${PROJECT_NAME} common_robotics_utilities)
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_interfaces)
-target_include_directories(${PROJECT_NAME}
-    PUBLIC
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_c>"
-        "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_cpp>"
-)
 
 # Cuda voxelization helpers library
 if(CUDA_FOUND)

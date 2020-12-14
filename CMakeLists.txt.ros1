@@ -103,8 +103,7 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/collision_map.cpp
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
-add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS}
-                                 ${PROJECT_NAME}_gencpp)
+add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 # Cuda voxelization helpers library

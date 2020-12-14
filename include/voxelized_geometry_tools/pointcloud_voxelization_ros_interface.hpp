@@ -3,6 +3,7 @@
 #include <cstring>
 #include <limits>
 #include <map>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 
@@ -23,8 +24,10 @@ namespace pointcloud_voxelization
 
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using PointCloud2 = sensor_msgs::msg::PointCloud2;
+using PointCloud2ConstSharedPtr = std::shared_ptr<const PointCloud2>;
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 using PointCloud2 = sensor_msgs::PointCloud2;
+using PointCloud2ConstSharedPtr = sensor_msgs::PointCloud2ConstPtr;
 #endif
 
 class PointCloud2Wrapper : public PointCloudWrapper
@@ -105,14 +108,14 @@ public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   OwningPointCloud2Wrapper(
-      const std::shared_ptr<const PointCloud2>& cloud_ptr,
+      const PointCloud2ConstSharedPtr& cloud_ptr,
       const Eigen::Isometry3d& origin_transform,
       const double max_range = std::numeric_limits<double>::infinity())
       : PointCloud2Wrapper(cloud_ptr.get(), origin_transform, max_range),
         owned_cloud_ptr_(cloud_ptr) {}
 
 private:
-  std::shared_ptr<const PointCloud2> owned_cloud_ptr_;
+  PointCloud2ConstSharedPtr owned_cloud_ptr_;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

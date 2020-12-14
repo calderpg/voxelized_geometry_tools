@@ -46,12 +46,12 @@ add_compile_options(-Wall)
 add_compile_options(-Wextra)
 add_compile_options(-Werror)
 add_compile_options(-Wconversion)
-# add_compile_options(-Wshadow)
+add_compile_options(-Wshadow)
 add_compile_options(-O3)
 add_compile_options(-g)
 add_compile_options(-flto)
-# add_compile_options(-Werror=non-virtual-dtor)
-# add_compile_options(-Wold-style-cast)
+add_compile_options(-Werror=non-virtual-dtor)
+add_compile_options(-Wold-style-cast)
 add_compile_options(-Wmaybe-uninitialized)
 add_compile_options(-march=native)
 
@@ -78,7 +78,8 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
 ament_target_dependencies(${PROJECT_NAME}
-                          common_robotics_utilities
+                          common_robotics_utilities)
+ament_target_dependencies(${PROJECT_NAME} SYSTEM
                           geometry_msgs
                           rclcpp
                           std_msgs
@@ -152,7 +153,8 @@ add_library(${PROJECT_NAME}_ros_interface
             include/${PROJECT_NAME}/ros_interface.hpp
             src/${PROJECT_NAME}/ros_interface.cpp)
 ament_target_dependencies(${PROJECT_NAME}_ros_interface
-                          common_robotics_utilities
+                          common_robotics_utilities)
+ament_target_dependencies(${PROJECT_NAME}_ros_interface SYSTEM
                           rclcpp
                           std_msgs
                           visualization_msgs)
@@ -170,34 +172,38 @@ add_library(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
             include/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.hpp
             src/${PROJECT_NAME}/pointcloud_voxelization_ros_interface.cpp)
 ament_target_dependencies(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
-                          sensor_msgs)
+                          SYSTEM sensor_msgs)
 target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization_ros_interface
                       ${PROJECT_NAME}_pointcloud_voxelization)
 
 # Examples
 add_executable(voxelized_geometry_tools_tutorial example/tutorial.cpp)
 ament_target_dependencies(voxelized_geometry_tools_tutorial
-    rclcpp visualization_msgs common_robotics_utilities)
+    common_robotics_utilities)
+ament_target_dependencies(voxelized_geometry_tools_tutorial
+    SYSTEM rclcpp visualization_msgs)
 target_link_libraries(voxelized_geometry_tools_tutorial
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(estimate_distance_example example/estimate_distance.cpp)
 ament_target_dependencies(estimate_distance_example
-    rclcpp geometry_msgs std_msgs visualization_msgs
     common_robotics_utilities)
+ament_target_dependencies(estimate_distance_example
+    SYSTEM rclcpp geometry_msgs std_msgs visualization_msgs)
 target_link_libraries(estimate_distance_example
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(spatial_segments example/spatial_segments.cpp)
-ament_target_dependencies(spatial_segments
-    rclcpp visualization_msgs common_robotics_utilities)
+ament_target_dependencies(spatial_segments common_robotics_utilities)
+ament_target_dependencies(spatial_segments SYSTEM rclcpp visualization_msgs)
 target_link_libraries(spatial_segments
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME})
 
 add_executable(pointcloud_voxelization example/pointcloud_voxelization.cpp)
-ament_target_dependencies(spatial_segments
-    rclcpp std_msgs visualization_msgs common_robotics_utilities)
-
+ament_target_dependencies(pointcloud_voxelization
+    common_robotics_utilities)
+ament_target_dependencies(pointcloud_voxelization
+    SYSTEM rclcpp std_msgs visualization_msgs)
 target_link_libraries(pointcloud_voxelization
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
     ${PROJECT_NAME})

@@ -1,6 +1,8 @@
 #pragma once
 
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 
 #include <chrono>
 #include <cmath>

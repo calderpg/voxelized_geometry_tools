@@ -210,6 +210,16 @@ target_link_libraries(pointcloud_voxelization
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
     ${PROJECT_NAME} ${catkin_LIBRARIES})
 
+if(CATKIN_ENABLE_TESTING)
+    # Tests
+    catkin_add_gtest(pointcloud_voxelization_test
+        test/pointcloud_voxelization_test.cpp)
+    add_dependencies(pointcloud_voxelization_test
+        ${PROJECT_NAME}_pointcloud_voxelization)
+    target_link_libraries(pointcloud_voxelization_test
+        ${PROJECT_NAME}_pointcloud_voxelization)
+endif()
+
 #############
 ## Install ##
 #############

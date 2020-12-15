@@ -1,6 +1,8 @@
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 
 #include <atomic>
 #include <cmath>
@@ -72,7 +74,9 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
   const Eigen::Vector4d p_WCo = X_WC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
   for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
@@ -146,7 +150,9 @@ void CpuPointCloudVoxelizer::CombineAndFilterGrids(
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
   auto& filtered_grid_backing_store = filtered_grid.GetMutableRawData();
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
   for (size_t voxel = 0; voxel < filtered_grid_backing_store.size(); voxel++)
   {
     auto& current_cell = filtered_grid_backing_store.at(voxel);

@@ -1,6 +1,8 @@
 #include <voxelized_geometry_tools/cuda_pointcloud_voxelization.hpp>
 
+#if defined(_OPENMP)
 #include <omp.h>
+#endif
 
 #include <atomic>
 #include <cmath>
@@ -65,7 +67,9 @@ VoxelizerRuntime CudaPointCloudVoxelizer::DoVoxelizePointClouds(
     const int32_t num_z_cells =
         static_cast<int32_t>(static_environment.GetNumZCells());
     // Do raycasting of the pointclouds
+#if defined(_OPENMP)
 #pragma omp parallel for
+#endif
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
       const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);

@@ -1,6 +1,7 @@
 BSD 3-Clause License
 
-Copyright (c) 2018, Calder Phillips-Grafflin
+Copyright (c) 2018, Calder Phillips-Grafflin. The included copy of the OpenCL
+C++ bindings opencl_cpp/cl.hpp is covered by the permissive OpenCL license.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

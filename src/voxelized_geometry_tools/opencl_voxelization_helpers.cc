@@ -9,7 +9,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <CL/cl.hpp>
+#include "cl.hpp"
 
 namespace voxelized_geometry_tools
 {

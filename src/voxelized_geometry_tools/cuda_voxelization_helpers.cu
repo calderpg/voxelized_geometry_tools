@@ -96,9 +96,12 @@ void RaycastPoint(
             + device_tracking_grid_inverse_origin_transform_ptr[6] * cy
             + device_tracking_grid_inverse_origin_transform_ptr[10] * cz
             + device_tracking_grid_inverse_origin_transform_ptr[14];
-        const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-        const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-        const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
+        const int32_t x_cell =
+            static_cast<int32_t>(std::floor(gx * inverse_cell_size));
+        const int32_t y_cell =
+            static_cast<int32_t>(std::floor(gy * inverse_cell_size));
+        const int32_t z_cell =
+            static_cast<int32_t>(std::floor(gz * inverse_cell_size));
         if (x_cell != previous_x_cell || y_cell != previous_y_cell
             || z_cell != previous_z_cell)
         {
@@ -139,9 +142,12 @@ void RaycastPoint(
             + device_tracking_grid_inverse_origin_transform_ptr[6] * wy
             + device_tracking_grid_inverse_origin_transform_ptr[10] * wz
             + device_tracking_grid_inverse_origin_transform_ptr[14];
-        const int32_t x_cell = static_cast<int32_t>(gx * inverse_cell_size);
-        const int32_t y_cell = static_cast<int32_t>(gy * inverse_cell_size);
-        const int32_t z_cell = static_cast<int32_t>(gz * inverse_cell_size);
+        const int32_t x_cell =
+            static_cast<int32_t>(std::floor(gx * inverse_cell_size));
+        const int32_t y_cell =
+            static_cast<int32_t>(std::floor(gy * inverse_cell_size));
+        const int32_t z_cell =
+            static_cast<int32_t>(std::floor(gz * inverse_cell_size));
         if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
             && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
         {

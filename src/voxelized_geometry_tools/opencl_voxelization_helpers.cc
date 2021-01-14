@@ -83,9 +83,9 @@ void kernel RaycastPoint(
           + inverse_grid_origin_transform[6] * cy
           + inverse_grid_origin_transform[10] * cz
           + inverse_grid_origin_transform[14];
-      const int x_cell = (int)(gx * inverse_cell_size);
-      const int y_cell = (int)(gy * inverse_cell_size);
-      const int z_cell = (int)(gz * inverse_cell_size);
+      const int x_cell = (int)floor(gx * inverse_cell_size);
+      const int y_cell = (int)floor(gy * inverse_cell_size);
+      const int z_cell = (int)floor(gz * inverse_cell_size);
       if (x_cell != previous_x_cell || y_cell != previous_y_cell
           || z_cell != previous_z_cell)
       {
@@ -126,9 +126,9 @@ void kernel RaycastPoint(
           + inverse_grid_origin_transform[6] * wy
           + inverse_grid_origin_transform[10] * wz
           + inverse_grid_origin_transform[14];
-      const int x_cell = (int)(gx * inverse_cell_size);
-      const int y_cell = (int)(gy * inverse_cell_size);
-      const int z_cell = (int)(gz * inverse_cell_size);
+      const int x_cell = (int)floor(gx * inverse_cell_size);
+      const int y_cell = (int)floor(gy * inverse_cell_size);
+      const int z_cell = (int)floor(gz * inverse_cell_size);
       if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
           && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
       {

@@ -212,31 +212,60 @@ static std::string GetFilterKernelCode()
   return std::string(kFilterGridsKernelCode);
 }
 
-int32_t RetrieveOptionOrDefault(
-    const std::map<std::string, int32_t>& options, const std::string& option,
-    const int32_t default_value)
-{
-  auto found_itr = options.find(option);
-  if (found_itr != options.end())
-  {
-    const int32_t value = found_itr->second;
-    std::cout << "Option [" << option << "] found with value [" << value << "]"
-              << std::endl;
-    return value;
-  }
-  else
-  {
-    std::cout << "Option [" << option << "] not found, default ["
-              << default_value << "]" << std::endl;
-    return default_value;
-  }
-}
-
-class RealOpenCLVoxelizationHelperInterface
-    : public OpenCLVoxelizationHelperInterface
+class OpenCLTrackingGridsHandle : public TrackingGridsHandle
 {
 public:
-  explicit RealOpenCLVoxelizationHelperInterface(
+  OpenCLTrackingGridsHandle(
+      std::unique_ptr<cl::Buffer> tracking_grids_buffer,
+      const std::vector<int64_t>& tracking_grid_starting_offsets,
+      const int64_t num_cells_per_grid)
+      : TrackingGridsHandle(tracking_grid_starting_offsets, num_cells_per_grid),
+        tracking_grids_buffer_(std::move(tracking_grids_buffer))
+  {
+    if (!tracking_grids_buffer_)
+    {
+      throw std::invalid_argument(
+          "Cannot create OpenCLTrackingGridsHandle with null buffer");
+    }
+  }
+
+  cl::Buffer& GetBuffer() { return *tracking_grids_buffer_; }
+
+  const cl::Buffer& GetBuffer() const { return *tracking_grids_buffer_; }
+
+private:
+  std::unique_ptr<cl::Buffer> tracking_grids_buffer_;
+};
+
+class OpenCLFilterGridHandle : public FilterGridHandle
+{
+public:
+  OpenCLFilterGridHandle(
+      std::unique_ptr<cl::Buffer> filter_grid_buffer,
+      const int64_t num_cells)
+      : FilterGridHandle(num_cells),
+        filter_grid_buffer_(std::move(filter_grid_buffer))
+  {
+    if (!filter_grid_buffer_)
+    {
+      throw std::invalid_argument(
+          "Cannot create OpenCLFilterGridHandle with null buffer");
+    }
+  }
+
+  cl::Buffer& GetBuffer() { return *filter_grid_buffer_; }
+
+  const cl::Buffer& GetBuffer() const { return *filter_grid_buffer_; }
+
+private:
+  std::unique_ptr<cl::Buffer> filter_grid_buffer_;
+};
+
+class OpenCLVoxelizationHelperInterface
+    : public DeviceVoxelizationHelperInterface
+{
+public:
+  explicit OpenCLVoxelizationHelperInterface(
       const std::map<std::string, int32_t>& options)
   {
     std::vector<cl::Platform> all_platforms;
@@ -346,19 +375,19 @@ public:
     return (context_ && queue_ && raycasting_program_ && filter_program_);
   }
 
-  std::vector<int64_t> PrepareTrackingGrids(
+  std::unique_ptr<TrackingGridsHandle> PrepareTrackingGrids(
       const int64_t num_cells, const int32_t num_grids) override
   {
     const size_t buffer_size = sizeof(int32_t) * 2 * num_cells * num_grids;
     cl_int err = 0;
-    device_tracking_grid_buffer_ = std::unique_ptr<cl::Buffer>(new cl::Buffer(
+    std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
     if (err == 0)
     {
       // This is how we zero the buffer
       cl::Event event;
       err = queue_->enqueueFillBuffer<int32_t>(
-          *device_tracking_grid_buffer_, 0, 0, buffer_size, nullptr, &event);
+          *tracking_grids_buffer, 0, 0, buffer_size, nullptr, &event);
       if (err == CL_SUCCESS)
       {
         err = event.wait();
@@ -369,7 +398,10 @@ public:
           {
             tracking_grid_offsets.at(num_grid) = num_grid * num_cells * 2;
           }
-          return tracking_grid_offsets;
+          return std::unique_ptr<TrackingGridsHandle>(
+              new OpenCLTrackingGridsHandle(
+                  std::move(tracking_grids_buffer), tracking_grid_offsets,
+                  num_cells));
         }
         else
         {
@@ -389,14 +421,16 @@ public:
 
   void RaycastPoints(
       const std::vector<float>& raw_points,
-      const Eigen::Isometry3f& pointcloud_origin_transform,
-      const float max_range,
-      const Eigen::Isometry3f& inverse_grid_origin_transform,
+      const float* const pointcloud_origin_transform, const float max_range,
+      const float* const inverse_grid_origin_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
-      const int32_t num_z_cells,
-      const int64_t tracking_grid_starting_offset) override
+      const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,
+      const size_t tracking_grid_index) override
   {
+    OpenCLTrackingGridsHandle& real_tracking_grids =
+        dynamic_cast<OpenCLTrackingGridsHandle&>(tracking_grids);
+
     cl_int err = 0;
     cl::Buffer device_points_buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -411,7 +445,7 @@ public:
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * 16,
         const_cast<void*>(static_cast<const void*>(
-            pointcloud_origin_transform.data())),
+            pointcloud_origin_transform)),
         &err);
     if (err != CL_SUCCESS)
     {
@@ -421,14 +455,17 @@ public:
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * 16,
         const_cast<void*>(static_cast<const void*>(
-            inverse_grid_origin_transform.data())),
+            inverse_grid_origin_transform)),
         &err);
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Failed to allocate and copy grid transform");
     }
+
     const int32_t stride1 = num_y_cells * num_z_cells;
     const int32_t stride2 = num_z_cells;
+    const int32_t starting_index = static_cast<int32_t>(
+        real_tracking_grids.GetTrackingGridStartingOffset(tracking_grid_index));
     // Build kernel
     cl::Kernel raycasting_kernel(*raycasting_program_, "RaycastPoint");
     raycasting_kernel.setArg(0, device_points_buffer);
@@ -442,9 +479,8 @@ public:
     raycasting_kernel.setArg(8, num_x_cells);
     raycasting_kernel.setArg(9, num_y_cells);
     raycasting_kernel.setArg(10, num_z_cells);
-    raycasting_kernel.setArg(11, *device_tracking_grid_buffer_);
-    raycasting_kernel.setArg(
-        12, static_cast<int32_t>(tracking_grid_starting_offset));
+    raycasting_kernel.setArg(11, real_tracking_grids.GetBuffer());
+    raycasting_kernel.setArg(12, starting_index);
     err = queue_->enqueueNDRangeKernel(
         raycasting_kernel, cl::NullRange, cl::NDRange(raw_points.size() / 3),
         cl::NullRange);
@@ -454,35 +490,47 @@ public:
     }
   }
 
-  void PrepareFilterGrid(
+  std::unique_ptr<FilterGridHandle> PrepareFilterGrid(
       const int64_t num_cells, const void* host_data_ptr) override
   {
     cl_int err = 0;
-    device_filter_grid_buffer_ = std::unique_ptr<cl::Buffer>(new cl::Buffer(
+    std::unique_ptr<cl::Buffer> filter_grid_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * num_cells * 2, const_cast<void*>(host_data_ptr), &err));
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Failed to allocate and copy filtered buffer");
     }
+
+    return std::unique_ptr<FilterGridHandle>(new OpenCLFilterGridHandle(
+        std::move(filter_grid_buffer), num_cells));
   }
 
   void FilterTrackingGrids(
-       const int64_t num_cells, const int32_t num_grids,
-       const float percent_seen_free, const int32_t outlier_points_threshold,
-       const int32_t num_cameras_seen_free) override
+      const TrackingGridsHandle& tracking_grids, const float percent_seen_free,
+      const int32_t outlier_points_threshold,
+      const int32_t num_cameras_seen_free,
+      FilterGridHandle& filter_grid) override
   {
+    const OpenCLTrackingGridsHandle& real_tracking_grids =
+        dynamic_cast<const OpenCLTrackingGridsHandle&>(tracking_grids);
+    OpenCLFilterGridHandle& real_filter_grid =
+        dynamic_cast<OpenCLFilterGridHandle&>(filter_grid);
+
     // Build kernel
     cl::Kernel filter_kernel(*filter_program_, "FilterGrids");
-    filter_kernel.setArg(0, static_cast<int32_t>(num_cells));
-    filter_kernel.setArg(1, num_grids);
-    filter_kernel.setArg(2, *device_tracking_grid_buffer_);
-    filter_kernel.setArg(3, *device_filter_grid_buffer_);
+    filter_kernel.setArg(
+        0, static_cast<int32_t>(real_tracking_grids.NumCellsPerGrid()));
+    filter_kernel.setArg(
+        1, static_cast<int32_t>(real_tracking_grids.GetNumTrackingGrids()));
+    filter_kernel.setArg(2, real_tracking_grids.GetBuffer());
+    filter_kernel.setArg(3, real_filter_grid.GetBuffer());
     filter_kernel.setArg(4, percent_seen_free);
     filter_kernel.setArg(5, outlier_points_threshold);
     filter_kernel.setArg(6, num_cameras_seen_free);
     const cl_int err = queue_->enqueueNDRangeKernel(
-        filter_kernel, cl::NullRange, cl::NDRange(num_cells), cl::NullRange);
+        filter_kernel, cl::NullRange,
+        cl::NDRange(real_tracking_grids.NumCellsPerGrid()), cl::NullRange);
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error(
@@ -491,18 +539,22 @@ public:
   }
 
   void RetrieveTrackingGrid(
-      const int64_t num_cells,
-      const int64_t device_tracking_grid_starting_index,
-      void* host_data_ptr) override
+      const TrackingGridsHandle& tracking_grids,
+      const size_t tracking_grid_index, void* host_data_ptr) override
   {
+    const OpenCLTrackingGridsHandle& real_tracking_grids =
+        dynamic_cast<const OpenCLTrackingGridsHandle&>(tracking_grids);
+
     queue_->finish();
     const size_t item_size = sizeof(int32_t) * 2;
-    const size_t buffer_size = num_cells * item_size;
+    const size_t tracking_grid_size =
+        real_tracking_grids.NumCellsPerGrid() * item_size;
     const size_t starting_offset =
-        device_tracking_grid_starting_index * sizeof(int32_t);
+        real_tracking_grids.GetTrackingGridStartingOffset(tracking_grid_index)
+        * sizeof(int32_t);
     const cl_int err = queue_->enqueueReadBuffer(
-        *device_tracking_grid_buffer_, CL_TRUE, starting_offset, buffer_size,
-        host_data_ptr);
+        real_tracking_grids.GetBuffer(), CL_TRUE, starting_offset,
+        tracking_grid_size, host_data_ptr);
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Tracking buffer enqueueReadBuffer failed");
@@ -510,22 +562,20 @@ public:
   }
 
   void RetrieveFilteredGrid(
-      const int64_t num_cells, void* host_data_ptr) override
+      const FilterGridHandle& filter_grid, void* host_data_ptr) override
   {
+    const OpenCLFilterGridHandle& real_filter_grid =
+        dynamic_cast<const OpenCLFilterGridHandle&>(filter_grid);
+
     queue_->finish();
-    const size_t buffer_size = sizeof(float) * num_cells * 2;
+    const size_t item_size = sizeof(float) * 2;
+    const size_t buffer_size = real_filter_grid.NumCells() * item_size;
     const cl_int err = queue_->enqueueReadBuffer(
-        *device_filter_grid_buffer_, CL_TRUE, 0, buffer_size, host_data_ptr);
+        real_filter_grid.GetBuffer(), CL_TRUE, 0, buffer_size, host_data_ptr);
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Filtered buffer enqueueReadBuffer failed");
     }
-  }
-
-  void CleanupAllocatedMemory() override
-  {
-    device_tracking_grid_buffer_.reset();
-    device_filter_grid_buffer_.reset();
   }
 
 private:
@@ -533,16 +583,14 @@ private:
   std::unique_ptr<cl::CommandQueue> queue_;
   std::unique_ptr<cl::Program> raycasting_program_;
   std::unique_ptr<cl::Program> filter_program_;
-  std::unique_ptr<cl::Buffer> device_tracking_grid_buffer_;
-  std::unique_ptr<cl::Buffer> device_filter_grid_buffer_;
 };
 
-OpenCLVoxelizationHelperInterface* MakeHelperInterface(
-    const std::map<std::string, int32_t>& options)
+std::unique_ptr<DeviceVoxelizationHelperInterface>
+MakeOpenCLVoxelizationHelper(const std::map<std::string, int32_t>& options)
 {
-  return new RealOpenCLVoxelizationHelperInterface(options);
+  return std::unique_ptr<DeviceVoxelizationHelperInterface>(
+      new OpenCLVoxelizationHelperInterface(options));
 }
 }  // namespace opencl_helpers
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools
-

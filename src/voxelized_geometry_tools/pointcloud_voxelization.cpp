@@ -4,9 +4,8 @@
 #include <iostream>
 #include <stdexcept>
 
-#include <voxelized_geometry_tools/cuda_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
-#include <voxelized_geometry_tools/opencl_pointcloud_voxelization.hpp>
+#include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 namespace voxelized_geometry_tools

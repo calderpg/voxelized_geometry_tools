@@ -10,8 +10,7 @@
 #include <gtest/gtest.h>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
-#include <voxelized_geometry_tools/cuda_pointcloud_voxelization.hpp>
-#include <voxelized_geometry_tools/opencl_pointcloud_voxelization.hpp>
+#include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 
 namespace voxelized_geometry_tools

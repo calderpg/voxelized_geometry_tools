@@ -87,16 +87,19 @@ if(CUDA_FOUND)
     set(CUDA_NVCC_FLAGS
         "${CUDA_NVCC_FLAGS} -Xcompiler -D__CORRECT_ISO_CPP11_MATH_H_PROTO")
     cuda_add_library(${PROJECT_NAME}_cuda_voxelization_helpers
+                     include/${PROJECT_NAME}/device_voxelization_interface.hpp
                      include/${PROJECT_NAME}/cuda_voxelization_helpers.h
                      src/${PROJECT_NAME}/cuda_voxelization_helpers.cu)
     target_link_libraries(${PROJECT_NAME}_cuda_voxelization_helpers
                           cuda ${CUDA_LIBRARIES})
     add_library(${PROJECT_NAME}_dummy_cuda_voxelization_helpers
-              include/${PROJECT_NAME}/cuda_voxelization_helpers.h
-              src/${PROJECT_NAME}/dummy_cuda_voxelization_helpers.cc)
+                include/${PROJECT_NAME}/device_voxelization_interface.hpp
+                include/${PROJECT_NAME}/cuda_voxelization_helpers.h
+                src/${PROJECT_NAME}/dummy_cuda_voxelization_helpers.cc)
 else()
     message(WARNING "CUDA not found. Building stubs for CUDA helpers.")
     add_library(${PROJECT_NAME}_cuda_voxelization_helpers
+                include/${PROJECT_NAME}/device_voxelization_interface.hpp
                 include/${PROJECT_NAME}/cuda_voxelization_helpers.h
                 src/${PROJECT_NAME}/dummy_cuda_voxelization_helpers.cc)
 endif()
@@ -106,16 +109,19 @@ if(OpenCL_FOUND)
     message(STATUS "OpenCL found. Building OpenCL voxelization helpers")
     include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
     add_library(${PROJECT_NAME}_opencl_voxelization_helpers
+                include/${PROJECT_NAME}/device_voxelization_interface.hpp
                 include/${PROJECT_NAME}/opencl_voxelization_helpers.h
                 src/${PROJECT_NAME}/opencl_voxelization_helpers.cc)
     target_link_libraries(${PROJECT_NAME}_opencl_voxelization_helpers
                           ${OpenCL_LIBRARIES})
     add_library(${PROJECT_NAME}_dummy_opencl_voxelization_helpers
-              include/${PROJECT_NAME}/opencl_voxelization_helpers.h
-              src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
+                include/${PROJECT_NAME}/device_voxelization_interface.hpp
+                include/${PROJECT_NAME}/opencl_voxelization_helpers.h
+                src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
 else()
     message(WARNING "OpenCL not found. Building stubs for OpenCL helpers.")
     add_library(${PROJECT_NAME}_opencl_voxelization_helpers
+                include/${PROJECT_NAME}/device_voxelization_interface.hpp
                 include/${PROJECT_NAME}/opencl_voxelization_helpers.h
                 src/${PROJECT_NAME}/dummy_opencl_voxelization_helpers.cc)
 endif()
@@ -123,13 +129,12 @@ endif()
 # Pointcloud voxelization
 add_library(${PROJECT_NAME}_pointcloud_voxelization
             include/${PROJECT_NAME}/cpu_pointcloud_voxelization.hpp
-            include/${PROJECT_NAME}/cuda_pointcloud_voxelization.hpp
-            include/${PROJECT_NAME}/opencl_pointcloud_voxelization.hpp
+            include/${PROJECT_NAME}/device_pointcloud_voxelization.hpp
+            include/${PROJECT_NAME}/device_voxelization_interface.hpp
             include/${PROJECT_NAME}/pointcloud_voxelization_interface.hpp
             include/${PROJECT_NAME}/pointcloud_voxelization.hpp
             src/${PROJECT_NAME}/cpu_pointcloud_voxelization.cpp
-            src/${PROJECT_NAME}/cuda_pointcloud_voxelization.cpp
-            src/${PROJECT_NAME}/opencl_pointcloud_voxelization.cpp
+            src/${PROJECT_NAME}/device_pointcloud_voxelization.cpp
             src/${PROJECT_NAME}/pointcloud_voxelization.cpp)
 target_link_libraries(${PROJECT_NAME}_pointcloud_voxelization
                       ${PROJECT_NAME}_cuda_voxelization_helpers

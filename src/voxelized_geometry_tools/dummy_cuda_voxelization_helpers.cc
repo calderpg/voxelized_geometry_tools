@@ -11,40 +11,10 @@ namespace pointcloud_voxelization
 {
 namespace cuda_helpers
 {
-class DummyCudaVoxelizationHelperInterface
-    : public CudaVoxelizationHelperInterface
+std::unique_ptr<DeviceVoxelizationHelperInterface>
+MakeCudaVoxelizationHelper(const std::map<std::string, int32_t>&)
 {
-public:
-  bool IsAvailable() const override { return false; }
-
-  std::vector<int64_t> PrepareTrackingGrids(
-      const int64_t, const int32_t) override
-  {
-    return std::vector<int64_t>();
-  }
-
-  void RaycastPoints(
-      const std::vector<float>&, const float* const, const float,
-      const float * const, const float, const float, const int32_t,
-      const int32_t, const int32_t, const int64_t) override {}
-
-  void PrepareFilterGrid(const int64_t, const void*) override {}
-
-  void FilterTrackingGrids(
-       const int64_t, const int32_t, const float, const int32_t,
-       const int32_t) override {}
-
-  void RetrieveTrackingGrid(const int64_t, const int64_t, void*) override {}
-
-  void RetrieveFilteredGrid(const int64_t, void*) override {}
-
-  void CleanupAllocatedMemory() override {}
-};
-
-CudaVoxelizationHelperInterface* MakeHelperInterface(
-    const std::map<std::string, int32_t>&)
-{
-  return new DummyCudaVoxelizationHelperInterface();
+  return std::unique_ptr<DeviceVoxelizationHelperInterface>();
 }
 }  // namespace cuda_helpers
 }  // namespace pointcloud_voxelization

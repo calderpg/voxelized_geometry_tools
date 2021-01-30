@@ -29,9 +29,15 @@ protected:
 
   void EnforceAvailable() const
   {
-    if (!helper_interface_ || !helper_interface_->IsAvailable())
+    if (!helper_interface_)
     {
-      throw std::runtime_error(device_name_ + " is not available");
+      throw std::runtime_error(
+          device_name_ + " is not available (feature was not built)");
+    }
+    if (!helper_interface_->IsAvailable())
+    {
+      throw std::runtime_error(
+          device_name_ + " is not available (device cannot be used)");
     }
   }
 

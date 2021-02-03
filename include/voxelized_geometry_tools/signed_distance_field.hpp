@@ -874,17 +874,9 @@ public:
                                        enable_edge_gradients);
     if (grid_aligned_gradient.HasValue())
     {
-      const Eigen::Vector4d& raw_grid_aligned_gradient
-          = grid_aligned_gradient.Value();
-      const Eigen::Quaterniond grid_rotation(
-          this->GetOriginTransform().rotation());
-      const Eigen::Quaterniond temp(0.0,
-                                    raw_grid_aligned_gradient(0),
-                                    raw_grid_aligned_gradient(1),
-                                    raw_grid_aligned_gradient(2));
-      const Eigen::Quaterniond result
-          = grid_rotation * (temp * grid_rotation.inverse());
-      return GradientQuery(result.x(), result.y(), result.z());
+      const Eigen::Vector4d gradient
+          = this->GetOriginTransform() * grid_aligned_gradient.Value();
+      return GradientQuery(gradient);
     }
     else
     {

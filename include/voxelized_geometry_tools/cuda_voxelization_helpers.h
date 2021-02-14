@@ -4,6 +4,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 
@@ -13,6 +14,8 @@ namespace pointcloud_voxelization
 {
 namespace cuda_helpers
 {
+std::vector<AvailableDevice> GetAvailableDevices();
+
 std::unique_ptr<DeviceVoxelizationHelperInterface>
 MakeCudaVoxelizationHelper(const std::map<std::string, int32_t>& options);
 }  // namespace cuda_helpers

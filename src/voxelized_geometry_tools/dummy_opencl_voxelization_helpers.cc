@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <vector>
 
 namespace voxelized_geometry_tools
 {
@@ -10,6 +11,8 @@ namespace pointcloud_voxelization
 {
 namespace opencl_helpers
 {
+std::vector<AvailableDevice> GetAvailableDevices() { return {}; }
+
 std::unique_ptr<DeviceVoxelizationHelperInterface>
 MakeOpenCLVoxelizationHelper(const std::map<std::string, int32_t>&)
 {

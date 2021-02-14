@@ -11,7 +11,28 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-// Helper for common option retrieval in device voxelizers
+// Wrapper for device name and the options necessary to retrieve it.
+class AvailableDevice
+{
+public:
+  AvailableDevice(
+      const std::string& device_name,
+      const std::map<std::string, int32_t>& device_options)
+      : device_name_(device_name), device_options_(device_options) {}
+
+  const std::string& DeviceName() const { return device_name_; }
+
+  const std::map<std::string, int32_t>& DeviceOptions() const
+  {
+    return device_options_;
+  }
+
+private:
+  std::string device_name_;
+  std::map<std::string, int32_t> device_options_;
+};
+
+// Helper for common option retrieval in device voxelizers.
 inline int32_t RetrieveOptionOrDefault(
     const std::map<std::string, int32_t>& options, const std::string& option,
     const int32_t default_value)
@@ -62,7 +83,7 @@ private:
   int64_t num_cells_per_grid_ = 0;
 };
 
-// Opaque handle type to filter grid
+// Opaque handle type to filter grid.
 class FilterGridHandle
 {
 public:

@@ -5,6 +5,7 @@
 #include <cuda_runtime.h>
 
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <iostream>
 #include <string>
@@ -303,6 +304,15 @@ public:
       {
         cuda_device_num_ = cuda_device;
         SetCudaDevice();
+
+        cudaDeviceProp device_properties;
+        std::memset(&device_properties, 0, sizeof(device_properties));
+        cudaGetDeviceProperties(&device_properties, cuda_device);
+        CudaCheckErrors("Failed to get device properties");
+        const std::string device_name(device_properties.name);
+
+        std::cout << "Using CUDA device [" << cuda_device << "] - Name: ["
+                  << device_name << "]" << std::endl;
       }
       else
       {
@@ -494,6 +504,39 @@ public:
 private:
   int32_t cuda_device_num_ = -1;
 };
+
+std::vector<AvailableDevice> GetAvailableDevices()
+{
+  std::vector<AvailableDevice> available_devices;
+
+  try
+  {
+    int32_t device_count = 0;
+    cudaGetDeviceCount(&device_count);
+    CudaCheckErrors("Failed to get device count");
+
+    for (int32_t device_idx = 0; device_idx < device_count; device_idx++)
+    {
+      cudaDeviceProp device_properties;
+      std::memset(&device_properties, 0, sizeof(device_properties));
+      cudaGetDeviceProperties(&device_properties, device_idx);
+      CudaCheckErrors("Failed to get device properties");
+      const std::string device_name(device_properties.name);
+      const std::string full_name = "CUDA - Device: [" + device_name + "]";
+
+      std::map<std::string, int32_t> device_options;
+      device_options["CUDA_DEVICE"] = device_idx;
+
+      available_devices.push_back(AvailableDevice(full_name, device_options));
+    }
+  }
+  catch (const std::runtime_error& ex)
+  {
+    std::cerr << ex.what() << std::endl;
+  }
+
+  return available_devices;
+}
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
 MakeCudaVoxelizationHelper(const std::map<std::string, int32_t>& options)

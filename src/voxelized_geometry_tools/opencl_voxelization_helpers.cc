@@ -271,37 +271,24 @@ public:
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
 
-    for (size_t idx = 0; idx < all_platforms.size(); idx++)
-    {
-      const auto& platform = all_platforms.at(idx);
-      std::string platform_name;
-      platform.getInfo(CL_PLATFORM_NAME, &platform_name);
-      std::string platform_vendor;
-      platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
-
-      std::cout << "OpenCL Platform [" << idx << "] - Name: ["
-                << platform_name << "], Vendor: [" << platform_vendor << "]"
-                << std::endl;
-    }
-
     const int32_t platform_index =
         RetrieveOptionOrDefault(options, "OPENCL_PLATFORM_INDEX", 0);
     if (all_platforms.size() > 0 && platform_index >= 0
         && platform_index < static_cast<int32_t>(all_platforms.size()))
     {
       auto& opencl_platform = all_platforms.at(platform_index);
+
+      std::string platform_name;
+      opencl_platform.getInfo(CL_PLATFORM_NAME, &platform_name);
+      std::string platform_vendor;
+      opencl_platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
+
+      std::cout << "Using OpenCL Platform [" << platform_index << "] - Name: ["
+                << platform_name << "], Vendor: [" << platform_vendor << "]"
+                << std::endl;
+
       std::vector<cl::Device> all_devices;
       opencl_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-
-      for (size_t idx = 0; idx < all_devices.size(); idx++)
-      {
-        const auto& device = all_devices.at(idx);
-        std::string device_name;
-        device.getInfo(CL_DEVICE_NAME, &device_name);
-
-        std::cout << "OpenCL Device [" << idx << "] - Name: [" << device_name
-                  << "]" << std::endl;
-      }
 
       const int32_t device_index =
           RetrieveOptionOrDefault(options, "OPENCL_DEVICE_INDEX", 0);
@@ -309,6 +296,13 @@ public:
           && device_index < static_cast<int32_t>(all_devices.size()))
       {
         auto& opencl_device = all_devices.at(device_index);
+
+        std::string device_name;
+        opencl_device.getInfo(CL_DEVICE_NAME, &device_name);
+
+        std::cout << "Using OpenCL Device [" << device_index << "] - Name: ["
+                  << device_name << "]" << std::endl;
+
         // Make context + queue
         context_ = std::unique_ptr<cl::Context>(
             new cl::Context({opencl_device}));
@@ -584,6 +578,46 @@ private:
   std::unique_ptr<cl::Program> raycasting_program_;
   std::unique_ptr<cl::Program> filter_program_;
 };
+
+std::vector<AvailableDevice> GetAvailableDevices()
+{
+  std::vector<AvailableDevice> available_devices;
+
+  std::vector<cl::Platform> platforms;
+  cl::Platform::get(&platforms);
+
+  for (size_t platform_idx = 0; platform_idx < platforms.size(); platform_idx++)
+  {
+    const auto& platform = platforms.at(platform_idx);
+    std::string platform_name;
+    platform.getInfo(CL_PLATFORM_NAME, &platform_name);
+    std::string platform_vendor;
+    platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
+
+    std::vector<cl::Device> devices;
+    platform.getDevices(CL_DEVICE_TYPE_ALL, &devices);
+
+    for (size_t device_idx = 0; device_idx < devices.size(); device_idx++)
+    {
+      const auto& device = devices.at(device_idx);
+      std::string device_name;
+      device.getInfo(CL_DEVICE_NAME, &device_name);
+
+      const std::string full_name =
+          "OpenCL - Platform name: [" + platform_name + "] Vendor: ["
+          + platform_vendor + "] Device: [" + device_name + "]";
+
+      std::map<std::string, int32_t> device_options;
+      device_options["OPENCL_PLATFORM_INDEX"] =
+          static_cast<int32_t>(platform_idx);
+      device_options["OPENCL_DEVICE_INDEX"] = static_cast<int32_t>(device_idx);
+
+      available_devices.push_back(AvailableDevice(full_name, device_options));
+    }
+  }
+
+  return available_devices;
+}
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
 MakeOpenCLVoxelizationHelper(const std::map<std::string, int32_t>& options)

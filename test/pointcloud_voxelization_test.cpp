@@ -9,17 +9,12 @@
 #include <common_robotics_utilities/math.hpp>
 #include <gtest/gtest.h>
 #include <voxelized_geometry_tools/collision_map.hpp>
-#include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
-#include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 
 namespace voxelized_geometry_tools
 {
 namespace
 {
-using pointcloud_voxelization::CpuPointCloudVoxelizer;
-using pointcloud_voxelization::CudaPointCloudVoxelizer;
-using pointcloud_voxelization::OpenCLPointCloudVoxelizer;
 using pointcloud_voxelization::PointCloudVoxelizationFilterOptions;
 using pointcloud_voxelization::PointCloudVoxelizationInterface;
 using pointcloud_voxelization::PointCloudWrapper;
@@ -195,55 +190,23 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   const int32_t num_cameras_seen_free = 1;
   const PointCloudVoxelizationFilterOptions filter_options(
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
-  // Voxelizer options (leave as default).
-  const std::map<std::string, int32_t> options;
 
-  // CUDA voxelizer
-  try
+  // Run all available voxelizers
+  const auto available_voxelizers =
+      pointcloud_voxelization::GetAvailableVoxelizers();
+
+  for (size_t idx = 0; idx < available_voxelizers.size(); idx++)
   {
-    std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new CudaPointCloudVoxelizer(options));
-    const auto cuda_voxelized = voxelizer->VoxelizePointClouds(
+    const auto& available_voxelizer = available_voxelizers.at(idx);
+    std::cout << "Trying voxelizer [" << idx << "] "
+              << available_voxelizer.DeviceName() << std::endl;
+
+    auto voxelizer =
+        pointcloud_voxelization::MakePointCloudVoxelizer(available_voxelizer);
+    const auto voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud});
-    check_voxelization(cuda_voxelized);
-  }
-  catch (std::runtime_error& ex)
-  {
-    std::cerr << ex.what() << std::endl;
-  }
-
-  // OpenCL voxelizer
-  try
-  {
-    std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new OpenCLPointCloudVoxelizer(options));
-    const auto opencl_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
-    check_voxelization(opencl_voxelized);
-  }
-  catch (std::runtime_error& ex)
-  {
-    std::cerr << ex.what() << std::endl;
-  }
-
-  // CPU voxelizer
-  try
-  {
-    std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
-    std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new CpuPointCloudVoxelizer());
-    const auto cpu_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
-    check_voxelization(cpu_voxelized);
-  }
-  catch (std::runtime_error&)
-  {
-    throw std::runtime_error("CPU PointCloud Voxelizer is not available");
+    check_voxelization(voxelized);
   }
 }
 }  // namespace

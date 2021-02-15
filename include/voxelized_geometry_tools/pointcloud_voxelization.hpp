@@ -13,26 +13,26 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-enum class VoxelizerOptions : uint8_t { BEST_AVAILABLE = 0x00,
-                                        CPU = 0x01,
-                                        OPENCL = 0x02,
-                                        CUDA = 0x03 };
+enum class BackendOptions : uint8_t { BEST_AVAILABLE = 0x00,
+                                      CPU = 0x01,
+                                      OPENCL = 0x02,
+                                      CUDA = 0x03 };
 
-// Wrapper for an available voxelizer.
-class AvailableVoxelizer
+// Wrapper for an available voxelizer backend.
+class AvailableBackend
 {
 public:
-  AvailableVoxelizer(
+  AvailableBackend(
       const std::string& device_name,
       const std::map<std::string, int32_t>& device_options,
-      const VoxelizerOptions voxelizer_option)
+      const BackendOptions backend_option)
       : device_name_(device_name), device_options_(device_options),
-        voxelizer_option_(voxelizer_option) {}
+        backend_option_(backend_option) {}
 
-  AvailableVoxelizer(
-      const AvailableDevice& device, const VoxelizerOptions voxelizer_option)
-      : AvailableVoxelizer(
-          device.DeviceName(), device.DeviceOptions(), voxelizer_option) {}
+  AvailableBackend(
+      const AvailableDevice& device, const BackendOptions backend_option)
+      : AvailableBackend(
+          device.DeviceName(), device.DeviceOptions(), backend_option) {}
 
   const std::string& DeviceName() const { return device_name_; }
 
@@ -41,30 +41,30 @@ public:
     return device_options_;
   }
 
-  VoxelizerOptions VoxelizerOption() const { return voxelizer_option_; }
+  BackendOptions BackendOption() const { return backend_option_; }
 
 private:
   std::string device_name_;
   std::map<std::string, int32_t> device_options_;
-  VoxelizerOptions voxelizer_option_{};
+  BackendOptions backend_option_{};
 };
 
-std::vector<AvailableVoxelizer> GetAvailableVoxelizers();
+std::vector<AvailableBackend> GetAvailableBackends();
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakePointCloudVoxelizer(
-    const VoxelizerOptions voxelizer_option,
-    const std::map<std::string, int32_t>& options);
+    const BackendOptions backend_option,
+    const std::map<std::string, int32_t>& device_options);
 
 std::unique_ptr<PointCloudVoxelizationInterface>
-MakePointCloudVoxelizer(const AvailableVoxelizer& voxelizer)
+MakePointCloudVoxelizer(const AvailableBackend& backend)
 {
   return MakePointCloudVoxelizer(
-      voxelizer.VoxelizerOption(), voxelizer.DeviceOptions());
+      backend.BackendOption(), backend.DeviceOptions());
 }
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakeBestAvailablePointCloudVoxelizer(
-    const std::map<std::string, int32_t>& options);
+    const std::map<std::string, int32_t>& device_options);
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

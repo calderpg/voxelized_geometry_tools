@@ -192,17 +192,17 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
 
   // Run all available voxelizers
-  const auto available_voxelizers =
-      pointcloud_voxelization::GetAvailableVoxelizers();
+  const auto available_backends =
+      pointcloud_voxelization::GetAvailableBackends();
 
-  for (size_t idx = 0; idx < available_voxelizers.size(); idx++)
+  for (size_t idx = 0; idx < available_backends.size(); idx++)
   {
-    const auto& available_voxelizer = available_voxelizers.at(idx);
+    const auto& available_backend = available_backends.at(idx);
     std::cout << "Trying voxelizer [" << idx << "] "
-              << available_voxelizer.DeviceName() << std::endl;
+              << available_backend.DeviceName() << std::endl;
 
     auto voxelizer =
-        pointcloud_voxelization::MakePointCloudVoxelizer(available_voxelizer);
+        pointcloud_voxelization::MakePointCloudVoxelizer(available_backend);
     const auto voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud});

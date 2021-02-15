@@ -14,63 +14,63 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-std::vector<AvailableVoxelizer> GetAvailableVoxelizers()
+std::vector<AvailableBackend> GetAvailableBackends()
 {
-  std::vector<AvailableVoxelizer> available_voxelizers;
+  std::vector<AvailableBackend> available_backends;
 
   const auto cuda_devices = cuda_helpers::GetAvailableDevices();
   for (const auto& cuda_device : cuda_devices)
   {
-    available_voxelizers.push_back(AvailableVoxelizer(
-        cuda_device, VoxelizerOptions::CUDA));
+    available_backends.push_back(AvailableBackend(
+        cuda_device, BackendOptions::CUDA));
   }
 
   const auto opencl_devices = opencl_helpers::GetAvailableDevices();
   for (const auto& opencl_device : opencl_devices)
   {
-    available_voxelizers.push_back(AvailableVoxelizer(
-        opencl_device, VoxelizerOptions::OPENCL));
+    available_backends.push_back(AvailableBackend(
+        opencl_device, BackendOptions::OPENCL));
   }
 
-  available_voxelizers.push_back(AvailableVoxelizer(
-      "CPU", {}, VoxelizerOptions::CPU));
+  available_backends.push_back(AvailableBackend(
+      "CPU/OpenMP", {}, BackendOptions::CPU));
 
-  return available_voxelizers;
+  return available_backends;
 }
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakePointCloudVoxelizer(
-    const VoxelizerOptions voxelizer_option,
-    const std::map<std::string, int32_t>& options)
+    const BackendOptions backend_option,
+    const std::map<std::string, int32_t>& device_options)
 {
-  if (voxelizer_option == VoxelizerOptions::BEST_AVAILABLE)
+  if (backend_option == BackendOptions::BEST_AVAILABLE)
   {
-    return MakeBestAvailablePointCloudVoxelizer(options);
+    return MakeBestAvailablePointCloudVoxelizer(device_options);
   }
-  else if (voxelizer_option == VoxelizerOptions::CPU)
+  else if (backend_option == BackendOptions::CPU)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new CpuPointCloudVoxelizer());
   }
-  else if (voxelizer_option == VoxelizerOptions::OPENCL)
+  else if (backend_option == BackendOptions::OPENCL)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer(options));
+        new OpenCLPointCloudVoxelizer(device_options));
   }
-  else if (voxelizer_option == VoxelizerOptions::CUDA)
+  else if (backend_option == BackendOptions::CUDA)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer(options));
+        new CudaPointCloudVoxelizer(device_options));
   }
   else
   {
-    throw std::invalid_argument("Invalid VoxelizerOptions");
+    throw std::invalid_argument("Invalid BackendOptions");
   }
 }
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakeBestAvailablePointCloudVoxelizer(
-    const std::map<std::string, int32_t>& options)
+    const std::map<std::string, int32_t>& device_options)
 {
   // Since not all voxelizers will be available on all platforms, we try them
   // in order of preference. If available (i.e. on NVIDIA platforms), CUDA is
@@ -81,7 +81,7 @@ MakeBestAvailablePointCloudVoxelizer(
   {
     std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer(options));
+        new CudaPointCloudVoxelizer(device_options));
   }
   catch (std::runtime_error&)
   {
@@ -91,7 +91,7 @@ MakeBestAvailablePointCloudVoxelizer(
   {
     std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer(options));
+        new OpenCLPointCloudVoxelizer(device_options));
   }
   catch (std::runtime_error&)
   {

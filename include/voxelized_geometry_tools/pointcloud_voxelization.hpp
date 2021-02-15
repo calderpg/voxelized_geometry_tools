@@ -57,11 +57,7 @@ MakePointCloudVoxelizer(
     const std::map<std::string, int32_t>& device_options);
 
 std::unique_ptr<PointCloudVoxelizationInterface>
-MakePointCloudVoxelizer(const AvailableBackend& backend)
-{
-  return MakePointCloudVoxelizer(
-      backend.BackendOption(), backend.DeviceOptions());
-}
+MakePointCloudVoxelizer(const AvailableBackend& backend);
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakeBestAvailablePointCloudVoxelizer(

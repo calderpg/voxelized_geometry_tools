@@ -30,6 +30,12 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 {
   EnforceAvailable();
 
+  // We shortcut here if there's no work to do.
+  if (pointclouds.empty())
+  {
+    return VoxelizerRuntime(0.0, 0.0);
+  }
+
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
 

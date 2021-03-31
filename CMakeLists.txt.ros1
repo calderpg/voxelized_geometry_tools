@@ -134,7 +134,7 @@ endif()
 # OpenCL voxelization helpers library
 if(OpenCL_FOUND)
     message(STATUS "OpenCL found. Building OpenCL voxelization helpers")
-    include_directories(SYSTEM ${OpenCL_INCLUDE_DIRS})
+    include_directories(SYSTEM opencl_cpp ${OpenCL_INCLUDE_DIRS})
     add_library(${PROJECT_NAME}_opencl_voxelization_helpers
                 include/${PROJECT_NAME}/device_voxelization_interface.hpp
                 include/${PROJECT_NAME}/opencl_voxelization_helpers.h

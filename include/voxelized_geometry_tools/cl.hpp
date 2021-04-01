@@ -1,3 +1,12 @@
+// Modifications to suppress warnings from this file.
+#if defined(__clang__)
+  /* Clang/LLVM */
+  #pragma clang system_header
+#elif defined(__GNUC__) || defined(__GNUG__)
+  /* GNU GCC/G++ */
+  #pragma GCC system_header
+#endif
+
 /*******************************************************************************
  * Copyright (c) 2008-2015 The Khronos Group Inc.
  *

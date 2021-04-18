@@ -30,9 +30,8 @@ void CudaCheckErrors(const std::string& msg)
 __global__
 void RaycastPoint(
     const float* const device_points_ptr, const int32_t num_points,
-    const float* const device_pointcloud_origin_transform_ptr,
     const float max_range,
-    const float* const device_tracking_grid_inverse_origin_transform_ptr,
+    const float* const device_grid_pointcloud_transform_ptr,
     const float inverse_step_size, const float inverse_cell_size,
     const int32_t num_x_cells, const int32_t num_y_cells,
     const int32_t num_z_cells, const int32_t stride1, const int32_t stride2,
@@ -41,30 +40,33 @@ void RaycastPoint(
   const int32_t point_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (point_index < num_points)
   {
+    // Point in pointcloud frame
     const float px = device_points_ptr[(point_index * 3) + 0];
     const float py = device_points_ptr[(point_index * 3) + 1];
     const float pz = device_points_ptr[(point_index * 3) + 2];
     // Skip invalid points marked with NaN or infinity
     if (isfinite(px) && isfinite(py) && isfinite(pz))
     {
-      const float ox = device_pointcloud_origin_transform_ptr[12];
-      const float oy = device_pointcloud_origin_transform_ptr[13];
-      const float oz = device_pointcloud_origin_transform_ptr[14];
-      const float wx = device_pointcloud_origin_transform_ptr[0] * px
-                       + device_pointcloud_origin_transform_ptr[4] * py
-                       + device_pointcloud_origin_transform_ptr[8] * pz
-                       + device_pointcloud_origin_transform_ptr[12];
-      const float wy = device_pointcloud_origin_transform_ptr[1] * px
-                       + device_pointcloud_origin_transform_ptr[5] * py
-                       + device_pointcloud_origin_transform_ptr[9] * pz
-                       + device_pointcloud_origin_transform_ptr[13];
-      const float wz = device_pointcloud_origin_transform_ptr[2] * px
-                       + device_pointcloud_origin_transform_ptr[6] * py
-                       + device_pointcloud_origin_transform_ptr[10] * pz
-                       + device_pointcloud_origin_transform_ptr[14];
-      const float rx = wx - ox;
-      const float ry = wy - oy;
-      const float rz = wz - oz;
+      // Pointcloud origin in grid frame
+      const float ox = device_grid_pointcloud_transform_ptr[12];
+      const float oy = device_grid_pointcloud_transform_ptr[13];
+      const float oz = device_grid_pointcloud_transform_ptr[14];
+      // Point in grid frame
+      const float gx = device_grid_pointcloud_transform_ptr[0] * px
+                       + device_grid_pointcloud_transform_ptr[4] * py
+                       + device_grid_pointcloud_transform_ptr[8] * pz
+                       + device_grid_pointcloud_transform_ptr[12];
+      const float gy = device_grid_pointcloud_transform_ptr[1] * px
+                       + device_grid_pointcloud_transform_ptr[5] * py
+                       + device_grid_pointcloud_transform_ptr[9] * pz
+                       + device_grid_pointcloud_transform_ptr[13];
+      const float gz = device_grid_pointcloud_transform_ptr[2] * px
+                       + device_grid_pointcloud_transform_ptr[6] * py
+                       + device_grid_pointcloud_transform_ptr[10] * pz
+                       + device_grid_pointcloud_transform_ptr[14];
+      const float rx = gx - ox;
+      const float ry = gy - oy;
+      const float rz = gz - oz;
       const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
       const float num_steps = floor(current_ray_length * inverse_step_size);
       int32_t previous_x_cell = -1;
@@ -79,30 +81,15 @@ void RaycastPoint(
           // We've gone beyond max range of the sensor
           break;
         }
-        const float cx = (rx * elapsed_ratio) + ox;
-        const float cy = (ry * elapsed_ratio) + oy;
-        const float cz = (rz * elapsed_ratio) + oz;
-        const float gx =
-            device_tracking_grid_inverse_origin_transform_ptr[0] * cx
-            + device_tracking_grid_inverse_origin_transform_ptr[4] * cy
-            + device_tracking_grid_inverse_origin_transform_ptr[8] * cz
-            + device_tracking_grid_inverse_origin_transform_ptr[12];
-        const float gy =
-            device_tracking_grid_inverse_origin_transform_ptr[1] * cx
-            + device_tracking_grid_inverse_origin_transform_ptr[5] * cy
-            + device_tracking_grid_inverse_origin_transform_ptr[9] * cz
-            + device_tracking_grid_inverse_origin_transform_ptr[13];
-        const float gz =
-            device_tracking_grid_inverse_origin_transform_ptr[2] * cx
-            + device_tracking_grid_inverse_origin_transform_ptr[6] * cy
-            + device_tracking_grid_inverse_origin_transform_ptr[10] * cz
-            + device_tracking_grid_inverse_origin_transform_ptr[14];
+        const float qx = (rx * elapsed_ratio) + ox;
+        const float qy = (ry * elapsed_ratio) + oy;
+        const float qz = (rz * elapsed_ratio) + oz;
         const int32_t x_cell =
-            static_cast<int32_t>(std::floor(gx * inverse_cell_size));
+            static_cast<int32_t>(std::floor(qx * inverse_cell_size));
         const int32_t y_cell =
-            static_cast<int32_t>(std::floor(gy * inverse_cell_size));
+            static_cast<int32_t>(std::floor(qy * inverse_cell_size));
         const int32_t z_cell =
-            static_cast<int32_t>(std::floor(gz * inverse_cell_size));
+            static_cast<int32_t>(std::floor(qz * inverse_cell_size));
         if (x_cell != previous_x_cell || y_cell != previous_y_cell
             || z_cell != previous_z_cell)
         {
@@ -128,21 +115,6 @@ void RaycastPoint(
       // Set the point itself as filled, if it is in range
       if (current_ray_length <= max_range)
       {
-        const float gx =
-            device_tracking_grid_inverse_origin_transform_ptr[0] * wx
-            + device_tracking_grid_inverse_origin_transform_ptr[4] * wy
-            + device_tracking_grid_inverse_origin_transform_ptr[8] * wz
-            + device_tracking_grid_inverse_origin_transform_ptr[12];
-        const float gy =
-            device_tracking_grid_inverse_origin_transform_ptr[1] * wx
-            + device_tracking_grid_inverse_origin_transform_ptr[5] * wy
-            + device_tracking_grid_inverse_origin_transform_ptr[9] * wz
-            + device_tracking_grid_inverse_origin_transform_ptr[13];
-        const float gz =
-            device_tracking_grid_inverse_origin_transform_ptr[2] * wx
-            + device_tracking_grid_inverse_origin_transform_ptr[6] * wy
-            + device_tracking_grid_inverse_origin_transform_ptr[10] * wz
-            + device_tracking_grid_inverse_origin_transform_ptr[14];
         const int32_t x_cell =
             static_cast<int32_t>(std::floor(gx * inverse_cell_size));
         const int32_t y_cell =
@@ -354,9 +326,8 @@ public:
   }
 
   void RaycastPoints(
-      const std::vector<float>& raw_points,
-      const float* const pointcloud_origin_transform, const float max_range,
-      const float* const inverse_grid_origin_transform,
+      const std::vector<float>& raw_points, const float max_range,
+      const float* const grid_pointcloud_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
       const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,
@@ -376,25 +347,15 @@ public:
                cudaMemcpyHostToDevice);
     CudaCheckErrors("Failed to memcpy the points to the device");
 
-    // Copy pointcloud origin transform
+    // Copy grid pointcloud transform
     const size_t transform_size = sizeof(float) * 16;
-    float* device_pointcloud_origin_transform_ptr = nullptr;
-    cudaMalloc(&device_pointcloud_origin_transform_ptr, transform_size);
-    CudaCheckErrors("Failed to allocate device pointcloud origin transform");
+    float* device_grid_pointcloud_transform_ptr = nullptr;
+    cudaMalloc(&device_grid_pointcloud_transform_ptr, transform_size);
+    CudaCheckErrors("Failed to allocate device grid pointcloud transform");
     cudaMemcpy(
-        device_pointcloud_origin_transform_ptr, pointcloud_origin_transform,
+        device_grid_pointcloud_transform_ptr, grid_pointcloud_transform,
         transform_size, cudaMemcpyHostToDevice);
-    CudaCheckErrors("Failed to memcpy the pointcloud origin transform");
-
-    // Copy grid inverse origin transform
-    float* device_tracking_grid_inverse_origin_transform_ptr = nullptr;
-    cudaMalloc(
-        &device_tracking_grid_inverse_origin_transform_ptr, transform_size);
-    CudaCheckErrors("Failed to allocate device grid inverse origin transform");
-    cudaMemcpy(
-        device_tracking_grid_inverse_origin_transform_ptr,
-        inverse_grid_origin_transform, transform_size, cudaMemcpyHostToDevice);
-    CudaCheckErrors("Failed to memcpy the grid inverse origin transform");
+    CudaCheckErrors("Failed to memcpy the grid pointcloud transform");
 
     // Prepare for raycasting
     const int32_t stride1 = num_y_cells * num_z_cells;
@@ -407,19 +368,16 @@ public:
     int32_t* const device_tracking_grid_ptr =
         real_tracking_grids.GetBuffer() + starting_index;
     RaycastPoint<<<num_blocks, num_threads>>>(
-        device_points_ptr, num_points, device_pointcloud_origin_transform_ptr,
-        max_range, device_tracking_grid_inverse_origin_transform_ptr,
-        inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
-        num_z_cells, stride1, stride2, device_tracking_grid_ptr);
+        device_points_ptr, num_points, max_range,
+        device_grid_pointcloud_transform_ptr, inverse_step_size,
+        inverse_cell_size, num_x_cells, num_y_cells, num_z_cells, stride1,
+        stride2, device_tracking_grid_ptr);
 
     // Free the device memory
     cudaFree(device_points_ptr);
     CudaCheckErrors("Failed to free device points");
-    cudaFree(device_pointcloud_origin_transform_ptr);
-    CudaCheckErrors("Failed to free device pointcloud origin transform");
-    cudaFree(device_tracking_grid_inverse_origin_transform_ptr);
-    CudaCheckErrors(
-        "Failed to free device tracking grid inverse origin tranform");
+    cudaFree(device_grid_pointcloud_transform_ptr);
+    CudaCheckErrors("Failed to free device grid pointcloud transform");
   }
 
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(

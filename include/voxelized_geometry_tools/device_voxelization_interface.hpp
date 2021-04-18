@@ -109,9 +109,8 @@ public:
       const int64_t num_cells, const int32_t num_grids) = 0;
 
   virtual void RaycastPoints(
-      const std::vector<float>& raw_points,
-      const float* const pointcloud_origin_transform, const float max_range,
-      const float* const inverse_grid_origin_transform,
+      const std::vector<float>& raw_points, const float max_range,
+      const float* const grid_pointcloud_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
       const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,

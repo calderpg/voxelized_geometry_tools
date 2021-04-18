@@ -68,10 +68,14 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
     const PointCloudWrapper& cloud, const double step_size,
     CpuVoxelizationTrackingGrid& tracking_grid) const
 {
+  // Get X_GW, the transform from grid origin to world
+  const Eigen::Isometry3d& X_GW = tracking_grid.GetInverseOriginTransform();
   // Get X_WC, the transform from world to the origin of the pointcloud
   const Eigen::Isometry3d& X_WC = cloud.GetPointCloudOriginTransform();
-  // Get the origin of X_WC
-  const Eigen::Vector4d p_WCo = X_WC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
+  // Transform X_GC, transform from grid origin to the origin of the pointcloud
+  const Eigen::Isometry3d X_GC = X_GW * X_WC;
+  // Get the pointcloud origin in grid frame
+  const Eigen::Vector4d p_GCo = X_GC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
 #if defined(_OPENMP)
@@ -85,10 +89,10 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
     if (std::isfinite(p_CP(0)) && std::isfinite(p_CP(1)) &&
         std::isfinite(p_CP(2)))
     {
-      // Location of point P in world W
-      const Eigen::Vector4d p_WP = X_WC * p_CP;
+      // Location of point P in grid G
+      const Eigen::Vector4d p_GP = X_GC * p_CP;
       // Ray from camera to point
-      const Eigen::Vector4d ray = p_WP - p_WCo;
+      const Eigen::Vector4d ray = p_GP - p_GCo;
       const double ray_length = ray.norm();
       // Step along ray
       const int32_t num_steps =
@@ -104,9 +108,9 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
           // We've gone beyond max range of the sensor
           break;
         }
-        const Eigen::Vector4d p_WQ = p_WCo + (ray * ratio);
+        const Eigen::Vector4d p_GQ = p_GCo + (ray * ratio);
         const common_robotics_utilities::voxel_grid::GridIndex index =
-            tracking_grid.LocationToGridIndex4d(p_WQ);
+            tracking_grid.LocationInGridFrameToGridIndex4d(p_GQ);
         // We don't want to double count in the same cell multiple times
         if (!(index == last_index))
         {
@@ -129,7 +133,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
       if (ray_length <= max_range)
       {
         const common_robotics_utilities::voxel_grid::GridIndex index =
-              tracking_grid.LocationToGridIndex4d(p_WP);
+              tracking_grid.LocationInGridFrameToGridIndex4d(p_GP);
         auto query = tracking_grid.GetMutable(index);
         // We must check to see if the query is within bounds.
         if (query)

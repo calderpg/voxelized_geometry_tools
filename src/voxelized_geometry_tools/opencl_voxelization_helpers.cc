@@ -19,38 +19,41 @@ namespace opencl_helpers
 {
 const char* kRaycastPointKernelCode = R"(
 void kernel RaycastPoint(
-    global const float* points, global const float* pointcloud_origin_transform,
-    const float max_range, global const float* inverse_grid_origin_transform,
+    global const float* points, const float max_range,
+    global const float* grid_pointcloud_transform,
     const float inverse_step_size, const float inverse_cell_size,
     const int stride1, const int stride2, const int num_x_cells,
     const int num_y_cells, const int num_z_cells, global int* tracking_grid,
     const int tracking_grid_starting_offset)
 {
   const int point_index = get_global_id(0);
+  // Point in pointcloud frame
   const float px = points[(point_index * 3) + 0];
   const float py = points[(point_index * 3) + 1];
   const float pz = points[(point_index * 3) + 2];
   // Skip invalid points marked with NaN or infinity
   if (isfinite(px) && isfinite(py) && isfinite(pz))
   {
-    const float ox = pointcloud_origin_transform[12];
-    const float oy = pointcloud_origin_transform[13];
-    const float oz = pointcloud_origin_transform[14];
-    const float wx = pointcloud_origin_transform[0] * px
-                     + pointcloud_origin_transform[4] * py
-                     + pointcloud_origin_transform[8] * pz
-                     + pointcloud_origin_transform[12];
-    const float wy = pointcloud_origin_transform[1] * px
-                     + pointcloud_origin_transform[5] * py
-                     + pointcloud_origin_transform[9] * pz
-                     + pointcloud_origin_transform[13];
-    const float wz = pointcloud_origin_transform[2] * px
-                     + pointcloud_origin_transform[6] * py
-                     + pointcloud_origin_transform[10] * pz
-                     + pointcloud_origin_transform[14];
-    const float rx = wx - ox;
-    const float ry = wy - oy;
-    const float rz = wz - oz;
+    // Pointcloud origin in grid frame
+    const float ox = grid_pointcloud_transform[12];
+    const float oy = grid_pointcloud_transform[13];
+    const float oz = grid_pointcloud_transform[14];
+    // Point in grid frame
+    const float gx = grid_pointcloud_transform[0] * px
+                     + grid_pointcloud_transform[4] * py
+                     + grid_pointcloud_transform[8] * pz
+                     + grid_pointcloud_transform[12];
+    const float gy = grid_pointcloud_transform[1] * px
+                     + grid_pointcloud_transform[5] * py
+                     + grid_pointcloud_transform[9] * pz
+                     + grid_pointcloud_transform[13];
+    const float gz = grid_pointcloud_transform[2] * px
+                     + grid_pointcloud_transform[6] * py
+                     + grid_pointcloud_transform[10] * pz
+                     + grid_pointcloud_transform[14];
+    const float rx = gx - ox;
+    const float ry = gy - oy;
+    const float rz = gz - oz;
     const float current_ray_length = sqrt((rx * rx) + (ry * ry) + (rz * rz));
     const float num_steps = floor(current_ray_length * inverse_step_size);
     int previous_x_cell = -1;
@@ -65,27 +68,12 @@ void kernel RaycastPoint(
         // We've gone beyond max range of the sensor
         break;
       }
-      const float cx = (rx * elapsed_ratio) + ox;
-      const float cy = (ry * elapsed_ratio) + oy;
-      const float cz = (rz * elapsed_ratio) + oz;
-      const float gx =
-          inverse_grid_origin_transform[0] * cx
-          + inverse_grid_origin_transform[4] * cy
-          + inverse_grid_origin_transform[8] * cz
-          + inverse_grid_origin_transform[12];
-      const float gy =
-          inverse_grid_origin_transform[1] * cx
-          + inverse_grid_origin_transform[5] * cy
-          + inverse_grid_origin_transform[9] * cz
-          + inverse_grid_origin_transform[13];
-      const float gz =
-          inverse_grid_origin_transform[2] * cx
-          + inverse_grid_origin_transform[6] * cy
-          + inverse_grid_origin_transform[10] * cz
-          + inverse_grid_origin_transform[14];
-      const int x_cell = (int)floor(gx * inverse_cell_size);
-      const int y_cell = (int)floor(gy * inverse_cell_size);
-      const int z_cell = (int)floor(gz * inverse_cell_size);
+      const float qx = (rx * elapsed_ratio) + ox;
+      const float qy = (ry * elapsed_ratio) + oy;
+      const float qz = (rz * elapsed_ratio) + oz;
+      const int x_cell = (int)floor(qx * inverse_cell_size);
+      const int y_cell = (int)floor(qy * inverse_cell_size);
+      const int z_cell = (int)floor(qz * inverse_cell_size);
       if (x_cell != previous_x_cell || y_cell != previous_y_cell
           || z_cell != previous_z_cell)
       {
@@ -111,21 +99,6 @@ void kernel RaycastPoint(
     // Set the point itself as filled, if it is in range
     if (current_ray_length <= max_range)
     {
-      const float gx =
-          inverse_grid_origin_transform[0] * wx
-          + inverse_grid_origin_transform[4] * wy
-          + inverse_grid_origin_transform[8] * wz
-          + inverse_grid_origin_transform[12];
-      const float gy =
-          inverse_grid_origin_transform[1] * wx
-          + inverse_grid_origin_transform[5] * wy
-          + inverse_grid_origin_transform[9] * wz
-          + inverse_grid_origin_transform[13];
-      const float gz =
-          inverse_grid_origin_transform[2] * wx
-          + inverse_grid_origin_transform[6] * wy
-          + inverse_grid_origin_transform[10] * wz
-          + inverse_grid_origin_transform[14];
       const int x_cell = (int)floor(gx * inverse_cell_size);
       const int y_cell = (int)floor(gy * inverse_cell_size);
       const int z_cell = (int)floor(gz * inverse_cell_size);
@@ -414,9 +387,8 @@ public:
   }
 
   void RaycastPoints(
-      const std::vector<float>& raw_points,
-      const float* const pointcloud_origin_transform, const float max_range,
-      const float* const inverse_grid_origin_transform,
+      const std::vector<float>& raw_points, const float max_range,
+      const float* const grid_pointcloud_transform,
       const float inverse_step_size, const float inverse_cell_size,
       const int32_t num_x_cells, const int32_t num_y_cells,
       const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,
@@ -426,6 +398,7 @@ public:
         dynamic_cast<OpenCLTrackingGridsHandle&>(tracking_grids);
 
     cl_int err = 0;
+
     cl::Buffer device_points_buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * raw_points.size(),
@@ -435,25 +408,16 @@ public:
     {
       throw std::runtime_error("Failed to allocate and copy pointcloud");
     }
-    cl::Buffer device_pointcloud_origin_transform_buffer(
+
+    cl::Buffer device_grid_pointcloud_transform_buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * 16,
-        const_cast<void*>(static_cast<const void*>(
-            pointcloud_origin_transform)),
+        const_cast<void*>(static_cast<const void*>(grid_pointcloud_transform)),
         &err);
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Failed to allocate and copy cloud transform");
-    }
-    cl::Buffer device_inverse_grid_origin_transform_buffer(
-        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        sizeof(float) * 16,
-        const_cast<void*>(static_cast<const void*>(
-            inverse_grid_origin_transform)),
-        &err);
-    if (err != CL_SUCCESS)
-    {
-      throw std::runtime_error("Failed to allocate and copy grid transform");
+      throw std::runtime_error(
+          "Failed to allocate and copy grid pointcloud transform");
     }
 
     const int32_t stride1 = num_y_cells * num_z_cells;
@@ -463,18 +427,17 @@ public:
     // Build kernel
     cl::Kernel raycasting_kernel(*raycasting_program_, "RaycastPoint");
     raycasting_kernel.setArg(0, device_points_buffer);
-    raycasting_kernel.setArg(1, device_pointcloud_origin_transform_buffer);
-    raycasting_kernel.setArg(2, max_range);
-    raycasting_kernel.setArg(3, device_inverse_grid_origin_transform_buffer);
-    raycasting_kernel.setArg(4, inverse_step_size);
-    raycasting_kernel.setArg(5, inverse_cell_size);
-    raycasting_kernel.setArg(6, stride1);
-    raycasting_kernel.setArg(7, stride2);
-    raycasting_kernel.setArg(8, num_x_cells);
-    raycasting_kernel.setArg(9, num_y_cells);
-    raycasting_kernel.setArg(10, num_z_cells);
-    raycasting_kernel.setArg(11, real_tracking_grids.GetBuffer());
-    raycasting_kernel.setArg(12, starting_index);
+    raycasting_kernel.setArg(1, max_range);
+    raycasting_kernel.setArg(2, device_grid_pointcloud_transform_buffer);
+    raycasting_kernel.setArg(3, inverse_step_size);
+    raycasting_kernel.setArg(4, inverse_cell_size);
+    raycasting_kernel.setArg(5, stride1);
+    raycasting_kernel.setArg(6, stride2);
+    raycasting_kernel.setArg(7, num_x_cells);
+    raycasting_kernel.setArg(8, num_y_cells);
+    raycasting_kernel.setArg(9, num_z_cells);
+    raycasting_kernel.setArg(10, real_tracking_grids.GetBuffer());
+    raycasting_kernel.setArg(11, starting_index);
     err = queue_->enqueueNDRangeKernel(
         raycasting_kernel, cl::NullRange, cl::NDRange(raw_points.size() / 3),
         cl::NullRange);

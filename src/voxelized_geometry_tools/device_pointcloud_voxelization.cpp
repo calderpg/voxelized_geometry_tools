@@ -49,9 +49,11 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     throw std::runtime_error("Failed to allocate device tracking grid");
   }
 
+  // Get X_GW, the transform from grid origin to world
+  const Eigen::Isometry3d& X_GW =
+      static_environment.GetInverseOriginTransform();
+
   // Prepare grid data
-  const Eigen::Isometry3f inverse_grid_origin_transform_float =
-      static_environment.GetInverseOriginTransform().cast<float>();
   const float inverse_step_size =
       static_cast<float>(1.0 /
           (static_environment.GetResolution() * step_size_multiplier));
@@ -71,8 +73,13 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
-    const Eigen::Isometry3f pointcloud_origin_transform_float =
-        pointcloud->GetPointCloudOriginTransform().cast<float>();
+
+    // Get X_WC, the transform from world to the origin of the pointcloud
+    const Eigen::Isometry3d& X_WC = pointcloud->GetPointCloudOriginTransform();
+    // X_GC, transform from grid origin to the origin of the pointcloud
+    const Eigen::Isometry3f grid_pointcloud_transform_float =
+        (X_GW * X_WC).cast<float>();
+
     const float max_range = static_cast<float>(pointcloud->MaxRange());
 
     // Copy pointcloud
@@ -85,10 +92,9 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 
     // Raycast
     helper_interface_->RaycastPoints(
-        raw_points, pointcloud_origin_transform_float.data(), max_range,
-        inverse_grid_origin_transform_float.data(), inverse_step_size,
-        inverse_cell_size, num_x_cells, num_y_cells, num_z_cells,
-        *tracking_grids, idx);
+        raw_points, max_range, grid_pointcloud_transform_float.data(),
+        inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
+        num_z_cells, *tracking_grids, idx);
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =

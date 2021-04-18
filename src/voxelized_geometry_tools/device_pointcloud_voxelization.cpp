@@ -4,6 +4,7 @@
 #include <omp.h>
 #endif
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -30,21 +31,20 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 {
   EnforceAvailable();
 
-  // We shortcut here if there's no work to do.
-  if (pointclouds.empty())
-  {
-    return VoxelizerRuntime(0.0, 0.0);
-  }
-
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
 
-  // Allocate device-side memory for tracking grids
+  // Allocate device-side memory for tracking grids. Note that at least one grid
+  // is always allocated so that filtering is consistent, even if no points are
+  // raycast.
+  const size_t num_tracking_grids =
+      std::max(pointclouds.size(), static_cast<size_t>(1));
+
   std::unique_ptr<TrackingGridsHandle> tracking_grids =
       helper_interface_->PrepareTrackingGrids(
           static_environment.GetTotalCells(),
-          static_cast<int32_t>(pointclouds.size()));
-  if (tracking_grids->GetNumTrackingGrids() != pointclouds.size())
+          static_cast<int32_t>(num_tracking_grids));
+  if (tracking_grids->GetNumTrackingGrids() != num_tracking_grids)
   {
     throw std::runtime_error("Failed to allocate device tracking grid");
   }
@@ -74,27 +74,33 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   {
     const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
 
-    // Get X_WC, the transform from world to the origin of the pointcloud
-    const Eigen::Isometry3d& X_WC = pointcloud->GetPointCloudOriginTransform();
-    // X_GC, transform from grid origin to the origin of the pointcloud
-    const Eigen::Isometry3f grid_pointcloud_transform_float =
-        (X_GW * X_WC).cast<float>();
-
-    const float max_range = static_cast<float>(pointcloud->MaxRange());
-
-    // Copy pointcloud
-    std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
-    for (int64_t point = 0; point < pointcloud->Size(); point++)
+    // Only do work if the pointcloud is non-empty, to avoid passing empty
+    // arrays into the device interface.
+    if (pointcloud->Size() > 0)
     {
-      pointcloud->CopyPointLocationIntoVectorFloat(
-          point, raw_points, point * 3);
-    }
+      // Get X_WC, the transform from world to the origin of the pointcloud
+      const Eigen::Isometry3d& X_WC =
+          pointcloud->GetPointCloudOriginTransform();
+      // X_GC, transform from grid origin to the origin of the pointcloud
+      const Eigen::Isometry3f grid_pointcloud_transform_float =
+          (X_GW * X_WC).cast<float>();
 
-    // Raycast
-    helper_interface_->RaycastPoints(
-        raw_points, max_range, grid_pointcloud_transform_float.data(),
-        inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
-        num_z_cells, *tracking_grids, idx);
+      const float max_range = static_cast<float>(pointcloud->MaxRange());
+
+      // Copy pointcloud
+      std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
+      for (int64_t point = 0; point < pointcloud->Size(); point++)
+      {
+        pointcloud->CopyPointLocationIntoVectorFloat(
+            point, raw_points, point * 3);
+      }
+
+      // Raycast
+      helper_interface_->RaycastPoints(
+          raw_points, max_range, grid_pointcloud_transform_float.data(),
+          inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
+          num_z_cells, *tracking_grids, idx);
+    }
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =

@@ -68,6 +68,34 @@ private:
   Eigen::Isometry3d origin_transform_ = Eigen::Isometry3d::Identity();
 };
 
+void check_empty_voxelization(const CollisionMap& occupancy)
+{
+  // Make sure the grid is properly filled
+  for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
+  {
+    for (int64_t yidx = 0; yidx < occupancy.GetNumYCells(); yidx++)
+    {
+      for (int64_t zidx = 0; zidx < occupancy.GetNumZCells(); zidx++)
+      {
+        // Check grid querying
+        const auto occupancy_query = occupancy.GetImmutable(xidx, yidx, zidx);
+        // Check grid values
+        const float cmap_occupancy = occupancy_query.Value().Occupancy();
+        // Check the bottom cells
+        if (zidx == 0)
+        {
+          ASSERT_EQ(cmap_occupancy, 1.0f);
+        }
+        // All other cells should be marked "unknown"
+        else
+        {
+          ASSERT_EQ(cmap_occupancy, 0.5f);
+        }
+      }
+    }
+  }
+}
+
 void check_voxelization(const CollisionMap& occupancy)
 {
   // Make sure the grid is properly filled
@@ -180,6 +208,14 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
     }
   }
 
+  // Camera 3 pose
+  const Eigen::Isometry3d X_WC3 = Eigen::Isometry3d::Identity();
+  const Eigen::Isometry3d X_WC3O = X_WC3 * X_CO;
+  // Cloud 3 is empty
+  PointCloudWrapperPtr cam3_cloud(new VectorVector3dPointCloudWrapper());
+  static_cast<VectorVector3dPointCloudWrapper*>(cam3_cloud.get())
+      ->SetPointCloudOriginTransform(X_WC3O);
+
   // Make control parameters
   // We require that 100% of points from the camera see through to see a voxel
   // as free.
@@ -203,9 +239,14 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
 
     auto voxelizer =
         pointcloud_voxelization::MakePointCloudVoxelizer(available_backend);
+
+    const auto empty_voxelized = voxelizer->VoxelizePointClouds(
+        static_environment, step_size_multiplier, filter_options, {});
+    check_empty_voxelization(empty_voxelized);
+
     const auto voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
+        {cam1_cloud, cam2_cloud, cam3_cloud});
     check_voxelization(voxelized);
   }
 }

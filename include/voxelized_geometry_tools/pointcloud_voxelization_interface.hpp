@@ -268,6 +268,15 @@ public:
           "static_environment.GetGridSizes() != "
           "output_environment.GetGridSizes()");
     }
+    for (size_t idx = 0; idx < pointclouds.size(); idx++)
+    {
+      const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
+      if (!cloud_ptr)
+      {
+        throw std::invalid_argument(
+            "pointclouds[" + std::to_string(idx) + "] is null");
+      }
+    }
     return DoVoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, pointclouds,
         output_environment);

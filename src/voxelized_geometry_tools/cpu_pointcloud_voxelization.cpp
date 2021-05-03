@@ -43,15 +43,9 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
-    if (cloud_ptr)
-    {
-      CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
-      RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
-    }
-    else
-    {
-      throw std::runtime_error("PointCloudWrapperPtr is null");
-    }
+
+    CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
+    RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
   }
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();

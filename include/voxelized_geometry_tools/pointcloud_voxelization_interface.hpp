@@ -273,7 +273,7 @@ public:
       const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
       if (!cloud_ptr)
       {
-        throw std::runtime_error(
+        throw std::invalid_argument(
             "pointclouds[" + std::to_string(idx) + "] is null");
       }
     }

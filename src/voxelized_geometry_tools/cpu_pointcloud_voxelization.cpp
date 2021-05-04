@@ -43,7 +43,6 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
-
     CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
     RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
   }

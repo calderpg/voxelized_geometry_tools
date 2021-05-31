@@ -7,6 +7,10 @@
   #pragma GCC system_header
 #endif
 
+// Modification to select OpenCL 1.2, which is the greatest-common-version
+// supported by these OpenCL bindings and Intel, Nvidia, AMD, and Apple drivers.
+#define CL_TARGET_OPENCL_VERSION 120
+
 /*******************************************************************************
  * Copyright (c) 2008-2015 The Khronos Group Inc.
  *

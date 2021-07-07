@@ -2,13 +2,14 @@
 
 #include <cmath>
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <fstream>
 #include <iostream>
-#include <list>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -67,19 +68,36 @@ int64_t MarkConnectedComponent(
     const uint32_t connected_component)
 {
   // Make the working queue
-  std::list<GridIndex> working_queue;
+  std::deque<GridIndex> working_queue;
   // Make a hash table to store queued indices (so we don't repeat work)
   // Let's provide an hint at the size of hashmap we'll need, since this will
   // reduce the need to resize & rehash. We're going to assume that connected
   // components, in general, will take ~1/16 of the grid in size
   // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
-  const size_t queued_hashtable_size_hint
+  const size_t queued_set_size_hint
       = source_grid.GetImmutableRawData().size() / 32;
-  std::unordered_map<GridIndex, int8_t> queued_hashtable(
-        queued_hashtable_size_hint);
+  std::unordered_set<GridIndex> queued_set(queued_set_size_hint);
   // Enqueue the starting index
   working_queue.push_back(start_index);
-  queued_hashtable[start_index] = 1;
+  queued_set.insert(start_index);
+  // Helper lambda
+  const auto handle_neighbor_index = [&] (
+      const GridIndex& current_index, const GridIndex& neighbor_index)
+  {
+    if (get_component_fn(neighbor_index) == 0)
+    {
+      if (are_connected_fn(current_index, neighbor_index))
+      {
+        // Use the return from set.insert(value) to avoid the additional work
+        // of if (set.count(value) == 0) { set.insert(value) }.
+        const bool inserted = queued_set.insert(neighbor_index).second;
+        if (inserted)
+        {
+          working_queue.push_back(neighbor_index);
+        }
+      }
+    }
+  };
   // Work
   int64_t marked_cells = 0;
   while (working_queue.size() > 0)
@@ -93,34 +111,24 @@ int64_t MarkConnectedComponent(
     // Since there are only six cases
     // (voxels must share a face to be considered connected),
     // we handle each explicitly
-    const std::vector<GridIndex> neighbor_indices
-        = {GridIndex(
-               current_index.X() - 1, current_index.Y(), current_index.Z()),
-           GridIndex(
-               current_index.X() + 1, current_index.Y(), current_index.Z()),
-           GridIndex(
-               current_index.X(), current_index.Y() - 1, current_index.Z()),
-           GridIndex(
-               current_index.X(), current_index.Y() + 1, current_index.Z()),
-           GridIndex(
-               current_index.X(), current_index.Y(), current_index.Z() - 1),
-           GridIndex(
-               current_index.X(), current_index.Y(), current_index.Z() + 1)};
-    for (size_t idx = 0; idx < neighbor_indices.size(); idx++)
-    {
-      const GridIndex& neighbor_index = neighbor_indices[idx];
-      if (get_component_fn(neighbor_index) == 0)
-      {
-        if (are_connected_fn(current_index, neighbor_index))
-        {
-          if (queued_hashtable[neighbor_index] <= 0)
-          {
-            queued_hashtable[neighbor_index] = 1;
-            working_queue.push_back(neighbor_index);
-          }
-        }
-      }
-    }
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X() - 1, current_index.Y(), current_index.Z()));
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X() + 1, current_index.Y(), current_index.Z()));
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X(), current_index.Y() - 1, current_index.Z()));
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X(), current_index.Y() + 1, current_index.Z()));
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X(), current_index.Y(), current_index.Z() - 1));
+    handle_neighbor_index(
+        current_index,
+        GridIndex(current_index.X(), current_index.Y(), current_index.Z() + 1));
   }
   return marked_cells;
 }
@@ -198,14 +206,9 @@ inline int32_t ComputeConnectivityOfSurfaceVertices(
   std::unordered_map<GridIndex, int32_t>
       vertex_components(vertex_components_size_hint);
   // Iterate through the vertices
-  std::unordered_map<GridIndex, uint8_t>::const_iterator
-      surface_vertices_itr;
-  for (surface_vertices_itr = surface_vertex_connectivity.begin();
-       surface_vertices_itr != surface_vertex_connectivity.end();
-       ++surface_vertices_itr)
+  for (const auto& vertex_and_connectivity : surface_vertex_connectivity)
   {
-    const GridIndex key = surface_vertices_itr->first;
-    //const uint8_t& connectivity = surface_vertices_itr->second.second;
+    const GridIndex& key = vertex_and_connectivity.first;
     // First, check if the vertex has already been marked
     if (vertex_components[key] > 0)
     {
@@ -216,20 +219,28 @@ inline int32_t ComputeConnectivityOfSurfaceVertices(
       // If not, we start marking a new connected component
       connected_components++;
       // Make the working queue
-      std::list<GridIndex> working_queue;
+      std::deque<GridIndex> working_queue;
       // Make a hash table to store queued indices (so we don't repeat work)
       // Compute a hint for initial queued hashtable hashmap size
       // If we assume that most object surfaces are, in fact, intact,
       // then the first (and only) queued_hashtable will need to store an entry
       // for every vertex on the surface.
-      size_t queued_hashtable_size_hint = surface_vertex_connectivity.size();
-      std::unordered_map<GridIndex, int8_t>
-          queued_hashtable(queued_hashtable_size_hint);
+      size_t queued_set_size_hint = surface_vertex_connectivity.size();
+      std::unordered_set<GridIndex> queued_set(queued_set_size_hint);
       // Add the current point
       working_queue.push_back(key);
-      queued_hashtable[key] = 1;
+      queued_set.insert(key);
       // Keep track of the number of vertices we've processed
       int64_t component_processed_vertices = 0;
+      // Helper lambda
+      const auto handle_connected_vertex = [&] (
+          const GridIndex& connected_vertex)
+      {
+        if (queued_set.insert(connected_vertex).second)
+        {
+          working_queue.push_back(connected_vertex);
+        }
+      };
       // Loop from the queue
       while (working_queue.size() > 0)
       {
@@ -245,81 +256,33 @@ inline int32_t ComputeConnectivityOfSurfaceVertices(
         // Go through the neighbors
         if ((connectivity & 0b00000001) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X(),
-                                            current_vertex.Y(),
-                                            current_vertex.Z() - 1);
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X(), current_vertex.Y(), current_vertex.Z() - 1));
         }
         if ((connectivity & 0b00000010) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X(),
-                                            current_vertex.Y(),
-                                            current_vertex.Z() + 1);
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X(), current_vertex.Y(), current_vertex.Z() + 1));
         }
         if ((connectivity & 0b00000100) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X(),
-                                            current_vertex.Y() - 1,
-                                            current_vertex.Z());
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X(), current_vertex.Y() - 1, current_vertex.Z()));
         }
         if ((connectivity & 0b00001000) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X(),
-                                            current_vertex.Y() + 1,
-                                            current_vertex.Z());
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X(), current_vertex.Y() + 1, current_vertex.Z()));
         }
         if ((connectivity & 0b00010000) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X() - 1,
-                                            current_vertex.Y(),
-                                            current_vertex.Z());
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X() - 1, current_vertex.Y(), current_vertex.Z()));
         }
         if ((connectivity & 0b00100000) > 0)
         {
-          // Try to add the vertex
-          const GridIndex connected_vertex(current_vertex.X() + 1,
-                                            current_vertex.Y(),
-                                            current_vertex.Z());
-          // We only add if we haven't already processed it
-          if (queued_hashtable[connected_vertex] <= 0)
-          {
-            queued_hashtable[connected_vertex] = 1;
-            working_queue.push_back(connected_vertex);
-          }
+          handle_connected_vertex(GridIndex(
+              current_vertex.X() + 1, current_vertex.Y(), current_vertex.Z()));
         }
       }
       processed_vertices += component_processed_vertices;
@@ -405,38 +368,41 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
   // expected # of surface vertices
   // surface cells * 8
   const size_t surface_vertices_size_hint = surface.size() * 8;
-  std::unordered_map<GridIndex, uint8_t> surface_vertices(
-        surface_vertices_size_hint);
+  std::unordered_set<GridIndex> surface_vertices(surface_vertices_size_hint);
   // Loop through all the surface voxels and extract surface vertices
-  for (auto surface_itr = surface.begin(); surface_itr != surface.end();
-       ++surface_itr)
+  for (const auto& index_and_value : surface)
   {
-    const GridIndex& current_index = surface_itr->first;
+    if (index_and_value.second == 0)
+    {
+      continue;
+    }
+
+    const GridIndex& current_index = index_and_value.first;
     // First, grab all six neighbors from the grid
     const int64_t xyzm1_component
         = get_component_fn(GridIndex(current_index.X(),
-                                      current_index.Y(),
-                                      current_index.Z() - 1));
+                                     current_index.Y(),
+                                     current_index.Z() - 1));
     const int64_t xyzp1_component
         = get_component_fn(GridIndex(current_index.X(),
-                                      current_index.Y(),
-                                      current_index.Z() - 1));
+                                     current_index.Y(),
+                                     current_index.Z() - 1));
     const int64_t xym1z_component
         = get_component_fn(GridIndex(current_index.X(),
-                                      current_index.Y() - 1,
-                                      current_index.Z()));
+                                     current_index.Y() - 1,
+                                     current_index.Z()));
     const int64_t xyp1z_component
         = get_component_fn(GridIndex(current_index.X(),
-                                      current_index.Y() + 1,
-                                      current_index.Z()));
+                                     current_index.Y() + 1,
+                                     current_index.Z()));
     const int64_t xm1yz_component
         = get_component_fn(GridIndex(current_index.X() - 1,
-                                      current_index.Y(),
-                                      current_index.Z()));
+                                     current_index.Y(),
+                                     current_index.Z()));
     const int64_t xp1yz_component
         = get_component_fn(GridIndex(current_index.X() + 1,
-                                      current_index.Y(),
-                                      current_index.Z()));
+                                     current_index.Y(),
+                                     current_index.Z()));
     // Generate all 8 vertices for the current voxel, check if an adjacent
     // vertex is on the surface, and insert it if so
     // First, check the (-,-,-) vertex
@@ -445,9 +411,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xm1yz_component)
     {
       const GridIndex vertex1(current_index.X(),
-                               current_index.Y(),
-                               current_index.Z());
-      surface_vertices[vertex1] = 1;
+                              current_index.Y(),
+                              current_index.Z());
+      surface_vertices.insert(vertex1);
     }
     // Second, check the (-,-,+) vertex
     if (component != xyzp1_component
@@ -455,9 +421,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xm1yz_component)
     {
       const GridIndex vertex2(current_index.X(),
-                               current_index.Y(),
-                               current_index.Z() + 1);
-      surface_vertices[vertex2] = 1;
+                              current_index.Y(),
+                              current_index.Z() + 1);
+      surface_vertices.insert(vertex2);
     }
     // Third, check the (-,+,-) vertex
     if (component != xyzm1_component
@@ -465,9 +431,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xm1yz_component)
     {
       const GridIndex vertex3(current_index.X(),
-                               current_index.Y() + 1,
-                               current_index.Z());
-      surface_vertices[vertex3] = 1;
+                              current_index.Y() + 1,
+                              current_index.Z());
+      surface_vertices.insert(vertex3);
     }
     // Fourth, check the (-,+,+) vertex
     if (component != xyzp1_component
@@ -475,9 +441,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xm1yz_component)
     {
       const GridIndex vertex4(current_index.X(),
-                               current_index.Y() + 1,
-                               current_index.Z() + 1);
-      surface_vertices[vertex4] = 1;
+                              current_index.Y() + 1,
+                              current_index.Z() + 1);
+      surface_vertices.insert(vertex4);
     }
     // Fifth, check the (+,-,-) vertex
     if (component != xyzm1_component
@@ -485,9 +451,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xp1yz_component)
     {
       const GridIndex vertex5(current_index.X() + 1,
-                               current_index.Y(),
-                               current_index.Z());
-      surface_vertices[vertex5] = 1;
+                              current_index.Y(),
+                              current_index.Z());
+      surface_vertices.insert(vertex5);
     }
     // Sixth, check the (+,-,+) vertex
     if (component != xyzp1_component
@@ -495,9 +461,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xp1yz_component)
     {
       const GridIndex vertex6(current_index.X() + 1,
-                               current_index.Y(),
-                               current_index.Z() + 1);
-      surface_vertices[vertex6] = 1;
+                              current_index.Y(),
+                              current_index.Z() + 1);
+      surface_vertices.insert(vertex6);
     }
     // Seventh, check the (+,+,-) vertex
     if (component != xyzm1_component
@@ -505,9 +471,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xp1yz_component)
     {
       const GridIndex vertex7(current_index.X() + 1,
-                               current_index.Y() + 1,
-                               current_index.Z());
-      surface_vertices[vertex7] = 1;
+                              current_index.Y() + 1,
+                              current_index.Z());
+      surface_vertices.insert(vertex7);
     }
     // Eighth, check the (+,+,+) vertex
     if (component != xyzp1_component
@@ -515,9 +481,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
         || component != xp1yz_component)
     {
       const GridIndex vertex8(current_index.X() + 1,
-                               current_index.Y() + 1,
-                               current_index.Z() + 1);
-      surface_vertices[vertex8] = 1;
+                              current_index.Y() + 1,
+                              current_index.Z() + 1);
+      surface_vertices.insert(vertex8);
     }
   }
   if (verbose)
@@ -536,12 +502,8 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
   const size_t vertex_connectivity_size_hint = surface_vertices.size();
   std::unordered_map<GridIndex, uint8_t> vertex_connectivity(
         vertex_connectivity_size_hint);
-  std::unordered_map<GridIndex, uint8_t>::iterator surface_vertices_itr;
-  for (surface_vertices_itr = surface_vertices.begin();
-       surface_vertices_itr != surface_vertices.end();
-       ++surface_vertices_itr)
+  for (const GridIndex& key : surface_vertices)
   {
-    const GridIndex key = surface_vertices_itr->first;
     // Insert into the connectivity map
     vertex_connectivity[key] = 0b00000000;
     // Check the six edges from the current vertex and count the number of
@@ -690,13 +652,11 @@ TopologicalInvariants ComputeComponentTopology(
                                                     is_surface_index_fn);
   // Compute the number of holes in each surface
   TopologicalInvariants component_holes_and_voids;
-  for (auto component_surfaces_itr = component_surfaces.begin();
-       component_surfaces_itr != component_surfaces.end();
-       ++component_surfaces_itr)
+  for (const auto& component_and_surface : component_surfaces)
   {
-    const uint32_t component_number = component_surfaces_itr->first;
+    const uint32_t component_number = component_and_surface.first;
     const std::unordered_map<GridIndex, uint8_t>& component_surface
-        = component_surfaces_itr->second;
+        = component_and_surface.second;
     const NumberOfHolesAndVoids number_of_holes_and_voids
         = ComputeHolesAndVoidsInSurface(
             component_number, component_surface, get_component_fn, verbose);
@@ -713,13 +673,11 @@ inline std::vector<GridIndex> ExtractStaticSurface(
   std::vector<GridIndex> static_surface;
   // This may be larger than the actual surface we'll extract
   static_surface.reserve(raw_surface.size());
-  for (auto itr = raw_surface.begin(); itr != raw_surface.end(); ++itr)
+  for (const auto& index_and_value : raw_surface)
   {
-    const GridIndex& index = itr->first;
-    const uint8_t value = itr->second;
-    if (value == 1)
+    if (index_and_value.second == 1)
     {
-      static_surface.push_back(index);
+      static_surface.push_back(index_and_value.first);
     }
   }
   // Try to reclaim the unnecessary vector capacity
@@ -732,9 +690,8 @@ inline std::unordered_map<GridIndex, uint8_t> ConvertToDynamicSurface(
 {
   std::unordered_map<GridIndex, uint8_t> dynamic_surface(
         static_surface.size());
-  for (size_t idx = 0; idx < static_surface.size(); idx++)
+  for (const GridIndex& grid_index : static_surface)
   {
-    const GridIndex& grid_index = static_surface[idx];
     dynamic_surface[grid_index] = 1u;
   }
   return dynamic_surface;

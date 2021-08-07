@@ -556,7 +556,7 @@ private:
       std::vector<uint8_t>& buffer,
       const FloatSerializer& value_serializer) const override
   {
-    UNUSED(value_serializer);
+    CRU_UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
     common_robotics_utilities::serialization::SerializeString(frame_, buffer);
     common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
@@ -570,7 +570,7 @@ private:
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const FloatDeserializer& value_deserializer) override
   {
-    UNUSED(value_deserializer);
+    CRU_UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
     // Deserialize SDF stuff
     const auto frame_deserialized
@@ -593,9 +593,9 @@ private:
                        const int64_t y_index,
                        const int64_t z_index) override
   {
-    UNUSED(x_index);
-    UNUSED(y_index);
-    UNUSED(z_index);
+    CRU_UNUSED(x_index);
+    CRU_UNUSED(y_index);
+    CRU_UNUSED(z_index);
     return !IsLocked();
   }
 

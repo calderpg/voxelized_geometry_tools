@@ -1095,34 +1095,13 @@ public:
     // Query
     if (this->IndexInBounds(index))
     {
-      // Check if the query location is the cell center
-      const Eigen::Vector4d cell_center_location
-          = this->GridIndexToLocation(index);
-      // TODO - check how this affects results
-      // TODO - this definitely doesn't fix it
-      // Bump the query point away from the cell center
-      double adjusted_x = x;
-      double adjusted_y = y;
-      double adjusted_z = z;
-      if (adjusted_x == cell_center_location(0))
-      {
-        adjusted_x += (GetResolution() * 0.125);
-      }
-      if (adjusted_y == cell_center_location(1))
-      {
-        adjusted_y += (GetResolution() * 0.125);
-      }
-      if (adjusted_z == cell_center_location(2))
-      {
-        adjusted_z += (GetResolution() * 0.125);
-      }
       // Use with AutoDiffScalar
       typedef Eigen::AutoDiffScalar<Eigen::Vector4d> AScalar;
       typedef Eigen::Matrix<AScalar, 4, 1> APosition;
       APosition Alocation;
-      Alocation(0) = adjusted_x;
-      Alocation(1) = adjusted_y;
-      Alocation(2) = adjusted_z;
+      Alocation(0) = x;
+      Alocation(1) = y;
+      Alocation(2) = z;
       Alocation(3) = 1.0;
       Alocation(0).derivatives() = Eigen::Vector4d::Unit(0);
       Alocation(1).derivatives() = Eigen::Vector4d::Unit(1);

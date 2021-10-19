@@ -17,7 +17,6 @@
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
-#include <unsupported/Eigen/AutoDiff>
 
 namespace voxelized_geometry_tools
 {
@@ -1069,88 +1068,6 @@ public:
     return GetFineGradient4d(
         this->GridIndexToLocation(x_index, y_index, z_index),
         nominal_window_size);
-  }
-
-  /// "Autodiff" gradient is computed by using Eigen's autodiff system to
-  /// autodiff EstimateDistance instead. This is potentially the slowest of the
-  /// gradient computation options, but should be the smoothest.
-
-  GradientQuery GetAutoDiffGradient3d(
-      const Eigen::Vector3d& location) const
-  {
-    return GetAutoDiffGradient(location.x(), location.y(), location.z());
-  }
-
-  GradientQuery GetAutoDiffGradient4d(
-      const Eigen::Vector4d& location) const
-  {
-    return GetAutoDiffGradient(location(0), location(1), location(2));
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const double x, const double y, const double z) const
-  {
-    const common_robotics_utilities::voxel_grid::GridIndex index
-        = this->LocationToGridIndex(x, y, z);
-    // Query
-    if (this->IndexInBounds(index))
-    {
-      // Check if the query location is the cell center
-      const Eigen::Vector4d cell_center_location
-          = this->GridIndexToLocation(index);
-      // TODO - check how this affects results
-      // TODO - this definitely doesn't fix it
-      // Bump the query point away from the cell center
-      double adjusted_x = x;
-      double adjusted_y = y;
-      double adjusted_z = z;
-      if (adjusted_x == cell_center_location(0))
-      {
-        adjusted_x += (GetResolution() * 0.125);
-      }
-      if (adjusted_y == cell_center_location(1))
-      {
-        adjusted_y += (GetResolution() * 0.125);
-      }
-      if (adjusted_z == cell_center_location(2))
-      {
-        adjusted_z += (GetResolution() * 0.125);
-      }
-      // Use with AutoDiffScalar
-      typedef Eigen::AutoDiffScalar<Eigen::Vector4d> AScalar;
-      typedef Eigen::Matrix<AScalar, 4, 1> APosition;
-      APosition Alocation;
-      Alocation(0) = adjusted_x;
-      Alocation(1) = adjusted_y;
-      Alocation(2) = adjusted_z;
-      Alocation(3) = 1.0;
-      Alocation(0).derivatives() = Eigen::Vector4d::Unit(0);
-      Alocation(1).derivatives() = Eigen::Vector4d::Unit(1);
-      Alocation(2).derivatives() = Eigen::Vector4d::Unit(2);
-      Alocation(3).derivatives() = Eigen::Vector4d::Unit(3);
-      AScalar Adist = EstimateDistanceInterpolateFromNeighbors<AScalar>(
-                        Alocation, index.X(), index.Y(), index.Z());
-      return GradientQuery(Adist.derivatives()(0),
-                           Adist.derivatives()(1),
-                           Adist.derivatives()(2));
-    }
-    else
-    {
-      return GradientQuery();
-    }
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const common_robotics_utilities::voxel_grid::GridIndex& index) const
-  {
-    return GetAutoDiffGradient4d(this->GridIndexToLocation(index));
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-  {
-    return GetAutoDiffGradient4d(
-          this->GridIndexToLocation(x_index, y_index, z_index));
   }
 
   /// Project the provided point out of collision.

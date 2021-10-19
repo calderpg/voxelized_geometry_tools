@@ -153,7 +153,6 @@ void test_estimate_distance(
             = sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
         const auto coarse_gradient = sdf.GetCoarseGradient4d(location, true);
         const auto fine_gradient = sdf.GetFineGradient4d(location, sdf.GetResolution() * 0.125);
-        const auto autodiff_gradient = sdf.GetAutoDiffGradient4d(location);
         if (coarse_gradient)
         {
           std::cout << "Coarse gradient " << common_robotics_utilities::print::Print(coarse_gradient.Value()) << std::endl;
@@ -200,30 +199,6 @@ void test_estimate_distance(
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;
           gradient_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(0.0, 0.5, 1.0, 1.0);
-          markers.markers.push_back(gradient_rep);
-        }
-        if (autodiff_gradient)
-        {
-          std::cout << "Autodiff gradient " << common_robotics_utilities::print::Print(autodiff_gradient.Value()) << std::endl;
-          const Eigen::Vector4d& gradient_vector = autodiff_gradient.Value();
-          Marker gradient_rep;
-          // Populate the header
-          gradient_rep.header.frame_id = "world";
-          // Populate the options
-          gradient_rep.ns = "autodiff_gradient";
-          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
-          gradient_rep.type = Marker::ARROW;
-          gradient_rep.action = Marker::ADD;
-          gradient_rep.lifetime = Duration(0, 0);
-          gradient_rep.frame_locked = false;
-          gradient_rep.pose
-              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
-          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
-          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
-          gradient_rep.scale.z = 0.0;
-          gradient_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(0.5, 0.0, 1.0, 1.0);
           markers.markers.push_back(gradient_rep);
         }
       }

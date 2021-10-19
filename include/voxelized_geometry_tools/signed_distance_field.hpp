@@ -17,7 +17,6 @@
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
-#include <unsupported/Eigen/AutoDiff>
 
 namespace voxelized_geometry_tools
 {
@@ -556,7 +555,7 @@ private:
       std::vector<uint8_t>& buffer,
       const FloatSerializer& value_serializer) const override
   {
-    UNUSED(value_serializer);
+    CRU_UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
     common_robotics_utilities::serialization::SerializeString(frame_, buffer);
     common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
@@ -570,7 +569,7 @@ private:
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const FloatDeserializer& value_deserializer) override
   {
-    UNUSED(value_deserializer);
+    CRU_UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
     // Deserialize SDF stuff
     const auto frame_deserialized
@@ -593,9 +592,9 @@ private:
                        const int64_t y_index,
                        const int64_t z_index) override
   {
-    UNUSED(x_index);
-    UNUSED(y_index);
-    UNUSED(z_index);
+    CRU_UNUSED(x_index);
+    CRU_UNUSED(y_index);
+    CRU_UNUSED(z_index);
     return !IsLocked();
   }
 
@@ -1069,67 +1068,6 @@ public:
     return GetFineGradient4d(
         this->GridIndexToLocation(x_index, y_index, z_index),
         nominal_window_size);
-  }
-
-  /// "Autodiff" gradient is computed by using Eigen's autodiff system to
-  /// autodiff EstimateDistance instead. This is potentially the slowest of the
-  /// gradient computation options, but should be the smoothest.
-
-  GradientQuery GetAutoDiffGradient3d(
-      const Eigen::Vector3d& location) const
-  {
-    return GetAutoDiffGradient(location.x(), location.y(), location.z());
-  }
-
-  GradientQuery GetAutoDiffGradient4d(
-      const Eigen::Vector4d& location) const
-  {
-    return GetAutoDiffGradient(location(0), location(1), location(2));
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const double x, const double y, const double z) const
-  {
-    const common_robotics_utilities::voxel_grid::GridIndex index
-        = this->LocationToGridIndex(x, y, z);
-    // Query
-    if (this->IndexInBounds(index))
-    {
-      // Use with AutoDiffScalar
-      typedef Eigen::AutoDiffScalar<Eigen::Vector4d> AScalar;
-      typedef Eigen::Matrix<AScalar, 4, 1> APosition;
-      APosition Alocation;
-      Alocation(0) = x;
-      Alocation(1) = y;
-      Alocation(2) = z;
-      Alocation(3) = 1.0;
-      Alocation(0).derivatives() = Eigen::Vector4d::Unit(0);
-      Alocation(1).derivatives() = Eigen::Vector4d::Unit(1);
-      Alocation(2).derivatives() = Eigen::Vector4d::Unit(2);
-      Alocation(3).derivatives() = Eigen::Vector4d::Unit(3);
-      AScalar Adist = EstimateDistanceInterpolateFromNeighbors<AScalar>(
-                        Alocation, index.X(), index.Y(), index.Z());
-      return GradientQuery(Adist.derivatives()(0),
-                           Adist.derivatives()(1),
-                           Adist.derivatives()(2));
-    }
-    else
-    {
-      return GradientQuery();
-    }
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const common_robotics_utilities::voxel_grid::GridIndex& index) const
-  {
-    return GetAutoDiffGradient4d(this->GridIndexToLocation(index));
-  }
-
-  GradientQuery GetAutoDiffGradient(
-      const int64_t x_index, const int64_t y_index, const int64_t z_index) const
-  {
-    return GetAutoDiffGradient4d(
-          this->GridIndexToLocation(x_index, y_index, z_index));
   }
 
   /// Project the provided point out of collision.

@@ -33,7 +33,7 @@ uint64_t CollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
     const CollisionCellSerializer& value_serializer) const
 {
-  UNUSED(value_serializer);
+  CRU_UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
   common_robotics_utilities::serialization::SerializeMemcpyable<uint32_t>(
       number_of_components_, buffer);
@@ -49,7 +49,7 @@ uint64_t CollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
     const CollisionCellDeserializer& value_deserializer)
 {
-  UNUSED(value_deserializer);
+  CRU_UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
   const auto number_of_components_deserialized
       = common_robotics_utilities::serialization
@@ -76,9 +76,9 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
                                        const int64_t y_index,
                                        const int64_t z_index)
 {
-  UNUSED(x_index);
-  UNUSED(y_index);
-  UNUSED(z_index);
+  CRU_UNUSED(x_index);
+  CRU_UNUSED(y_index);
+  CRU_UNUSED(z_index);
   components_valid_ = false;
   return true;
 }

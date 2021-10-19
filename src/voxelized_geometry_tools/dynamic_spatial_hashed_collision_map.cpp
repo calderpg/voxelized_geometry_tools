@@ -33,7 +33,7 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
     const CollisionCellSerializer& value_serializer) const
 {
-  UNUSED(value_serializer);
+  CRU_UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
   common_robotics_utilities::serialization::SerializeString(frame_, buffer);
   const uint64_t bytes_written = buffer.size() - start_size;
@@ -45,7 +45,7 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
     const CollisionCellDeserializer& value_deserializer)
 {
-  UNUSED(value_deserializer);
+  CRU_UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
   const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
@@ -60,7 +60,7 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
 bool DynamicSpatialHashedCollisionMap::OnMutableAccess(
     const Eigen::Vector4d& location)
 {
-  UNUSED(location);
+  CRU_UNUSED(location);
   return true;
 }
 

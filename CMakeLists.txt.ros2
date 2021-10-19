@@ -260,7 +260,6 @@ ament_export_dependencies(
   geometry_msgs
   visualization_msgs
   common_robotics_utilities
-  Eigen3
 )
 
-ament_package()
+ament_package(CONFIG_EXTRAS cmake/voxelized_geometry_tools-dependencies.cmake)

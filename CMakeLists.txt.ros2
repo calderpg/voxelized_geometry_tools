@@ -70,11 +70,13 @@ set(CMAKE_SHARED_LINKER_FLAGS
 add_library(${PROJECT_NAME}
             include/${PROJECT_NAME}/collision_map.hpp
             include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
+            include/${PROJECT_NAME}/mesh_rasterizer.hpp
             include/${PROJECT_NAME}/signed_distance_field.hpp
             include/${PROJECT_NAME}/signed_distance_field_generation.hpp
             include/${PROJECT_NAME}/tagged_object_collision_map.hpp
             include/${PROJECT_NAME}/topology_computation.hpp
             src/${PROJECT_NAME}/collision_map.cpp
+            src/${PROJECT_NAME}/mesh_rasterizer.cpp
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
 ament_target_dependencies(${PROJECT_NAME} common_robotics_utilities)
@@ -209,6 +211,9 @@ if(BUILD_TESTING)
         test/pointcloud_voxelization_test.cpp)
     target_link_libraries(pointcloud_voxelization_test
         ${PROJECT_NAME}_pointcloud_voxelization)
+
+    ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
+    target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
 endif()
 
 #############

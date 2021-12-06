@@ -53,6 +53,8 @@ public:
     origin_transform_ = origin_transform;
   }
 
+  const PointCloud2& Cloud() const { return *cloud_ptr_; }
+
 protected:
   PointCloud2Wrapper(
       const PointCloud2* const cloud_ptr,

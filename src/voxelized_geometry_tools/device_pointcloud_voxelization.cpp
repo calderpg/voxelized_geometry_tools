@@ -26,7 +26,7 @@ namespace pointcloud_voxelization
 VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointCloudWrapperPtr>& pointclouds,
+    const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
     CollisionMap& output_environment) const
 {
   EnforceAvailable();
@@ -72,7 +72,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 #endif
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
-    const PointCloudWrapperPtr& pointcloud = pointclouds.at(idx);
+    const PointCloudWrapperSharedPtr& pointcloud = pointclouds.at(idx);
 
     // Only do work if the pointcloud is non-empty, to avoid passing empty
     // arrays into the device interface.

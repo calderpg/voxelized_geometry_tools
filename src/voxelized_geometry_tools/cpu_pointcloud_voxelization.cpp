@@ -24,7 +24,7 @@ namespace pointcloud_voxelization
 VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointCloudWrapperPtr>& pointclouds,
+    const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
     CollisionMap& output_environment) const
 {
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
@@ -42,7 +42,7 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
               X_WG, grid_size, CpuVoxelizationTrackingCell()));
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
-    const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
+    const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
     CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
     RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
   }

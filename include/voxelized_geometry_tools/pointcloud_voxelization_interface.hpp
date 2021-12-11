@@ -190,7 +190,7 @@ protected:
       const int64_t point_index, float* destination) const = 0;
 };
 
-using PointCloudWrapperPtr = std::shared_ptr<PointCloudWrapper>;
+using PointCloudWrapperSharedPtr = std::shared_ptr<PointCloudWrapper>;
 
 class VoxelizerRuntime
 {
@@ -225,7 +225,7 @@ public:
   CollisionMap VoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       const std::function<void(const VoxelizerRuntime&)>&
           runtime_log_fn = [] (const VoxelizerRuntime& voxelizer_runtime)
           {
@@ -248,7 +248,7 @@ public:
   VoxelizerRuntime VoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const {
     if (!static_environment.IsInitialized())
     {
@@ -270,7 +270,7 @@ public:
     }
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {
-      const PointCloudWrapperPtr& cloud_ptr = pointclouds.at(idx);
+      const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
       if (!cloud_ptr)
       {
         throw std::invalid_argument(
@@ -286,7 +286,7 @@ protected:
   virtual VoxelizerRuntime DoVoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const = 0;
 };
 }  // namespace pointcloud_voxelization

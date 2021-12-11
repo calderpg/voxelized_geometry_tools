@@ -37,7 +37,8 @@ using voxelized_geometry_tools::pointcloud_voxelization
 using voxelized_geometry_tools::pointcloud_voxelization
     ::PointCloudVoxelizationInterface;
 using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapper;
-using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapperPtr;
+using voxelized_geometry_tools::pointcloud_voxelization
+    ::PointCloudWrapperSharedPtr;
 
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using ColorRGBA = std_msgs::msg::ColorRGBA;
@@ -185,7 +186,7 @@ void test_pointcloud_voxelization(
   // Camera 1 pose
   const Eigen::Isometry3d X_WC1(Eigen::Translation3d(-2.0, 0.0, 0.0));
   const Eigen::Isometry3d X_WC1O = X_WC1 * X_CO;
-  PointCloudWrapperPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
+  PointCloudWrapperSharedPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam1_cloud.get())
       ->SetPointCloudOriginTransform(X_WC1O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
@@ -201,7 +202,7 @@ void test_pointcloud_voxelization(
   const Eigen::Isometry3d X_WC2 = Eigen::Translation3d(0.0, -2.0, 0.0) *
       Eigen::Quaterniond(Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()));
   const Eigen::Isometry3d X_WC2O = X_WC2 * X_CO;
-  PointCloudWrapperPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
+  PointCloudWrapperSharedPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam2_cloud.get())
       ->SetPointCloudOriginTransform(X_WC2O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)

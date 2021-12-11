@@ -18,7 +18,7 @@ namespace
 using pointcloud_voxelization::PointCloudVoxelizationFilterOptions;
 using pointcloud_voxelization::PointCloudVoxelizationInterface;
 using pointcloud_voxelization::PointCloudWrapper;
-using pointcloud_voxelization::PointCloudWrapperPtr;
+using pointcloud_voxelization::PointCloudWrapperSharedPtr;
 
 class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 {
@@ -178,7 +178,7 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   // Camera 1 pose
   const Eigen::Isometry3d X_WC1(Eigen::Translation3d(-2.0, 0.0, 0.0));
   const Eigen::Isometry3d X_WC1O = X_WC1 * X_CO;
-  PointCloudWrapperPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
+  PointCloudWrapperSharedPtr cam1_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam1_cloud.get())
       ->SetPointCloudOriginTransform(X_WC1O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
@@ -195,7 +195,7 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   const Eigen::Isometry3d X_WC2 = Eigen::Translation3d(0.0, -2.0, 0.0) *
       Eigen::Quaterniond(Eigen::AngleAxisd(M_PI_2, Eigen::Vector3d::UnitZ()));
   const Eigen::Isometry3d X_WC2O = X_WC2 * X_CO;
-  PointCloudWrapperPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
+  PointCloudWrapperSharedPtr cam2_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam2_cloud.get())
       ->SetPointCloudOriginTransform(X_WC2O);
   for (double x = -2.0; x <= 2.0; x += 0.03125)
@@ -212,7 +212,7 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   const Eigen::Isometry3d X_WC3 = Eigen::Isometry3d::Identity();
   const Eigen::Isometry3d X_WC3O = X_WC3 * X_CO;
   // Cloud 3 is empty
-  PointCloudWrapperPtr cam3_cloud(new VectorVector3dPointCloudWrapper());
+  PointCloudWrapperSharedPtr cam3_cloud(new VectorVector3dPointCloudWrapper());
   static_cast<VectorVector3dPointCloudWrapper*>(cam3_cloud.get())
       ->SetPointCloudOriginTransform(X_WC3O);
 

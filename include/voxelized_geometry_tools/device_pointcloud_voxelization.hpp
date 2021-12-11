@@ -48,7 +48,7 @@ private:
   VoxelizerRuntime DoVoxelizePointClouds(
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
-      const std::vector<PointCloudWrapperPtr>& pointclouds,
+      const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const override;
 };
 

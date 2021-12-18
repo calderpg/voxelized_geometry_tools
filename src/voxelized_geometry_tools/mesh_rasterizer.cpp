@@ -64,7 +64,7 @@ Eigen::Vector3d CalcClosestPointOnTriangle(
     const Eigen::Vector3d p_MQprojected =
         p_Mv1 + common_robotics_utilities::math::VectorRejection(normal, v_v1Q);
     p_MQclosest = p_MQprojected;
-  } 
+  }
   else
   {
     const Eigen::Vector3d p_MQclosest12 =

@@ -26,6 +26,49 @@ namespace voxelized_geometry_tools
 {
 namespace signed_distance_field_generation
 {
+/// Wrapper for a generated SignedDistanceField and min/max values.
+template<typename ScalarType>
+class SignedDistanceFieldResult
+{
+private:
+  SignedDistanceField<ScalarType> distance_field_;
+  ScalarType maximum_ = 0.0;
+  ScalarType minimum_ = 0.0;
+
+public:
+  SignedDistanceFieldResult(
+      const SignedDistanceField<ScalarType>& distance_field,
+      const ScalarType maximum, const ScalarType minimum)
+      : distance_field_(distance_field),
+        maximum_(maximum), minimum_(minimum)
+  {
+    if (minimum_ > maximum_)
+    {
+      throw std::invalid_argument("minimum_ > maximum_");
+    }
+  }
+
+  const SignedDistanceField<ScalarType>& DistanceField() const
+  {
+    return distance_field_;
+  }
+
+  SignedDistanceField<ScalarType>& MutableDistanceField()
+  {
+    return distance_field_;
+  }
+
+  ScalarType Maximum() const { return maximum_; }
+
+  ScalarType Minimum() const { return minimum_; }
+};
+
+// To allow for faster development/improvements, the SignedDistanceField
+// generation API has no stability guarantees and lives in an internal
+// namespace. Use the stable API exposed by CollisionMap and
+// TaggedObjectCollisionMap instead.
+namespace internal
+{
 using common_robotics_utilities::voxel_grid::GridIndex;
 using common_robotics_utilities::voxel_grid::GridSizes;
 
@@ -481,57 +524,12 @@ inline DistanceField BuildDistanceField(
   }
 }
 
-template<typename SDFBackingStore>
-class SignedDistanceFieldResult
-{
-private:
-  SignedDistanceField<SDFBackingStore> distance_field_;
-  double maximum_ = 0.0;
-  double minimum_ = 0.0;
-
-public:
-  SignedDistanceFieldResult(
-      const SignedDistanceField<SDFBackingStore>& distance_field,
-      const double maximum, const double minimum)
-      : distance_field_(distance_field),
-        maximum_(maximum), minimum_(minimum)
-  {
-    if (minimum_ > maximum_)
-    {
-      throw std::invalid_argument("minimum_ > maximum_");
-    }
-  }
-
-  const SignedDistanceField<SDFBackingStore>& DistanceField() const
-  {
-    return distance_field_;
-  }
-
-  const SignedDistanceField<SDFBackingStore>& MutableDistanceField()
-  {
-    return distance_field_;
-  }
-
-  double Maximum() const { return maximum_; }
-
-  double Minimum() const { return minimum_; }
-};
-
-template<typename SDFBackingStore>
-SignedDistanceFieldResult<SDFBackingStore> MakeSignedDistanceFieldResult(
-    const SignedDistanceField<SDFBackingStore>& signed_distance_field,
-    const double maximum, const double minimum)
-{
-  return SignedDistanceFieldResult<SDFBackingStore>(
-      signed_distance_field, maximum, minimum);
-}
-
-
-template<typename T, typename SDFBackingStore=std::vector<float>>
-inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
+template<typename T, typename SDFScalarType>
+inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
     const Eigen::Isometry3d& grid_origin_tranform, const GridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const float oob_value, const std::string& frame, const bool use_parallel)
+    const SDFScalarType oob_value, const std::string& frame,
+    const bool use_parallel)
 {
   const std::chrono::time_point<std::chrono::steady_clock> start_time
       = std::chrono::steady_clock::now();
@@ -565,7 +563,7 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
   const DistanceField free_distance_field =
       BuildDistanceField(grid_origin_tranform, grid_sizes, free, use_parallel);
   // Generate the SDF
-  SignedDistanceField<SDFBackingStore> new_sdf(
+  SignedDistanceField<SDFScalarType> new_sdf(
       grid_origin_tranform, frame, grid_sizes, oob_value);
   double max_distance = -std::numeric_limits<double>::infinity();
   double min_distance = std::numeric_limits<double>::infinity();
@@ -595,7 +593,7 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
           min_distance = distance;
         }
         new_sdf.SetValue(
-            x_index, y_index, z_index, static_cast<float>(distance));
+            x_index, y_index, z_index, static_cast<SDFScalarType>(distance));
       }
     }
   }
@@ -604,17 +602,17 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
   const std::chrono::duration<double> elapsed = end_time - start_time;
   std::cout << "Computed SDF for grid size in " << elapsed.count() << " seconds"
             << std::endl;
-  return MakeSignedDistanceFieldResult<SDFBackingStore>(
-      new_sdf, max_distance, min_distance);
+  return SignedDistanceFieldResult<SDFScalarType>(
+      new_sdf, static_cast<SDFScalarType>(max_distance),
+      static_cast<SDFScalarType>(min_distance));
 }
 
-template<typename T, typename BackingStore=std::vector<T>,
-         typename SDFBackingStore=std::vector<float>>
-inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
+template<typename T, typename BackingStore, typename SDFScalarType>
+inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& grid,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const float oob_value, const std::string& frame,
+    const SDFScalarType oob_value, const std::string& frame,
     const bool use_parallel, const bool add_virtual_border)
 {
   if (!grid.HasUniformCellSize())
@@ -624,7 +622,7 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
   if (add_virtual_border == false)
   {
     // This is the conventional single-pass result
-    return ExtractSignedDistanceField<T, SDFBackingStore>(
+    return ExtractSignedDistanceField<T, SDFScalarType>(
         grid.GetOriginTransform(), grid.GetGridSizes(), is_filled_fn, oob_value,
         frame, use_parallel);
   }
@@ -642,10 +640,12 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
         (grid.GetNumZCells() > 1) ? INT64_C(2) : INT64_C(0);
     const int64_t z_axis_query_offset =
         (grid.GetNumZCells() > 1) ? INT64_C(1) : INT64_C(0);
+
     // We need to lie about the size of the grid to add a virtual border
     const int64_t num_x_cells = grid.GetNumXCells() + x_axis_size_offset;
     const int64_t num_y_cells = grid.GetNumYCells() + y_axis_size_offset;
     const int64_t num_z_cells = grid.GetNumZCells() + z_axis_size_offset;
+
     // Make some deceitful helper functions that hide our lies about size
     // For the free space SDF, we lie and say the virtual border is filled
     const std::function<bool(const GridIndex&)> free_is_filled_fn
@@ -687,6 +687,7 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
             virtual_border_grid_index.Z() - z_axis_query_offset);
       return is_filled_fn(real_grid_index);
     };
+
     // For the filled space SDF, we lie and say the virtual border is empty
     const std::function<bool(const GridIndex&)> filled_is_filled_fn
         = [&] (const GridIndex& virtual_border_grid_index)
@@ -727,19 +728,19 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
             virtual_border_grid_index.Z() - z_axis_query_offset);
       return is_filled_fn(real_grid_index);
     };
+
     // Make both SDFs
     const common_robotics_utilities::voxel_grid::GridSizes enlarged_sizes(
         grid.GetCellSizes().x(), num_x_cells, num_y_cells, num_z_cells);
-    auto free_sdf_result
-        = ExtractSignedDistanceField<T>(
-            grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn,
-            oob_value, frame, use_parallel);
-    auto filled_sdf_result
-        = ExtractSignedDistanceField<T>(
-            grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn,
-            oob_value, frame, use_parallel);
+    const auto free_sdf_result = ExtractSignedDistanceField<T, SDFScalarType>(
+        grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn, oob_value,
+        frame, use_parallel);
+    const auto filled_sdf_result = ExtractSignedDistanceField<T, SDFScalarType>(
+        grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn,
+        oob_value, frame, use_parallel);
+
     // Combine to make a single SDF
-    SignedDistanceField<SDFBackingStore> combined_sdf(
+    SignedDistanceField<SDFScalarType> combined_sdf(
           grid.GetOriginTransform(), frame, grid.GetGridSizes(), oob_value);
     for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
     {
@@ -750,12 +751,13 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
           const int64_t query_x_idx = x_idx + x_axis_query_offset;
           const int64_t query_y_idx = y_idx + y_axis_query_offset;
           const int64_t query_z_idx = z_idx + z_axis_query_offset;
-          const float free_sdf_value
+          const SDFScalarType free_sdf_value
               = free_sdf_result.DistanceField().GetImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
-          const float filled_sdf_value
+          const SDFScalarType filled_sdf_value
               = filled_sdf_result.DistanceField().GetImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
+
           if (free_sdf_value >= 0.0)
           {
             combined_sdf.SetValue(x_idx, y_idx, z_idx, free_sdf_value);
@@ -766,24 +768,24 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
           }
           else
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0f);
+            combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0);
           }
         }
       }
     }
+
     // Get the combined max/min values
-    return MakeSignedDistanceFieldResult<SDFBackingStore>(
+    return SignedDistanceFieldResult<SDFScalarType>(
         combined_sdf, free_sdf_result.Maximum(), filled_sdf_result.Minimum());
   }
 }
 
-template<typename T, typename BackingStore=std::vector<T>,
-         typename SDFBackingStore=std::vector<float>>
-inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
+template<typename T, typename BackingStore, typename SDFScalarType>
+inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& grid,
     const std::function<bool(const T&)>& is_filled_fn,
-    const float oob_value, const std::string& frame,
+    const SDFScalarType oob_value, const std::string& frame,
     const bool use_parallel)
 {
   if (!grid.HasUniformCellSize())
@@ -806,8 +808,14 @@ inline SignedDistanceFieldResult<SDFBackingStore> ExtractSignedDistanceField(
       return false;
     }
   };
-  return ExtractSignedDistanceField<T, BackingStore, SDFBackingStore>(
+  return ExtractSignedDistanceField<T, BackingStore, SDFScalarType>(
         grid, real_is_filled_fn, oob_value, frame, use_parallel, false);
 }
+}  // namespace internal
 }  // namespace signed_distance_field_generation
 }  // namespace voxelized_geometry_tools
+
+extern template class voxelized_geometry_tools::signed_distance_field_generation
+    ::SignedDistanceFieldResult<double>;
+extern template class voxelized_geometry_tools::signed_distance_field_generation
+    ::SignedDistanceFieldResult<float>;

@@ -104,6 +104,8 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/collision_map.cpp
             src/${PROJECT_NAME}/mesh_rasterizer.cpp
             src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
+            src/${PROJECT_NAME}/signed_distance_field.cpp
+            src/${PROJECT_NAME}/signed_distance_field_generation.cpp
             src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})

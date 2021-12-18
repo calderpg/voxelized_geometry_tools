@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -303,13 +304,13 @@ public:
       const COMPONENT_TYPES component_types_to_use,
       const bool connect_across_objects, const bool verbose);
 
-  template<typename BackingStore=std::vector<float>>
-  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
-  ExtractSignedDistanceField(const std::vector<uint32_t>& objects_to_use,
-                             const float oob_value,
-                             const bool unknown_is_filled,
-                             const bool use_parallel,
-                             const bool add_virtual_border) const
+  template<typename ScalarType>
+  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
+  ExtractSignedDistanceField(
+      const std::vector<uint32_t>& objects_to_use = {},
+      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
     // To make this faster, we put the objects to use into a map
@@ -349,29 +350,28 @@ public:
         throw std::runtime_error("index out of grid bounds");
       }
     };
-    return signed_distance_field_generation
-        ::ExtractSignedDistanceField<
-            TaggedObjectCollisionCell,
-            std::vector<TaggedObjectCollisionCell>,
-            BackingStore>(
+    return
+        signed_distance_field_generation::internal::ExtractSignedDistanceField
+            <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
+             ScalarType>(
                 *this, is_filled_fn, oob_value, GetFrame(), use_parallel,
                 add_virtual_border);
   }
 
-  template<typename BackingStore=std::vector<float>>
-  std::map<uint32_t, SignedDistanceField<BackingStore>> MakeSeparateObjectSDFs(
+  template<typename ScalarType>
+  std::map<uint32_t, SignedDistanceField<ScalarType>> MakeSeparateObjectSDFs(
       const std::vector<uint32_t>& object_ids,
-      const float oob_value,
-      const bool unknown_is_filled,
-      const bool use_parallel,
-      const bool add_virtual_border) const
+      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
+      const bool unknown_is_filled = true,
+      const bool use_parallel = false,
+      const bool add_virtual_border = false) const
   {
-    std::map<uint32_t, SignedDistanceField<BackingStore>> per_object_sdfs;
+    std::map<uint32_t, SignedDistanceField<ScalarType>> per_object_sdfs;
     for (size_t idx = 0; idx < object_ids.size(); idx++)
     {
       const uint32_t object_id = object_ids[idx];
       per_object_sdfs[object_id]
-          = ExtractSignedDistanceField<BackingStore>(
+          = ExtractSignedDistanceField<ScalarType>(
               std::vector<uint32_t>{object_id}, oob_value,
               unknown_is_filled, use_parallel, add_virtual_border)
               .DistanceField();
@@ -379,10 +379,11 @@ public:
     return per_object_sdfs;
   }
 
-  template<typename BackingStore=std::vector<float>>
-  std::map<uint32_t, SignedDistanceField<BackingStore>> MakeAllObjectSDFs(
-      const float oob_value, const bool unknown_is_filled,
-      const bool use_parallel, const bool add_virtual_border) const
+  template<typename ScalarType>
+  std::map<uint32_t, SignedDistanceField<ScalarType>> MakeAllObjectSDFs(
+      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const
   {
     std::map<uint32_t, int32_t> object_id_map;
     for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
@@ -401,17 +402,18 @@ public:
         }
       }
     }
-    return MakeSeparateObjectSDFs<BackingStore>(
+    return MakeSeparateObjectSDFs<ScalarType>(
         common_robotics_utilities::utility
             ::GetKeysFromMapLike<uint32_t, int32_t>(object_id_map),
         oob_value, unknown_is_filled, use_parallel, add_virtual_border);
   }
 
-  template<typename BackingStore=std::vector<float>>
-  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
+  template<typename ScalarType>
+  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
   ExtractFreeAndNamedObjectsSignedDistanceField(
-      const float oob_value, const bool unknown_is_filled,
-      const bool use_parallel) const
+      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
+      const bool unknown_is_filled = true,
+      const bool use_parallel = false) const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
     // Make the helper function
@@ -431,10 +433,10 @@ public:
       }
       return false;
     };
-    auto free_sdf_result =
-        signed_distance_field_generation::ExtractSignedDistanceField
+    const auto free_sdf_result =
+        signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
-             BackingStore>(
+             ScalarType>(
                 *this, free_sdf_filled_fn, oob_value, GetFrame(), use_parallel,
                 false);
     // Make the helper function
@@ -458,13 +460,13 @@ public:
       }
       return false;
     };
-    auto named_objects_sdf_result =
-        signed_distance_field_generation::ExtractSignedDistanceField
+    const auto named_objects_sdf_result =
+        signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
-             BackingStore>(
+             ScalarType>(
                 *this, object_filled_fn, oob_value, GetFrame(), use_parallel,
                 false);
-    SignedDistanceField<BackingStore> combined_sdf
+    SignedDistanceField<ScalarType> combined_sdf
         = free_sdf_result.DistanceField();
     for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
     {
@@ -472,10 +474,10 @@ public:
       {
         for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
         {
-          const float free_sdf_value
+          const ScalarType free_sdf_value
               = free_sdf_result.DistanceField().GetImmutable(
                   x_idx, y_idx, z_idx).Value();
-          const float named_objects_sdf_value
+          const ScalarType named_objects_sdf_value
               = named_objects_sdf_result.DistanceField().GetImmutable(
                   x_idx, y_idx, z_idx).Value();
           if (free_sdf_value >= 0.0)
@@ -494,35 +496,60 @@ public:
       }
     }
     // Get the combined max/min values
-    return signed_distance_field_generation
-        ::SignedDistanceFieldResult<BackingStore>(
+    return
+        signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>(
             combined_sdf, free_sdf_result.Maximum(),
             named_objects_sdf_result.Minimum());
   }
 
-  signed_distance_field_generation
-      ::SignedDistanceFieldResult<std::vector<float>>
-  ExtractSignedDistanceField(const std::vector<uint32_t>& objects_to_use,
-                             const float oob_value,
-                             const bool unknown_is_filled,
-                             const bool use_parallel,
-                             const bool add_virtual_border) const;
+  signed_distance_field_generation::SignedDistanceFieldResult<double>
+  ExtractSignedDistanceFieldDouble(
+      const std::vector<uint32_t>& objects_to_use = {},
+      const double oob_value = std::numeric_limits<double>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
 
-  std::map<uint32_t, SignedDistanceField<std::vector<float>>>
-  MakeSeparateObjectSDFs(const std::vector<uint32_t>& object_ids,
-                         const float oob_value,
-                         const bool unknown_is_filled,
-                         const bool use_parallel,
-                         const bool add_virtual_border) const;
+  signed_distance_field_generation::SignedDistanceFieldResult<float>
+  ExtractSignedDistanceFieldFloat(
+      const std::vector<uint32_t>& objects_to_use = {},
+      const float oob_value = std::numeric_limits<float>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
 
-  std::map<uint32_t, SignedDistanceField<std::vector<float>>> MakeAllObjectSDFs(
-      const float oob_value, const bool unknown_is_filled,
-      const bool use_parallel, const bool add_virtual_border) const;
+  std::map<uint32_t, SignedDistanceField<double>>
+  MakeSeparateObjectSDFsDouble(
+      const std::vector<uint32_t>& object_ids,
+      const double oob_value = std::numeric_limits<double>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
 
-  signed_distance_field_generation
-      ::SignedDistanceFieldResult<std::vector<float>>
-  ExtractFreeAndNamedObjectsSignedDistanceField(
-      const float oob_value, const bool unknown_is_filled,
-      const bool use_parallel) const;
+  std::map<uint32_t, SignedDistanceField<float>>
+  MakeSeparateObjectSDFsFloat(
+      const std::vector<uint32_t>& object_ids,
+      const float oob_value = std::numeric_limits<float>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
+
+  std::map<uint32_t, SignedDistanceField<double>> MakeAllObjectSDFsDouble(
+      const double oob_value = std::numeric_limits<double>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
+
+  std::map<uint32_t, SignedDistanceField<float>> MakeAllObjectSDFsFloat(
+      const float oob_value = std::numeric_limits<float>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
+
+  signed_distance_field_generation::SignedDistanceFieldResult<double>
+  ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
+      const double oob_value = std::numeric_limits<double>::infinity(),
+      const bool unknown_is_filled = true,
+      const bool use_parallel = false) const;
+
+  signed_distance_field_generation::SignedDistanceFieldResult<float>
+  ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
+      const float oob_value = std::numeric_limits<float>::infinity(),
+      const bool unknown_is_filled = true,
+      const bool use_parallel = false) const;
 };
 }  // namespace voxelized_geometry_tools

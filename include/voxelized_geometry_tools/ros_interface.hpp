@@ -356,13 +356,12 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
 
 /// Export SDF to RViz display.
 
-template<typename BackingStore=std::vector<float>>
+template<typename ScalarType>
 inline Marker ExportSDFForDisplay(
-    const SignedDistanceField<BackingStore>& sdf,
-    const float alpha = 0.01f)
+    const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
 {
-  float min_distance = 0.0;
-  float max_distance = 0.0;
+  ScalarType min_distance = 0.0;
+  ScalarType max_distance = 0.0;
   for (int64_t x_index = 0; x_index < sdf.GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < sdf.GetNumYCells(); y_index++)
@@ -370,7 +369,7 @@ inline Marker ExportSDFForDisplay(
       for (int64_t z_index = 0; z_index < sdf.GetNumZCells(); z_index++)
       {
         // Update minimum/maximum distance variables
-        const float distance
+        const ScalarType distance
             = sdf.GetImmutable(x_index, y_index, z_index).Value();
         if (distance < min_distance)
         {
@@ -384,7 +383,7 @@ inline Marker ExportSDFForDisplay(
     }
   }
   const auto color_fn
-      = [&] (const float& distance,
+      = [&] (const ScalarType& distance,
              const common_robotics_utilities::voxel_grid::GridIndex&)
   {
     ColorRGBA new_color;
@@ -412,17 +411,16 @@ inline Marker ExportSDFForDisplay(
     }
     return new_color;
   };
-  auto display_rep = ExportVoxelGridToRViz<float, BackingStore>(
-      sdf, sdf.GetFrame(), color_fn);
+  auto display_rep =
+      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.GetFrame(), color_fn);
   display_rep.ns = "sdf_distance";
   display_rep.id = 1;
   return display_rep;
 }
 
-template<typename BackingStore=std::vector<float>>
+template<typename ScalarType>
 inline Marker ExportSDFForDisplayCollisionOnly(
-    const SignedDistanceField<BackingStore>& sdf,
-    const float alpha = 0.01f)
+    const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
 {
   const ColorRGBA filled_color
       = common_robotics_utilities::color_builder
@@ -443,8 +441,8 @@ inline Marker ExportSDFForDisplayCollisionOnly(
       return free_color;
     }
   };
-  auto display_rep = ExportVoxelGridToRViz<float, BackingStore>(
-      sdf, sdf.GetFrame(), color_fn);
+  auto display_rep =
+      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.GetFrame(), color_fn);
   display_rep.ns = "sdf_collision";
   display_rep.id = 1;
   return display_rep;
@@ -452,22 +450,22 @@ inline Marker ExportSDFForDisplayCollisionOnly(
 
 /// Convert SDF to and from ROS messages.
 
-template<typename BackingStore=std::vector<float>>
+template<typename ScalarType>
 inline SignedDistanceFieldMessage GetMessageRepresentation(
-    const SignedDistanceField<BackingStore>& sdf)
+    const SignedDistanceField<ScalarType>& sdf)
 {
   SignedDistanceFieldMessage sdf_message;
   sdf_message.header.frame_id = sdf.GetFrame();
   std::vector<uint8_t> buffer;
-  SignedDistanceField<BackingStore>::Serialize(sdf, buffer);
+  SignedDistanceField<ScalarType>::Serialize(sdf, buffer);
   sdf_message.serialized_sdf
       = common_robotics_utilities::zlib_helpers::CompressBytes(buffer);
   sdf_message.is_compressed = true;
   return sdf_message;
 }
 
-template<typename BackingStore=std::vector<float>>
-inline SignedDistanceField<BackingStore> LoadFromMessageRepresentation(
+template<typename ScalarType>
+inline SignedDistanceField<ScalarType> LoadFromMessageRepresentation(
     const SignedDistanceFieldMessage& message)
 {
   if (message.is_compressed)
@@ -475,12 +473,12 @@ inline SignedDistanceField<BackingStore> LoadFromMessageRepresentation(
     const std::vector<uint8_t> decompressed_sdf
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_sdf);
-    return SignedDistanceField<BackingStore>::Deserialize(
+    return SignedDistanceField<ScalarType>::Deserialize(
         decompressed_sdf, 0).Value();
   }
   else
   {
-    return SignedDistanceField<BackingStore>::Deserialize(
+    return SignedDistanceField<ScalarType>::Deserialize(
         message.serialized_sdf, 0).Value();
   }
 }

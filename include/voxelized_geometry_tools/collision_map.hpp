@@ -5,6 +5,7 @@
 #include <functional>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -231,12 +232,12 @@ public:
   topology_computation::TopologicalInvariants ComputeComponentTopology(
       const COMPONENT_TYPES component_types_to_use, const bool verbose);
 
-  template<typename BackingStore=std::vector<float>>
-  signed_distance_field_generation::SignedDistanceFieldResult<BackingStore>
-  ExtractSignedDistanceField(const float oob_value,
-                             const bool unknown_is_filled,
-                             const bool use_parallel,
-                             const bool add_virtual_border) const
+  template<typename ScalarType>
+  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
+  ExtractSignedDistanceField(
+      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
     // Make the helper function
@@ -265,17 +266,23 @@ public:
         throw std::runtime_error("index out of grid bounds");
       }
     };
-    return signed_distance_field_generation::ExtractSignedDistanceField
-        <CollisionCell, std::vector<CollisionCell>, BackingStore>(
-            *this, is_filled_fn, oob_value, GetFrame(), use_parallel,
-            add_virtual_border);
+    return
+        signed_distance_field_generation::internal::ExtractSignedDistanceField
+            <CollisionCell, std::vector<CollisionCell>, ScalarType>(
+                *this, is_filled_fn, oob_value, GetFrame(), use_parallel,
+                add_virtual_border);
   }
 
-  signed_distance_field_generation
-      ::SignedDistanceFieldResult<std::vector<float>>
-  ExtractSignedDistanceField(const float oob_value,
-                             const bool unknown_is_filled,
-                             const bool use_parallel,
-                             const bool add_virtual_border) const;
+  signed_distance_field_generation::SignedDistanceFieldResult<double>
+  ExtractSignedDistanceFieldDouble(
+      const double oob_value = std::numeric_limits<double>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
+
+  signed_distance_field_generation::SignedDistanceFieldResult<float>
+  ExtractSignedDistanceFieldFloat(
+      const float oob_value = std::numeric_limits<float>::infinity(),
+      const bool unknown_is_filled = true, const bool use_parallel = false,
+      const bool add_virtual_border = false) const;
 };
 }  // namespace voxelized_geometry_tools

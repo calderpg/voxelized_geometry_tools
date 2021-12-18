@@ -104,19 +104,19 @@ public:
   explicit operator bool() const { return HasValue(); }
 };
 
-template<typename BackingStore=std::vector<float>>
+template<typename ScalarType>
 class SignedDistanceField final
     : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<float, BackingStore>
+        ::VoxelGridBase<ScalarType, std::vector<ScalarType>>
 {
 private:
-  using FloatSerializer
-      = common_robotics_utilities::serialization::Serializer<float>;
-  using FloatDeserializer
-      = common_robotics_utilities::serialization::Deserializer<float>;
+  using ScalarTypeSerializer
+      = common_robotics_utilities::serialization::Serializer<ScalarType>;
+  using ScalarTypeDeserializer
+      = common_robotics_utilities::serialization::Deserializer<ScalarType>;
   using DeserializedSignedDistanceField
       = common_robotics_utilities::serialization
-          ::Deserialized<SignedDistanceField<BackingStore>>;
+          ::Deserialized<SignedDistanceField<ScalarType>>;
 
   std::string frame_;
   bool locked_ = false;
@@ -503,7 +503,7 @@ private:
       const Eigen::Vector4d& gradient) const
   {
     // Check if it's inside an obstacle
-    const float stored_distance = this->GetImmutable(index).Value();
+    const ScalarType stored_distance = this->GetImmutable(index).Value();
     Eigen::Vector4d working_gradient = gradient;
     if (stored_distance < 0.0)
     {
@@ -543,17 +543,17 @@ private:
 
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<float, BackingStore>>
+      ::VoxelGridBase<ScalarType, std::vector<ScalarType>>>
   DoClone() const override
   {
-    return std::unique_ptr<SignedDistanceField<BackingStore>>(
-        new SignedDistanceField<BackingStore>(*this));
+    return std::unique_ptr<SignedDistanceField<ScalarType>>(
+        new SignedDistanceField<ScalarType>(*this));
   }
 
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const FloatSerializer& value_serializer) const override
+      const ScalarTypeSerializer& value_serializer) const override
   {
     CRU_UNUSED(value_serializer);
     const uint64_t start_size = buffer.size();
@@ -567,7 +567,7 @@ private:
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const FloatDeserializer& value_deserializer) override
+      const ScalarTypeDeserializer& value_deserializer) override
   {
     CRU_UNUSED(value_deserializer);
     uint64_t current_position = starting_offset;
@@ -600,32 +600,32 @@ private:
 
 public:
   static uint64_t Serialize(
-      const SignedDistanceField<BackingStore>& sdf,
-      std::vector<uint8_t>& buffer)
+      const SignedDistanceField<ScalarType>& sdf, std::vector<uint8_t>& buffer)
   {
-    return sdf.SerializeSelf(buffer, common_robotics_utilities::serialization
-                                         ::SerializeMemcpyable<float>);
+    return sdf.SerializeSelf(
+        buffer,
+        common_robotics_utilities::serialization
+            ::SerializeMemcpyable<ScalarType>);
   }
 
   static DeserializedSignedDistanceField Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
   {
-    SignedDistanceField<BackingStore> temp_sdf;
-    const uint64_t bytes_read
-        = temp_sdf.DeserializeSelf(
-            buffer, starting_offset,
-            common_robotics_utilities::serialization
-                ::DeserializeMemcpyable<float>);
+    SignedDistanceField<ScalarType> temp_sdf;
+    const uint64_t bytes_read = temp_sdf.DeserializeSelf(
+        buffer, starting_offset,
+        common_robotics_utilities::serialization
+            ::DeserializeMemcpyable<ScalarType>);
     return common_robotics_utilities::serialization::MakeDeserialized(
         temp_sdf, bytes_read);
   }
 
   static void SaveToFile(
-      const SignedDistanceField<BackingStore>& sdf, const std::string& filepath,
+      const SignedDistanceField<ScalarType>& sdf, const std::string& filepath,
       const bool compress)
   {
     std::vector<uint8_t> buffer;
-    SignedDistanceField<BackingStore>::Serialize(sdf, buffer);
+    SignedDistanceField<ScalarType>::Serialize(sdf, buffer);
     std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
     if (compress)
     {
@@ -648,7 +648,7 @@ public:
     output_file.close();
   }
 
-  static SignedDistanceField<BackingStore> LoadFromFile(
+  static SignedDistanceField<ScalarType> LoadFromFile(
       const std::string& filepath)
   {
     std::ifstream input_file(
@@ -681,12 +681,12 @@ public:
         const std::vector<uint8_t> decompressed
             = common_robotics_utilities::zlib_helpers
                 ::DecompressBytes(file_buffer);
-        return SignedDistanceField<BackingStore>::Deserialize(
+        return SignedDistanceField<ScalarType>::Deserialize(
             decompressed, 0).Value();
       }
       else if (header_string == "SDFR")
       {
-        return SignedDistanceField<BackingStore>::Deserialize(
+        return SignedDistanceField<ScalarType>::Deserialize(
             file_buffer, 0).Value();
       }
       else
@@ -704,24 +704,24 @@ public:
   SignedDistanceField(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const float default_value)
+      const ScalarType default_value)
       : SignedDistanceField(
           origin_transform, frame, sizes, default_value, default_value) {}
 
   SignedDistanceField(
       const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const float default_value)
+      const ScalarType default_value)
       : SignedDistanceField(frame, sizes, default_value, default_value) {}
 
   SignedDistanceField(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const float default_value, const float oob_value)
+      const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<float, BackingStore>(
-              origin_transform, sizes, default_value, oob_value), frame_(frame),
-        locked_(false)
+            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
+                origin_transform, sizes, default_value, oob_value),
+        frame_(frame), locked_(false)
   {
     if (!this->HasUniformCellSize())
     {
@@ -732,9 +732,10 @@ public:
   SignedDistanceField(
       const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const float default_value, const float oob_value)
+      const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<float, BackingStore>(sizes, default_value, oob_value),
+            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
+                sizes, default_value, oob_value),
         frame_(frame), locked_(false)
   {
     if (!this->HasUniformCellSize())
@@ -745,7 +746,7 @@ public:
 
   SignedDistanceField()
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<float, BackingStore>() {}
+            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>() {}
 
   bool IsLocked() const { return locked_; }
 
@@ -1147,7 +1148,7 @@ public:
                 = std::min(max_stepsize,
                            minimum_distance_with_margin - sdf_dist);
             mutable_location += grad_vector.normalized() * step_distance;
-            sdf_dist = EstimateDistance4d(mutable_location).Valeu();
+            sdf_dist = EstimateDistance4d(mutable_location).Value();
           }
           else
           {
@@ -1194,3 +1195,6 @@ public:
   }
 };
 }  // namespace voxelized_geometry_tools
+
+extern template class voxelized_geometry_tools::SignedDistanceField<double>;
+extern template class voxelized_geometry_tools::SignedDistanceField<float>;

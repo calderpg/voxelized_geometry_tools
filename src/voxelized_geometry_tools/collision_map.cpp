@@ -610,12 +610,21 @@ CollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<std::vector<float>>
-CollisionMap::ExtractSignedDistanceField(
+signed_distance_field_generation::SignedDistanceFieldResult<double>
+CollisionMap::ExtractSignedDistanceFieldDouble(
+    const double oob_value, const bool unknown_is_filled,
+    const bool use_parallel, const bool add_virtual_border) const
+{
+  return ExtractSignedDistanceField<double>(
+      oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+}
+
+signed_distance_field_generation::SignedDistanceFieldResult<float>
+CollisionMap::ExtractSignedDistanceFieldFloat(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel, const bool add_virtual_border) const
 {
-  return ExtractSignedDistanceField<std::vector<float>>(
+  return ExtractSignedDistanceField<float>(
       oob_value, unknown_is_filled, use_parallel, add_virtual_border);
 }
 }  // namespace voxelized_geometry_tools

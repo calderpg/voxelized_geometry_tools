@@ -249,7 +249,7 @@ private:
                                            const int64_t y_idx,
                                            const int64_t z_idx) const
   {
-    const auto query = this->GetImmutable(x_idx, y_idx, z_idx);
+    const auto query = this->GetIndexImmutable(x_idx, y_idx, z_idx);
     if (query)
     {
       const double nominal_sdf_distance = static_cast<double>(query.Value());
@@ -386,7 +386,7 @@ private:
     // First, check if we've already found the local extrema for the current
     // cell
     const Eigen::Vector3d& stored
-        = watershed_map.GetImmutable(x_index, y_index, z_index).Value();
+        = watershed_map.GetIndexImmutable(x_index, y_index, z_index).Value();
     if (stored.x() != -std::numeric_limits<double>::infinity()
         && stored.y() != -std::numeric_limits<double>::infinity()
         && stored.z() != -std::numeric_limits<double>::infinity())
@@ -404,7 +404,7 @@ private:
           = this->GridIndexToLocationInGridFrame(x_index, y_index, z_index);
       const Eigen::Vector3d local_extrema(
           location(0), location(1), location(2));
-      watershed_map.SetValue(x_index, y_index, z_index, local_extrema);
+      watershed_map.SetIndex(x_index, y_index, z_index, local_extrema);
     }
     else
     {
@@ -447,7 +447,7 @@ private:
         path[current_index] = 1;
         // Check if the new index has already been checked
         const Eigen::Vector3d& new_stored
-            = watershed_map.GetImmutable(current_index).Value();
+            = watershed_map.GetIndexImmutable(current_index).Value();
         if (new_stored.x() != -std::numeric_limits<double>::infinity()
             && new_stored.y() != -std::numeric_limits<double>::infinity()
             && new_stored.z() != -std::numeric_limits<double>::infinity())
@@ -476,7 +476,7 @@ private:
       {
         const common_robotics_utilities::voxel_grid::GridIndex& index
             = path_itr->first;
-        watershed_map.SetValue(index, local_extrema);
+        watershed_map.SetIndex(index, local_extrema);
       }
     }
   }
@@ -503,7 +503,7 @@ private:
       const Eigen::Vector4d& gradient) const
   {
     // Check if it's inside an obstacle
-    const ScalarType stored_distance = this->GetImmutable(index).Value();
+    const ScalarType stored_distance = this->GetIndexImmutable(index).Value();
     Eigen::Vector4d working_gradient = gradient;
     if (stored_distance < 0.0)
     {
@@ -899,16 +899,16 @@ public:
       {
         const double inv_twice_resolution = 1.0 / (2.0 * GetResolution());
         const double gx
-            = (this->GetImmutable(x_index + 1, y_index, z_index).Value()
-               - this->GetImmutable(x_index - 1, y_index, z_index).Value())
+            = (this->GetIndexImmutable(x_index + 1, y_index, z_index).Value()
+               - this->GetIndexImmutable(x_index - 1, y_index, z_index).Value())
               * inv_twice_resolution;
         const double gy
-            = (this->GetImmutable(x_index, y_index + 1, z_index).Value()
-               - this->GetImmutable(x_index, y_index - 1, z_index).Value())
+            = (this->GetIndexImmutable(x_index, y_index + 1, z_index).Value()
+               - this->GetIndexImmutable(x_index, y_index - 1, z_index).Value())
               * inv_twice_resolution;
         const double gz
-            = (this->GetImmutable(x_index, y_index, z_index + 1).Value()
-               - this->GetImmutable(x_index, y_index, z_index - 1).Value())
+            = (this->GetIndexImmutable(x_index, y_index, z_index + 1).Value()
+               - this->GetIndexImmutable(x_index, y_index, z_index - 1).Value())
               * inv_twice_resolution;
         return GradientQuery(gx, gy, gz);
       }
@@ -947,9 +947,9 @@ public:
         {
           const double inv_x_increment = 1.0 / x_increment;
           const double high_x_value
-              = this->GetImmutable(high_x_index, y_index, z_index).Value();
+              = this->GetIndexImmutable(high_x_index, y_index, z_index).Value();
           const double low_x_value
-              = this->GetImmutable(low_x_index, y_index, z_index).Value();
+              = this->GetIndexImmutable(low_x_index, y_index, z_index).Value();
           // Compute the gradient
           gx = (high_x_value - low_x_value) * inv_x_increment;
         }
@@ -957,9 +957,9 @@ public:
         {
           const double inv_y_increment = 1.0 / y_increment;
           const double high_y_value
-              = this->GetImmutable(x_index, high_y_index, z_index).Value();
+              = this->GetIndexImmutable(x_index, high_y_index, z_index).Value();
           const double low_y_value
-              = this->GetImmutable(x_index, low_y_index, z_index).Value();
+              = this->GetIndexImmutable(x_index, low_y_index, z_index).Value();
           // Compute the gradient
           gy = (high_y_value - low_y_value) * inv_y_increment;
         }
@@ -967,9 +967,9 @@ public:
         {
           const double inv_z_increment = 1.0 / z_increment;
           const double high_z_value
-              = this->GetImmutable(x_index, y_index, high_z_index).Value();
+              = this->GetIndexImmutable(x_index, y_index, high_z_index).Value();
           const double low_z_value
-              = this->GetImmutable(x_index, y_index, low_z_index).Value();
+              = this->GetIndexImmutable(x_index, y_index, low_z_index).Value();
           // Compute the gradient
           gz = (high_z_value - low_z_value) * inv_z_increment;
         }

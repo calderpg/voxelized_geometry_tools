@@ -257,7 +257,7 @@ inline DistanceField BuildDistanceFieldSerial(
   for (size_t index = 0; index < points.size(); index++)
   {
     const GridIndex& current_index = points[index];
-    auto query = distance_field.GetMutable(current_index);
+    auto query = distance_field.GetIndexMutable(current_index);
     if (query)
     {
       query.Value().location[0] = static_cast<uint32_t>(current_index.X());
@@ -310,10 +310,9 @@ inline DistanceField BuildDistanceFieldSerial(
         const int32_t nx = static_cast<int32_t>(x + dx);
         const int32_t ny = static_cast<int32_t>(y + dy);
         const int32_t nz = static_cast<int32_t>(z + dz);
-        auto neighbor_query =
-            distance_field.GetMutable(static_cast<int64_t>(nx),
-                                      static_cast<int64_t>(ny),
-                                      static_cast<int64_t>(nz));
+        auto neighbor_query = distance_field.GetIndexMutable(
+            static_cast<int64_t>(nx), static_cast<int64_t>(ny),
+            static_cast<int64_t>(nz));
         if (!neighbor_query)
         {
           // "Neighbor" is outside the bounds of the SDF
@@ -394,7 +393,7 @@ inline DistanceField BuildDistanceFieldParallel(
   for (size_t index = 0; index < points.size(); index++)
   {
     const GridIndex& current_index = points[index];
-    auto query = distance_field.GetMutable(current_index);
+    auto query = distance_field.GetIndexMutable(current_index);
     if (query)
     {
       query.Value().location[0] = static_cast<uint32_t>(current_index.X());
@@ -432,7 +431,7 @@ inline DistanceField BuildDistanceFieldParallel(
           bucket_queues.Query(current_distance_square, idx);
       // Get the current location
       const BucketCell& cur_cell =
-          distance_field.GetImmutable(current_index).Value();
+          distance_field.GetIndexImmutable(current_index).Value();
       const double x = cur_cell.location[0];
       const double y = cur_cell.location[1];
       const double z = cur_cell.location[2];
@@ -461,7 +460,7 @@ inline DistanceField BuildDistanceFieldParallel(
         const GridIndex neighbor_index(static_cast<int64_t>(nx),
                                        static_cast<int64_t>(ny),
                                        static_cast<int64_t>(nz));
-        auto neighbor_query = distance_field.GetMutable(neighbor_index);
+        auto neighbor_query = distance_field.GetIndexMutable(neighbor_index);
         if (!neighbor_query)
         {
           // "Neighbor" is outside the bounds of the SDF
@@ -573,17 +572,19 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
     {
       for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
       {
+        const double filled_distance_squared =
+            filled_distance_field.GetIndexImmutable(
+                x_index, y_index, z_index).Value().distance_square;
+        const double free_distance_squared =
+            free_distance_field.GetIndexImmutable(
+                x_index, y_index, z_index).Value().distance_square;
+
         const double distance1 =
-            std::sqrt(
-                filled_distance_field.GetImmutable(x_index, y_index, z_index)
-                    .Value().distance_square)
-            * new_sdf.GetResolution();
+            std::sqrt(filled_distance_squared) * new_sdf.GetResolution();
         const double distance2 =
-            std::sqrt(
-                free_distance_field.GetImmutable(x_index, y_index, z_index)
-                    .Value().distance_square)
-            * new_sdf.GetResolution();
+            std::sqrt(free_distance_squared) * new_sdf.GetResolution();
         const double distance = distance1 - distance2;
+
         if (distance > max_distance)
         {
           max_distance = distance;
@@ -592,7 +593,8 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
         {
           min_distance = distance;
         }
-        new_sdf.SetValue(
+
+        new_sdf.SetIndex(
             x_index, y_index, z_index, static_cast<SDFScalarType>(distance));
       }
     }
@@ -752,23 +754,23 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
           const int64_t query_y_idx = y_idx + y_axis_query_offset;
           const int64_t query_z_idx = z_idx + z_axis_query_offset;
           const SDFScalarType free_sdf_value
-              = free_sdf_result.DistanceField().GetImmutable(
+              = free_sdf_result.DistanceField().GetIndexImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
           const SDFScalarType filled_sdf_value
-              = filled_sdf_result.DistanceField().GetImmutable(
+              = filled_sdf_result.DistanceField().GetIndexImmutable(
                   query_x_idx, query_y_idx, query_z_idx).Value();
 
           if (free_sdf_value >= 0.0)
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, free_sdf_value);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, free_sdf_value);
           }
           else if (filled_sdf_value <= -0.0)
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, filled_sdf_value);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, filled_sdf_value);
           }
           else
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, 0.0);
           }
         }
       }
@@ -795,7 +797,7 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
   const std::function<bool(const GridIndex&)> real_is_filled_fn =
       [&] (const GridIndex& index)
   {
-    const T& stored = grid.GetImmutable(index).Value();
+    const T& stored = grid.GetIndexImmutable(index).Value();
     // If it matches an object to use OR there are no objects supplied
     if (is_filled_fn(stored))
     {

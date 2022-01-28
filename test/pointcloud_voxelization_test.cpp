@@ -78,7 +78,8 @@ void check_empty_voxelization(const CollisionMap& occupancy)
       for (int64_t zidx = 0; zidx < occupancy.GetNumZCells(); zidx++)
       {
         // Check grid querying
-        const auto occupancy_query = occupancy.GetImmutable(xidx, yidx, zidx);
+        const auto occupancy_query =
+            occupancy.GetIndexImmutable(xidx, yidx, zidx);
         // Check grid values
         const float cmap_occupancy = occupancy_query.Value().Occupancy();
         // Check the bottom cells
@@ -106,7 +107,8 @@ void check_voxelization(const CollisionMap& occupancy)
       for (int64_t zidx = 0; zidx < occupancy.GetNumZCells(); zidx++)
       {
         // Check grid querying
-        const auto occupancy_query = occupancy.GetImmutable(xidx, yidx, zidx);
+        const auto occupancy_query =
+            occupancy.GetIndexImmutable(xidx, yidx, zidx);
         // Check grid values
         const float cmap_occupancy = occupancy_query.Value().Occupancy();
         // Check the bottom cells
@@ -165,7 +167,7 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   {
     for (int64_t yidx = 0; yidx < static_environment.GetNumYCells(); yidx++)
     {
-      static_environment.SetValue(xidx, yidx, 0, filled_cell);
+      static_environment.SetIndex(xidx, yidx, 0, filled_cell);
     }
   }
 

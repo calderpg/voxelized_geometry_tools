@@ -75,7 +75,7 @@ int64_t MarkConnectedComponent(
   // components, in general, will take ~1/16 of the grid in size
   // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
   const size_t queued_set_size_hint
-      = source_grid.GetImmutableRawData().size() / 32;
+      = static_cast<size_t>(source_grid.GetTotalCells() / 32);
   std::unordered_set<GridIndex> queued_set(queued_set_size_hint);
   // Enqueue the starting index
   working_queue.push_back(start_index);

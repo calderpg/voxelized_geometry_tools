@@ -49,15 +49,15 @@ void test_spatial_segments(
       {
         if ((x_idx < 10) || (y_idx < 10) || (x_idx >= tocmap.GetNumXCells() - 10) || (y_idx >= tocmap.GetNumYCells() - 10))
         {
-          tocmap.SetValue(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 1u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 1u));
         }
         else if ((x_idx >= 40) && (y_idx >= 40) && (x_idx < 60) && (y_idx < 60))
         {
-          tocmap.SetValue(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 2u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 2u));
         }
         if (((x_idx >= 45) && (x_idx < 55)) || ((y_idx >= 45) && (y_idx < 55)))
         {
-          tocmap.SetValue(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(0.0, 0u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, voxelized_geometry_tools::TaggedObjectCollisionCell(0.0, 0u));
         }
       }
     }
@@ -128,7 +128,7 @@ void test_spatial_segments(
       {
         const Eigen::Vector4d location
             = maxima_map.GridIndexToLocation(x_idx, y_idx, z_idx);
-        const Eigen::Vector3d extrema = maxima_map.GetImmutable(x_idx, y_idx, z_idx).Value();
+        const Eigen::Vector3d extrema = maxima_map.GetIndexImmutable(x_idx, y_idx, z_idx).Value();
         if (!std::isinf(extrema.x())
             && !std::isinf(extrema.y())
             && !std::isinf(extrema.z()))
@@ -172,9 +172,9 @@ void test_spatial_segments(
   std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0), res).Value()) << std::endl;
   std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1), res).Value()) << std::endl;
   std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(virtual_border_sdf.GetFineGradient(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2), res).Value()) << std::endl;
-  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0)).Value()) << std::endl;
-  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1)).Value()) << std::endl;
-  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(maxima_map.GetImmutable(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2)).Value()) << std::endl;
+  std::cout << "(0,0,0) " << common_robotics_utilities::print::Print(maxima_map.GetIndexImmutable(static_cast<int64_t>(0), static_cast<int64_t>(0), static_cast<int64_t>(0)).Value()) << std::endl;
+  std::cout << "(1,1,1) " << common_robotics_utilities::print::Print(maxima_map.GetIndexImmutable(static_cast<int64_t>(1), static_cast<int64_t>(1), static_cast<int64_t>(1)).Value()) << std::endl;
+  std::cout << "(2,2,2) " << common_robotics_utilities::print::Print(maxima_map.GetIndexImmutable(static_cast<int64_t>(2), static_cast<int64_t>(2), static_cast<int64_t>(2)).Value()) << std::endl;
   display_fn(display_markers);
 }
 

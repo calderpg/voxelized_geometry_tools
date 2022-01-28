@@ -23,7 +23,7 @@ GTEST_TEST(MeshRasterizationTest, Test)
   const auto get_cell_occupancy =
       [&] (const int64_t x, const int64_t y, const int64_t z)
   {
-    return collision_map.GetImmutable(x, y, z).Value().Occupancy();
+    return collision_map.GetIndexImmutable(x, y, z).Value().Occupancy();
   };
 
   // Due to how the triangle discretizes, we expect the lower layer to be empty.

@@ -112,7 +112,7 @@ inline Marker ExportVoxelGridToRViz(
       for (int64_t z_index = 0; z_index < voxel_grid.GetNumZCells(); z_index++)
       {
         const auto cell_value
-            = voxel_grid.GetImmutable(x_index, y_index, z_index).Value();
+            = voxel_grid.GetIndexImmutable(x_index, y_index, z_index).Value();
         const ColorRGBA cell_color
             = voxel_color_fn(cell_value, GridIndex(x_index, y_index, z_index));
         if (cell_color.a > 0.0f)
@@ -172,7 +172,7 @@ inline Marker ExportVoxelGridIndexMapToRViz(
     const uint8_t valid = surface_itr->second;
     if (valid > 0)
     {
-      const auto cell_value = voxel_grid.GetImmutable(index).Value();
+      const auto cell_value = voxel_grid.GetIndexImmutable(index).Value();
       const ColorRGBA cell_color = voxel_color_fn(cell_value, index);
       if (cell_color.a > 0.0f)
       {
@@ -224,7 +224,7 @@ inline Marker ExportVoxelGridIndicesToRViz(
           ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
   for (const GridIndex& index : indices)
   {
-    const auto cell_value = voxel_grid.GetImmutable(index).Value();
+    const auto cell_value = voxel_grid.GetIndexImmutable(index).Value();
     const ColorRGBA cell_color = voxel_color_fn(cell_value, index);
     if (cell_color.a > 0.0f)
     {
@@ -308,9 +308,9 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
     {
       const Eigen::Vector4d chunk_center
           = current_chunk.GetChunkCenterInGridFrame();
-      const ColorRGBA chunk_color
-          = chunk_color_fn(current_chunk.GetImmutable(chunk_center).Value(),
-                           chunk_center);
+      const ColorRGBA chunk_color = chunk_color_fn(
+          current_chunk.GetLocationImmutable4d(chunk_center).Value(),
+          chunk_center);
       if (chunk_color.a > 0.0f)
       {
         const Point chunk_center_point
@@ -336,7 +336,7 @@ ExportDynamicSpatialHashedVoxelGridToRViz(
                 = current_chunk.GetCellLocationInGridFrame(internal_index);
             const ColorRGBA cell_color
                 = cell_color_fn(
-                    current_chunk.GetImmutableInternal(internal_index).Value(),
+                    current_chunk.GetIndexImmutable(internal_index).Value(),
                     cell_center);
             if (cell_color.a > 0.0f)
             {
@@ -370,7 +370,7 @@ inline Marker ExportSDFForDisplay(
       {
         // Update minimum/maximum distance variables
         const ScalarType distance
-            = sdf.GetImmutable(x_index, y_index, z_index).Value();
+            = sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
         if (distance < min_distance)
         {
           min_distance = distance;

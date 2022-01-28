@@ -107,7 +107,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
         // We don't want to double count in the same cell multiple times
         if (!(index == last_index))
         {
-          auto query = tracking_grid.GetMutable(index);
+          auto query = tracking_grid.GetIndexMutable(index);
           // We must check to see if the query is within bounds.
           if (query)
           {
@@ -127,7 +127,7 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
       {
         const common_robotics_utilities::voxel_grid::GridIndex index =
               tracking_grid.LocationInGridFrameToGridIndex4d(p_GP);
-        auto query = tracking_grid.GetMutable(index);
+        auto query = tracking_grid.GetIndexMutable(index);
         // We must check to see if the query is within bounds.
         if (query)
         {
@@ -146,13 +146,12 @@ void CpuPointCloudVoxelizer::CombineAndFilterGrids(
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
-  auto& filtered_grid_backing_store = filtered_grid.GetMutableRawData();
 #if defined(_OPENMP)
 #pragma omp parallel for
 #endif
-  for (size_t voxel = 0; voxel < filtered_grid_backing_store.size(); voxel++)
+  for (int64_t voxel = 0; voxel < filtered_grid.GetTotalCells(); voxel++)
   {
-    auto& current_cell = filtered_grid_backing_store.at(voxel);
+    auto& current_cell = filtered_grid.GetDataIndexMutable(voxel);
     // Filled cells stay filled, we don't work with them.
     // We only change cells that are unknown or empty.
     if (current_cell.Occupancy() <= 0.5)
@@ -162,7 +161,7 @@ void CpuPointCloudVoxelizer::CombineAndFilterGrids(
       for (size_t idx = 0; idx < tracking_grids.size(); idx++)
       {
         const CpuVoxelizationTrackingCell& grid_cell =
-            tracking_grids.at(idx).GetImmutableRawData().at(voxel);
+            tracking_grids.at(idx).GetDataIndexImmutable(voxel);
         const int32_t free_count = grid_cell.seen_free_count.load();
         const int32_t filled_count = grid_cell.seen_filled_count.load();
         const SeenAs seen_as =

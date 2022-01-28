@@ -227,7 +227,7 @@ TaggedObjectCollisionMap::IsSurfaceIndex(
   const int64_t min_z_check = std::max(INT64_C(0), z_index - 1);
   const int64_t max_z_check = std::min(GetNumZCells() - 1, z_index + 1);
   const float our_occupancy
-    = GetImmutable(x_index, y_index, z_index).Value().Occupancy();
+      = GetIndexImmutable(x_index, y_index, z_index).Value().Occupancy();
   for (int64_t x_idx = min_x_check; x_idx <= max_x_check; x_idx++)
   {
     for (int64_t y_idx = min_y_check; y_idx <= max_y_check; y_idx++)
@@ -238,7 +238,7 @@ TaggedObjectCollisionMap::IsSurfaceIndex(
         if ((x_idx != x_index) || (y_idx != y_index) || (z_idx != z_index))
         {
           const float other_occupancy
-            = GetImmutable(x_idx, y_idx, z_idx).Value().Occupancy();
+              = GetIndexImmutable(x_idx, y_idx, z_idx).Value().Occupancy();
           if ((our_occupancy < 0.5) && (other_occupancy >= 0.5))
           {
             return common_robotics_utilities::OwningMaybe<bool>(true);
@@ -286,40 +286,40 @@ TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
   // If the cell is inside the grid, we check the neighbors
   // Note that we must check all 26 neighbors
   const uint32_t our_component
-      = GetImmutable(x_index, y_index, z_index).Value().Component();
+      = GetIndexImmutable(x_index, y_index, z_index).Value().Component();
   // Check neighbor 1
-  if (our_component
-      != GetImmutable(x_index, y_index, z_index - 1).Value().Component())
+  if (our_component !=
+      GetIndexImmutable(x_index, y_index, z_index - 1).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 2
-  else if (our_component
-           != GetImmutable(x_index, y_index, z_index + 1).Value().Component())
+  else if (our_component !=
+           GetIndexImmutable(x_index, y_index, z_index + 1).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 3
-  else if (our_component
-           != GetImmutable(x_index, y_index - 1, z_index).Value().Component())
+  else if (our_component !=
+           GetIndexImmutable(x_index, y_index - 1, z_index).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 4
-  else if (our_component
-           != GetImmutable(x_index, y_index + 1, z_index).Value().Component())
+  else if (our_component !=
+           GetIndexImmutable(x_index, y_index + 1, z_index).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 5
-  else if (our_component
-           != GetImmutable(x_index - 1, y_index, z_index).Value().Component())
+  else if (our_component !=
+           GetIndexImmutable(x_index - 1, y_index, z_index).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
   // Check neighbor 6
-  else if (our_component
-           != GetImmutable(x_index + 1, y_index, z_index).Value().Component())
+  else if (our_component !=
+           GetIndexImmutable(x_index + 1, y_index, z_index).Value().Component())
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }
@@ -359,43 +359,43 @@ common_robotics_utilities::OwningMaybe<bool>
 TaggedObjectCollisionMap::CheckIfCandidateCorner(
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
-  const auto current_cell = GetImmutable(x_index, y_index, z_index);
+  const auto current_cell = GetIndexImmutable(x_index, y_index, z_index);
   if (current_cell)
   {
     const auto& current_cell_value = current_cell.Value();
     // Grab the six neighbors & check if they belong to a different component
     uint32_t different_neighbors = 0u;
-    const auto xm1yz_cell = GetImmutable(x_index - 1, y_index, z_index);
+    const auto xm1yz_cell = GetIndexImmutable(x_index - 1, y_index, z_index);
     if (xm1yz_cell
         && (xm1yz_cell.Value().Component() != current_cell_value.Component()))
     {
       different_neighbors++;
     }
-    const auto xp1yz_cell = GetImmutable(x_index + 1, y_index, z_index);
+    const auto xp1yz_cell = GetIndexImmutable(x_index + 1, y_index, z_index);
     if (xp1yz_cell
         && (xp1yz_cell.Value().Component() != current_cell_value.Component()))
     {
       different_neighbors++;
     }
-    const auto xym1z_cell = GetImmutable(x_index, y_index - 1, z_index);
+    const auto xym1z_cell = GetIndexImmutable(x_index, y_index - 1, z_index);
     if (xym1z_cell
         && (xym1z_cell.Value().Component() != current_cell_value.Component()))
     {
       different_neighbors++;
     }
-    const auto xyp1z_cell = GetImmutable(x_index, y_index + 1, z_index);
+    const auto xyp1z_cell = GetIndexImmutable(x_index, y_index + 1, z_index);
     if (xyp1z_cell
         && (xyp1z_cell.Value().Component() != current_cell_value.Component()))
     {
       different_neighbors++;
     }
-    const auto xyzm1_cell = GetImmutable(x_index, y_index, z_index - 1);
+    const auto xyzm1_cell = GetIndexImmutable(x_index, y_index, z_index - 1);
     if (xyzm1_cell
         && (xyzm1_cell.Value().Component() != current_cell_value.Component()))
     {
       different_neighbors++;
     }
-    const auto xyzp1_cell = GetImmutable(x_index, y_index, z_index + 1);
+    const auto xyzp1_cell = GetIndexImmutable(x_index, y_index, z_index + 1);
     if (xyzp1_cell
         && (xyzp1_cell.Value().Component() != current_cell_value.Component()))
     {
@@ -432,7 +432,7 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
   const std::function<int64_t(const GridIndex&)> get_component_fn
       = [&] (const GridIndex& index)
   {
-    const auto query = GetImmutable(index);
+    const auto query = GetIndexImmutable(index);
     if (query)
     {
       return static_cast<int64_t>(query.Value().Component());
@@ -446,7 +446,7 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
       = [&] (const GridIndex& index)
   {
     const TaggedObjectCollisionCell& current_cell
-        = GetImmutable(index).Value();
+        = GetIndexImmutable(index).Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
@@ -515,7 +515,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
   const std::function<int64_t(const GridIndex&)> get_component_fn
       = [&] (const GridIndex& index)
   {
-    const auto query = GetImmutable(index);
+    const auto query = GetIndexImmutable(index);
     if (query)
     {
       return static_cast<int64_t>(query.Value().Component());
@@ -529,7 +529,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
       = [&] (const GridIndex& index)
   {
     const TaggedObjectCollisionCell& current_cell
-        = GetImmutable(index).Value();
+        = GetIndexImmutable(index).Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_use & FILLED_COMPONENTS) > 0x00)
@@ -662,8 +662,8 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
   const std::function<bool(const GridIndex&, const GridIndex&)>
     are_connected_fn = [&] (const GridIndex& index1, const GridIndex& index2)
   {
-    const auto query1 = GetImmutable(index1);
-    const auto query2 = GetImmutable(index2);
+    const auto query1 = GetIndexImmutable(index1);
+    const auto query2 = GetIndexImmutable(index2);
     if ((query1.Value().Occupancy() > 0.5)
         && (query2.Value().Occupancy() > 0.5))
     {
@@ -708,7 +708,7 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
   const std::function<int64_t(const GridIndex&)> get_component_fn
       = [&] (const GridIndex& index)
   {
-    const auto query = GetImmutable(index);
+    const auto query = GetIndexImmutable(index);
     if (query)
     {
       return static_cast<int64_t>(query.Value().Component());
@@ -721,12 +721,10 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
   const std::function<void(const GridIndex&, const uint32_t)> mark_component_fn
       = [&] (const GridIndex& index, const uint32_t component)
   {
-    auto query = GetMutable(index);
+    auto query = GetIndexMutable(index);
     if (query)
     {
-      SetValue(index, TaggedObjectCollisionCell(
-                 query.Value().Occupancy(), query.Value().ObjectId(),
-                 component, query.Value().SpatialSegment()));
+      query.Value().Component() = component;
     }
   };
   number_of_components_
@@ -766,12 +764,12 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   const std::function<bool(const GridIndex&, const GridIndex&)> are_connected_fn
       = [&] (const GridIndex& index1, const GridIndex& index2)
   {
-    const auto query1 = GetImmutable(index1);
-    const auto query2 = GetImmutable(index2);
+    const auto query1 = GetIndexImmutable(index1);
+    const auto query2 = GetIndexImmutable(index2);
     if (query1.Value().ObjectId() == query2.Value().ObjectId())
     {
-      const auto exmap_query1 = extrema_map.GetImmutable(index1);
-      const auto examp_query2 = extrema_map.GetImmutable(index2);
+      const auto exmap_query1 = extrema_map.GetIndexImmutable(index1);
+      const auto examp_query2 = extrema_map.GetIndexImmutable(index2);
       const double maxima_distance
           = (exmap_query1.Value() - examp_query2.Value()).norm();
       if (maxima_distance < connected_threshold)
@@ -791,8 +789,8 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   const std::function<int64_t(const GridIndex&)> get_component_fn
       = [&] (const GridIndex& index)
   {
-    const auto query = GetImmutable(index);
-    const auto extrema_query = extrema_map.GetImmutable(index);
+    const auto query = GetIndexImmutable(index);
+    const auto extrema_query = extrema_map.GetIndexImmutable(index);
     if (query)
     {
       if ((query.Value().Occupancy() < 0.5f)
@@ -825,12 +823,10 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   const std::function<void(const GridIndex&, const uint32_t)> mark_component_fn
       = [&] (const GridIndex& index, const uint32_t component)
   {
-    auto query = GetMutable(index);
+    auto query = GetIndexMutable(index);
     if (query)
     {
-      SetValue(index, TaggedObjectCollisionCell(
-                 query.Value().Occupancy(), query.Value().ObjectId(),
-                 query.Value().Component(), component));
+      query.Value().SpatialSegment() = component;
     }
   };
   number_of_spatial_segments_

@@ -323,7 +323,7 @@ public:
     const std::function<bool(const GridIndex&)>
         is_filled_fn = [&] (const GridIndex& index)
     {
-      const auto query = GetImmutable(index);
+      const auto query = GetIndexImmutable(index);
       if (query)
       {
         // If it matches an object to use OR there are no objects supplied
@@ -393,7 +393,7 @@ public:
         for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
         {
           const TaggedObjectCollisionCell& cell
-              = GetImmutable(x_index, y_index, z_index).Value();
+              = GetIndexImmutable(x_index, y_index, z_index).Value();
           const uint32_t cell_object_id = cell.ObjectId();
           if (cell_object_id > 0)
           {
@@ -420,7 +420,7 @@ public:
     const std::function<bool(const GridIndex&)>
         free_sdf_filled_fn = [&] (const GridIndex& index)
     {
-      const auto stored = GetImmutable(index).Value();
+      const auto stored = GetIndexImmutable(index).Value();
       if (stored.Occupancy() > 0.5)
       {
         // Mark as filled
@@ -443,7 +443,7 @@ public:
     const std::function<bool(const GridIndex&)>
         object_filled_fn = [&] (const GridIndex& index)
     {
-      const auto stored = GetImmutable(index).Value();
+      const auto stored = GetIndexImmutable(index).Value();
       // If it matches a named object (i.e. object_id >= 1)
       if (stored.ObjectId() > 0u)
       {
@@ -475,22 +475,22 @@ public:
         for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
         {
           const ScalarType free_sdf_value
-              = free_sdf_result.DistanceField().GetImmutable(
+              = free_sdf_result.DistanceField().GetIndexImmutable(
                   x_idx, y_idx, z_idx).Value();
           const ScalarType named_objects_sdf_value
-              = named_objects_sdf_result.DistanceField().GetImmutable(
+              = named_objects_sdf_result.DistanceField().GetIndexImmutable(
                   x_idx, y_idx, z_idx).Value();
           if (free_sdf_value >= 0.0)
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, free_sdf_value);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, free_sdf_value);
           }
           else if (named_objects_sdf_value <= -0.0)
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, named_objects_sdf_value);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, named_objects_sdf_value);
           }
           else
           {
-            combined_sdf.SetValue(x_idx, y_idx, z_idx, 0.0f);
+            combined_sdf.SetIndex(x_idx, y_idx, z_idx, 0.0f);
           }
         }
       }

@@ -244,7 +244,7 @@ public:
     const std::function<bool(const GridIndex&)>
         is_filled_fn = [&] (const GridIndex& index)
     {
-      const auto query = GetImmutable(index);
+      const auto query = GetIndexImmutable(index);
       if (query)
       {
         const float occupancy = query.Value().Occupancy();

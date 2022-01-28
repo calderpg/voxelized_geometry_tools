@@ -177,7 +177,7 @@ void RasterizeTriangle(
 
         if (triangle_intersects)
         {
-          auto query = collision_map.GetMutable(current_index);
+          auto query = collision_map.GetIndexMutable(current_index);
           if (query)
           {
             query.Value().Occupancy() = 1.0f;

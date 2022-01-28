@@ -92,15 +92,15 @@ int main(int argc, char** argv)
         {
           // Occupancy values > 0.5 are obstacles
           const voxelized_geometry_tools::CollisionCell obstacle_cell(1.0);
-          collision_map.SetValue(x_index, y_index, z_index, obstacle_cell);
+          collision_map.SetIndex(x_index, y_index, z_index, obstacle_cell);
         }
       }
     }
   }
 
-    // We can also set by location - occupancy values > 0.5 are obstacles
+  // We can also set by location - occupancy values > 0.5 are obstacles
   const voxelized_geometry_tools::CollisionCell obstacle_cell(1.0);
-  collision_map.SetValue(0.0, 0.0, 0.0, obstacle_cell);
+  collision_map.SetLocation(0.0, 0.0, 0.0, obstacle_cell);
 
   // Let's get some values
   // We can query by index
@@ -108,7 +108,7 @@ int main(int argc, char** argv)
   int64_t y_index = 10;
   int64_t z_index = 10;
   const auto index_query =
-      collision_map.GetImmutable(x_index, y_index, z_index);
+      collision_map.GetIndexImmutable(x_index, y_index, z_index);
 
   // Is it in the grid?
   if (index_query)
@@ -123,7 +123,7 @@ int main(int argc, char** argv)
   double y_location = 0.0;
   double z_location = 0.0;
   const auto location_query =
-      collision_map.GetImmutable(x_location, y_location, z_location);
+      collision_map.GetLocationImmutable(x_location, y_location, z_location);
 
   // Is it in the grid?
   if (location_query)
@@ -182,6 +182,7 @@ int main(int argc, char** argv)
   ///////////////////////////
   //// Let's make an SDF ////
   ///////////////////////////
+
   // We pick a reasonable out-of-bounds value
   const float oob_value = std::numeric_limits<float>::infinity();
   // We start by extracting the SDF from the CollisionMap
@@ -193,7 +194,7 @@ int main(int argc, char** argv)
             << std::endl;
 
   // Let's get some values
-  const auto index_sdf_query = sdf.GetImmutable(x_index, y_index, z_index);
+  const auto index_sdf_query = sdf.GetIndexImmutable(x_index, y_index, z_index);
   // Is it in the grid?
   if (index_sdf_query)
   {
@@ -201,7 +202,7 @@ int main(int argc, char** argv)
               << index_sdf_query.Value() << std::endl;
   }
   const auto location_sdf_query =
-      sdf.GetImmutable(x_location, y_location, z_location);
+      sdf.GetLocationImmutable(x_location, y_location, z_location);
   if (location_sdf_query)
   {
     std::cout << "Location query result - stored distance "

@@ -45,6 +45,9 @@ void test_spatial_segments(
   voxelized_geometry_tools::TaggedObjectCollisionMap tocmap(
       origin_transform, "world", grid_sizes, empty_cell);
 
+  const voxelized_geometry_tools::TaggedObjectCollisionCell filled_1(1.0, 1u);
+  const voxelized_geometry_tools::TaggedObjectCollisionCell filled_2(1.0, 2u);
+
   for (int64_t x_idx = 0; x_idx < tocmap.GetNumXCells(); x_idx++)
   {
     for (int64_t y_idx = 0; y_idx < tocmap.GetNumYCells(); y_idx++)
@@ -56,22 +59,16 @@ void test_spatial_segments(
             || (x_idx >= tocmap.GetNumXCells() - 10)
             || (y_idx >= tocmap.GetNumYCells() - 10))
         {
-          tocmap.SetIndex(
-              x_idx, y_idx, z_idx,
-              voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 1u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, filled_1);
         }
         else if ((x_idx >= 40) && (y_idx >= 40) && (x_idx < 60) && (y_idx < 60))
         {
-          tocmap.SetIndex(
-              x_idx, y_idx, z_idx,
-              voxelized_geometry_tools::TaggedObjectCollisionCell(1.0, 2u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, filled_2);
         }
 
         if (((x_idx >= 45) && (x_idx < 55)) || ((y_idx >= 45) && (y_idx < 55)))
         {
-          tocmap.SetIndex(
-              x_idx, y_idx, z_idx,
-              voxelized_geometry_tools::TaggedObjectCollisionCell(0.0, 0u));
+          tocmap.SetIndex(x_idx, y_idx, z_idx, empty_cell);
         }
       }
     }

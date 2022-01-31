@@ -23,10 +23,14 @@
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
+
+using Duration = rclcpp::Duration;
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 using ColorRGBA = std_msgs::ColorRGBA;
 using Marker = visualization_msgs::Marker;
 using MarkerArray = visualization_msgs::MarkerArray;
+
+using Duration = ros::Duration;
 #endif
 
 void test_spatial_segments(
@@ -180,11 +184,7 @@ void test_spatial_segments(
             maxima_rep.id =
                 static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
             maxima_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
-            maxima_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-            maxima_rep.lifetime = ros::Duration(0.0);
-#endif
+            maxima_rep.lifetime = Duration(0, 0);
             maxima_rep.frame_locked = false;
             maxima_rep.pose.position =
                 common_robotics_utilities::ros_conversions

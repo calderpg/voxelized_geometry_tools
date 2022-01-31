@@ -213,7 +213,7 @@ int main(int argc, char** argv)
   // Usually, you want to enable 'edge gradients' i.e. gradients for cells on
   // the edge of the grid that don't have 6 neighbors.
   const auto index_gradient_query =
-      sdf.GetCoarseGradient(x_index, y_index, z_index, true);
+      sdf.GetIndexCoarseGradient(x_index, y_index, z_index, true);
   if (index_gradient_query)
   {
     std::cout << "Index gradient query result - gradient "
@@ -222,7 +222,7 @@ int main(int argc, char** argv)
               << std::endl;
   }
   const auto location_gradient_query =
-      sdf.GetCoarseGradient(x_location, y_location, z_location, true);
+      sdf.GetLocationCoarseGradient(x_location, y_location, z_location, true);
   if (location_gradient_query)
   {
     std::cout << "Location gradient query result - gradient "

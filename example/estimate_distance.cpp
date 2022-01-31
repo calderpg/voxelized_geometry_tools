@@ -45,26 +45,55 @@ void test_estimate_distance(
   const Eigen::Isometry3d origin_transform
       = Eigen::Translation3d(0.0, 0.0, 0.0) * Eigen::Quaterniond(
           Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ()));
-  const common_robotics_utilities::voxel_grid::GridSizes map_sizes(res, size, size, 1.0);
-  auto map = voxelized_geometry_tools::CollisionMap(origin_transform, "world", map_sizes, voxelized_geometry_tools::CollisionCell(0.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(5.0, 5.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(5.0, 6.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(6.0, 5.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(6.0, 6.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(7.0, 7.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(2.0, 2.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(3.0, 2.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(4.0, 2.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(2.0, 3.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(2.0, 4.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  map.SetLocation4d(origin_transform * Eigen::Vector4d(2.0, 7.0, 0.0, 1.0), voxelized_geometry_tools::CollisionCell(1.0));
-  const ColorRGBA collision_color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 0.0, 0.5);
-  const ColorRGBA free_color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  const ColorRGBA unknown_color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  const auto map_marker = voxelized_geometry_tools::ros_interface::ExportForDisplay(map, collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceFieldFloat(1e6, true, false, false).DistanceField();
-  const auto sdf_marker = voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
-  // Assemble a visualization_markers::Marker representation of the SDF to display in RViz
+  const common_robotics_utilities::voxel_grid::GridSizes map_sizes(
+      res, size, size, 1.0);
+  const voxelized_geometry_tools::CollisionCell empty_cell(0.0f);
+  const voxelized_geometry_tools::CollisionCell filled_cell(1.0f);
+  auto map = voxelized_geometry_tools::CollisionMap(
+      origin_transform, "world", map_sizes, empty_cell);
+
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(5.0, 5.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(5.0, 6.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(6.0, 5.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(6.0, 6.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(7.0, 7.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(2.0, 2.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(3.0, 2.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(4.0, 2.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(2.0, 3.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(2.0, 4.0, 0.0, 1.0), filled_cell);
+  map.SetLocation4d(
+      origin_transform * Eigen::Vector4d(2.0, 7.0, 0.0, 1.0), filled_cell);
+
+  const ColorRGBA collision_color =
+      common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(
+          1.0, 0.0, 0.0, 0.5);
+  const ColorRGBA free_color =
+      common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(
+          0.0, 0.0, 0.0, 0.0);
+  const ColorRGBA unknown_color =
+      common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(
+          0.0, 0.0, 0.0, 0.0);
+  const auto map_marker =
+      voxelized_geometry_tools::ros_interface::ExportForDisplay(
+          map, collision_color, free_color, unknown_color);
+  const auto sdf = map.ExtractSignedDistanceFieldFloat(
+      1e6, true, false, false).DistanceField();
+  const auto sdf_marker =
+      voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
+
+  // Assemble a visualization_markers::Marker representation of the SDF to
+  // display estimated distance in RViz.
   Marker distance_rep;
   // Populate the header
   distance_rep.header.frame_id = "world";
@@ -75,12 +104,13 @@ void test_estimate_distance(
   distance_rep.action = Marker::ADD;
   distance_rep.lifetime = Duration(0, 0);
   distance_rep.frame_locked = false;
-  distance_rep.pose
-      = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(sdf.GetOriginTransform());
+  distance_rep.pose =
+      common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(
+          sdf.GetOriginTransform());
   const double step = sdf.GetResolution() * 0.125 * 0.25;
-  distance_rep.scale.x = sdf.GetResolution() * step;// * 0.125;
-  distance_rep.scale.y = sdf.GetResolution() * step;// * 0.125;
-  distance_rep.scale.z = sdf.GetResolution() * 0.95;// * 0.125;// * 0.125;
+  distance_rep.scale.x = sdf.GetResolution() * step; // * 0.125;
+  distance_rep.scale.y = sdf.GetResolution() * step; // * 0.125;
+  distance_rep.scale.z = sdf.GetResolution() * 0.95; // * 0.125;
   // Add all the cells of the SDF to the message
   double min_distance = 0.0;
   double max_distance = 0.0;
@@ -92,11 +122,10 @@ void test_estimate_distance(
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
       {
-        const Eigen::Vector4d point(x, y, z, 1.0);
-        const Eigen::Vector4d point_in_grid_frame = origin_transform * point;
+        const Eigen::Vector4d point_in_grid_frame(x, y, z, 1.0);
+        const Eigen::Vector4d point = origin_transform * point_in_grid_frame;
         // Update minimum/maximum distance variables
-        const double distance
-            = sdf.EstimateDistance4d(point_in_grid_frame).Value();
+        const double distance = sdf.EstimateLocationDistance4d(point).Value();
         if (distance > max_distance)
         {
           max_distance = distance;
@@ -108,7 +137,10 @@ void test_estimate_distance(
       }
     }
   }
-  std::cout << "Min dist " << min_distance << " Max dist " << max_distance << std::endl;
+
+  std::cout << "Min dist " << min_distance << " Max dist " << max_distance
+            << std::endl;
+
   for (double x = 0; x < sdf.GetXSize(); x += step)
   {
     for (double y = 0; y < sdf.GetYSize(); y += step)
@@ -116,20 +148,19 @@ void test_estimate_distance(
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
       {
-        const Eigen::Vector4d point(x, y, z, 1.0);
-        const Eigen::Vector4d point_in_grid_frame = origin_transform * point;
-        const double distance
-            = sdf.EstimateDistance4d(point_in_grid_frame).Value();
+        const Eigen::Vector4d point_in_grid_frame(x, y, z, 1.0);
+        const Eigen::Vector4d point = origin_transform * point_in_grid_frame;
+        const double distance = sdf.EstimateLocationDistance4d(point).Value();
         if (distance >= 0.0)
         {
-          const ColorRGBA new_color
-              = common_robotics_utilities::color_builder::InterpolateHotToCold<ColorRGBA>(distance, 0.0, max_distance);
+          const ColorRGBA new_color = common_robotics_utilities::color_builder
+              ::InterpolateHotToCold<ColorRGBA>(distance, 0.0, max_distance);
           distance_rep.colors.push_back(new_color);
         }
         else
         {
-          const ColorRGBA new_color
-              = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 1.0, 1.0);
+          const ColorRGBA new_color = common_robotics_utilities::color_builder
+              ::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 1.0, 1.0);
           distance_rep.colors.push_back(new_color);
         }
         Point new_point;
@@ -140,8 +171,10 @@ void test_estimate_distance(
       }
     }
   }
+
   MarkerArray markers;
   markers.markers = {map_marker, sdf_marker, distance_rep};
+
   // Make gradient markers
   for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)
   {
@@ -149,61 +182,86 @@ void test_estimate_distance(
     {
       for (int64_t z_idx = 0; z_idx < sdf.GetNumZCells(); z_idx++)
       {
-        const Eigen::Vector4d location
-            = sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
-        const auto coarse_gradient = sdf.GetCoarseGradient4d(location, true);
-        const auto fine_gradient = sdf.GetFineGradient4d(location, sdf.GetResolution() * 0.125);
+        const Eigen::Vector4d location =
+            sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
+        const auto coarse_gradient =
+            sdf.GetLocationCoarseGradient4d(location, true);
+        const auto fine_gradient = sdf.GetLocationFineGradient4d(
+            location, sdf.GetResolution() * 0.125);
+
         if (coarse_gradient)
         {
-          std::cout << "Coarse gradient " << common_robotics_utilities::print::Print(coarse_gradient.Value()) << std::endl;
+          std::cout << "Coarse gradient "
+                    << common_robotics_utilities::print::Print(
+                        coarse_gradient.Value())
+                    << std::endl;
           const Eigen::Vector4d& gradient_vector = coarse_gradient.Value();
           Marker gradient_rep;
           // Populate the header
           gradient_rep.header.frame_id = "world";
           // Populate the options
           gradient_rep.ns = "coarse_gradient";
-          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
+          gradient_rep.id =
+              static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
           gradient_rep.type = Marker::ARROW;
           gradient_rep.action = Marker::ADD;
           gradient_rep.lifetime = Duration(0, 0);
           gradient_rep.frame_locked = false;
-          gradient_rep.pose
-              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+          gradient_rep.pose = common_robotics_utilities::ros_conversions
+              ::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(
+              common_robotics_utilities::ros_conversions
+                  ::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(
+              common_robotics_utilities::ros_conversions
+                  ::EigenVector4dToGeometryPoint(location + gradient_vector));
           gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;
-          gradient_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(1.0, 0.5, 0.0, 1.0);
+          gradient_rep.color = common_robotics_utilities::color_builder
+              ::MakeFromFloatColors<ColorRGBA>(1.0, 0.5, 0.0, 1.0);
+
           markers.markers.push_back(gradient_rep);
         }
+
         if (fine_gradient)
         {
-          std::cout << "Fine gradient " << common_robotics_utilities::print::Print(fine_gradient.Value()) << std::endl;
+          std::cout << "Fine gradient "
+                    << common_robotics_utilities::print::Print(
+                        fine_gradient.Value())
+                    << std::endl;
           const Eigen::Vector4d& gradient_vector = fine_gradient.Value();
           Marker gradient_rep;
           // Populate the header
           gradient_rep.header.frame_id = "world";
           // Populate the options
           gradient_rep.ns = "fine_gradient";
-          gradient_rep.id = static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
+          gradient_rep.id =
+              static_cast<int32_t>(sdf.HashDataIndex(x_idx, y_idx, z_idx));
           gradient_rep.type = Marker::ARROW;
           gradient_rep.action = Marker::ADD;
           gradient_rep.lifetime = Duration(0, 0);
           gradient_rep.frame_locked = false;
-          gradient_rep.pose
-              = common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location));
-          gradient_rep.points.push_back(common_robotics_utilities::ros_conversions::EigenVector4dToGeometryPoint(location + gradient_vector));
+          gradient_rep.pose = common_robotics_utilities::ros_conversions
+              ::EigenIsometry3dToGeometryPose(Eigen::Isometry3d::Identity());
+          gradient_rep.points.push_back(
+              common_robotics_utilities::ros_conversions
+                  ::EigenVector4dToGeometryPoint(location));
+          gradient_rep.points.push_back(
+              common_robotics_utilities::ros_conversions
+                  ::EigenVector4dToGeometryPoint(location + gradient_vector));
           gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
           gradient_rep.scale.y = sdf.GetResolution() * 0.125;
           gradient_rep.scale.z = 0.0;
-          gradient_rep.color = common_robotics_utilities::color_builder::MakeFromFloatColors<ColorRGBA>(0.0, 0.5, 1.0, 1.0);
+          gradient_rep.color = common_robotics_utilities::color_builder
+              ::MakeFromFloatColors<ColorRGBA>(0.0, 0.5, 1.0, 1.0);
+
           markers.markers.push_back(gradient_rep);
         }
       }
     }
   }
+
   display_fn(markers);
 }
 

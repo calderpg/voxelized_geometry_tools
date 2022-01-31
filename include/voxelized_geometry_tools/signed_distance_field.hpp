@@ -161,7 +161,7 @@ private:
     else
     {
       throw std::runtime_error(
-            "Window size for GetSmoothGradient is too large for SDF");
+          "Window size for fine gradient is too large for SDF");
     }
   }
 
@@ -396,7 +396,7 @@ private:
     }
     // Find the local extrema
     GradientQuery raw_gradient
-        = GetCoarseGradient(x_index, y_index, z_index, true);
+        = GetIndexCoarseGradient(x_index, y_index, z_index, true);
     Eigen::Vector4d gradient_vector = raw_gradient.Value();
     if (GradientIsEffectiveFlat(gradient_vector))
     {
@@ -458,7 +458,7 @@ private:
         }
         else
         {
-          raw_gradient = GetCoarseGradient(current_index, true);
+          raw_gradient = GetIndexCoarseGradient(current_index, true);
           gradient_vector = raw_gradient.Value();
           if (GradientIsEffectiveFlat(gradient_vector))
           {
@@ -771,31 +771,19 @@ public:
   /// this rounds inside and outside corners of cells. This can be a problem at
   /// coarse grid resolutions.
 
-  EstimateDistanceQuery EstimateDistance(
+  EstimateDistanceQuery EstimateLocationDistance(
       const double x, const double y, const double z) const
   {
-      return EstimateDistance4d(Eigen::Vector4d(x, y, z, 1.0));
+    return EstimateLocationDistance4d(Eigen::Vector4d(x, y, z, 1.0));
   }
 
-  EstimateDistanceQuery EstimateDistance3d(
+  EstimateDistanceQuery EstimateLocationDistance3d(
       const Eigen::Vector3d& location) const
   {
-    const common_robotics_utilities::voxel_grid::GridIndex index
-        = this->LocationToGridIndex3d(location);
-    if (this->IndexInBounds(index))
-    {
-      return EstimateDistanceQuery(
-          EstimateDistanceInterpolateFromNeighbors<double>(
-              Eigen::Vector4d(location.x(), location.y(), location.z(), 1.0),
-              index.X(), index.Y(), index.Z()));
-    }
-    else
-    {
-      return EstimateDistanceQuery();
-    }
+    return EstimateLocationDistance(location.x(), location.y(), location.z());
   }
 
-  EstimateDistanceQuery EstimateDistance4d(
+  EstimateDistanceQuery EstimateLocationDistance4d(
       const Eigen::Vector4d& location) const
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
@@ -812,20 +800,33 @@ public:
     }
   }
 
+  EstimateDistanceQuery EstimateIndexDistance(
+      const common_robotics_utilities::voxel_grid::GridIndex& index) const
+  {
+    return EstimateLocationDistance4d(this->GridIndexToLocation(index));
+  }
+
+  EstimateDistanceQuery EstimateIndexDistance(
+      const int64_t x_index, const int64_t y_index, const int64_t z_index) const
+  {
+    return EstimateLocationDistance4d(
+        this->GridIndexToLocation(x_index, y_index, z_index));
+  }
+
   /// "Coarse" gradient is computed by retrieving the distance from the
   /// surrounding size cells (+/-x, +/-y, +/-z) and differencing. This is the
   /// fastest method to compute a gradient, and also has the most potential
   /// error and least-smooth behavior.
 
-  GradientQuery GetCoarseGradient(
+  GradientQuery GetLocationCoarseGradient(
       const double x, const double y, const double z,
       const bool enable_edge_gradients=false) const
   {
-    return GetCoarseGradient4d(
+    return GetLocationCoarseGradient4d(
         Eigen::Vector4d(x, y, z, 1.0), enable_edge_gradients);
   }
 
-  GradientQuery GetCoarseGradient3d(
+  GradientQuery GetLocationCoarseGradient3d(
       const Eigen::Vector3d& location,
       const bool enable_edge_gradients=false) const
   {
@@ -833,7 +834,7 @@ public:
         = this->LocationToGridIndex3d(location);
     if (this->IndexInBounds(index))
     {
-      return GetCoarseGradient(index, enable_edge_gradients);
+      return GetIndexCoarseGradient(index, enable_edge_gradients);
     }
     else
     {
@@ -841,7 +842,7 @@ public:
     }
   }
 
-  GradientQuery GetCoarseGradient4d(
+  GradientQuery GetLocationCoarseGradient4d(
       const Eigen::Vector4d& location,
       const bool enable_edge_gradients=false) const
   {
@@ -849,7 +850,7 @@ public:
         = this->LocationToGridIndex4d(location);
     if (this->IndexInBounds(index))
     {
-      return GetCoarseGradient(index, enable_edge_gradients);
+      return GetIndexCoarseGradient(index, enable_edge_gradients);
     }
     else
     {
@@ -857,21 +858,21 @@ public:
     }
   }
 
-  GradientQuery GetCoarseGradient(
+  GradientQuery GetIndexCoarseGradient(
       const common_robotics_utilities::voxel_grid::GridIndex& index,
       const bool enable_edge_gradients=false) const
   {
-    return GetCoarseGradient(
+    return GetIndexCoarseGradient(
         index.X(), index.Y(), index.Z(), enable_edge_gradients);
   }
 
-  GradientQuery GetCoarseGradient(
+  GradientQuery GetIndexCoarseGradient(
       const int64_t x_index, const int64_t y_index, const int64_t z_index,
       const bool enable_edge_gradients=false) const
   {
     const GradientQuery grid_aligned_gradient
-        = GetGridAlignedCoarseGradient(x_index, y_index, z_index,
-                                       enable_edge_gradients);
+        = GetGridAlignedIndexCoarseGradient(
+            x_index, y_index, z_index, enable_edge_gradients);
     if (grid_aligned_gradient.HasValue())
     {
       const Eigen::Vector4d gradient
@@ -884,7 +885,7 @@ public:
     }
   }
 
-  GradientQuery GetGridAlignedCoarseGradient(
+  GradientQuery GetGridAlignedIndexCoarseGradient(
       const int64_t x_index, const int64_t y_index, const int64_t z_index,
       const bool enable_edge_gradients=false) const
   {
@@ -990,29 +991,30 @@ public:
   }
 
   /// "Fine" gradient is also computed by differencing, but instead of using the
-  /// surrounding cells, this uses EstimateDistance() at +/- half of
-  /// "window size" to compute the gradient. This is slower than the "coarse"
-  /// gradient, since this needs to call EstimateDistance() six times, but
-  /// produces a more accurate and smoother gradient. In the limit as
-  /// "window size" -> 0 this produces the true gradient.
+  /// surrounding cells, these use Estimate{Location, Index}Distance() at +/-
+  /// half of "window size" to compute the gradient. This is slower than the
+  /// "coarse" gradient, since this needs to call
+  /// Estimate{Location, Index}Distance() six times, but produces a more
+  /// accurate and smoother gradient. In the limit as "window size" -> 0 this
+  /// produces the true gradient.
 
-  GradientQuery GetFineGradient3d(
+  GradientQuery GetLocationFineGradient3d(
       const Eigen::Vector3d& location,
       const double nominal_window_size) const
   {
-    return GetFineGradient(location.x(), location.y(), location.z(),
-                           nominal_window_size);
+    return GetLocationFineGradient(
+        location.x(), location.y(), location.z(), nominal_window_size);
   }
 
-  GradientQuery GetFineGradient4d(
+  GradientQuery GetLocationFineGradient4d(
       const Eigen::Vector4d& location,
       const double nominal_window_size) const
   {
-    return GetFineGradient(location(0), location(1), location(2),
-                           nominal_window_size);
+    return GetLocationFineGradient(
+        location(0), location(1), location(2), nominal_window_size);
   }
 
-  GradientQuery GetFineGradient(
+  GradientQuery GetLocationFineGradient(
       const double x, const double y, const double z,
       const double nominal_window_size) const
   {
@@ -1026,26 +1028,27 @@ public:
       const double min_z = z - ideal_window_size;
       const double max_z = z + ideal_window_size;
       // Retrieve distance estimates
-      const EstimateDistanceQuery point_distance = EstimateDistance(x, y, z);
-      const EstimateDistanceQuery mx_distance = EstimateDistance(min_x, y, z);
-      const EstimateDistanceQuery px_distance = EstimateDistance(max_x, y, z);
-      const EstimateDistanceQuery my_distance = EstimateDistance(x, min_y, z);
-      const EstimateDistanceQuery py_distance = EstimateDistance(x, max_y, z);
-      const EstimateDistanceQuery mz_distance = EstimateDistance(x, y, min_z);
-      const EstimateDistanceQuery pz_distance = EstimateDistance(x, y, max_z);
+      const EstimateDistanceQuery point_distance =
+          EstimateLocationDistance(x, y, z);
+      const EstimateDistanceQuery mx_distance =
+          EstimateLocationDistance(min_x, y, z);
+      const EstimateDistanceQuery px_distance =
+          EstimateLocationDistance(max_x, y, z);
+      const EstimateDistanceQuery my_distance =
+          EstimateLocationDistance(x, min_y, z);
+      const EstimateDistanceQuery py_distance =
+          EstimateLocationDistance(x, max_y, z);
+      const EstimateDistanceQuery mz_distance =
+          EstimateLocationDistance(x, y, min_z);
+      const EstimateDistanceQuery pz_distance =
+          EstimateLocationDistance(x, y, max_z);
       // Compute gradient for each axis
-      const double gx = ComputeAxisFineGradient(point_distance,
-                                                  mx_distance,
-                                                  px_distance,
-                                                  x, min_x, max_x);
-      const double gy = ComputeAxisFineGradient(point_distance,
-                                                  my_distance,
-                                                  py_distance,
-                                                  y, min_y, max_y);
-      const double gz = ComputeAxisFineGradient(point_distance,
-                                                  mz_distance,
-                                                  pz_distance,
-                                                  z, min_z, max_z);
+      const double gx = ComputeAxisFineGradient(
+          point_distance, mx_distance, px_distance, x, min_x, max_x);
+      const double gy = ComputeAxisFineGradient(
+          point_distance, my_distance, py_distance, y, min_y, max_y);
+      const double gz = ComputeAxisFineGradient(
+          point_distance, mz_distance, pz_distance, z, min_z, max_z);
       return GradientQuery(gx, gy, gz);
     }
     else
@@ -1054,68 +1057,68 @@ public:
     }
   }
 
-  GradientQuery GetFineGradient(
+  GradientQuery GetIndexFineGradient(
       const common_robotics_utilities::voxel_grid::GridIndex& index,
       const double nominal_window_size) const
   {
-    return GetFineGradient4d(
+    return GetLocationFineGradient4d(
         this->GridIndexToLocation(index), nominal_window_size);
   }
 
-  GradientQuery GetFineGradient(
+  GradientQuery GetIndexFineGradient(
       const int64_t x_index, const int64_t y_index, const int64_t z_index,
       const double nominal_window_size) const
   {
-    return GetFineGradient4d(
+    return GetLocationFineGradient4d(
         this->GridIndexToLocation(x_index, y_index, z_index),
         nominal_window_size);
   }
 
   /// Project the provided point out of collision.
 
-  ProjectedPosition ProjectOutOfCollision(
+  ProjectedPosition ProjectLocationOutOfCollision(
       const double x, const double y, const double z,
       const double stepsize_multiplier = 1.0 / 10.0) const
   {
-    return ProjectOutOfCollision4d(
+    return ProjectLocationOutOfCollision4d(
         Eigen::Vector4d(x, y, z, 1.0), stepsize_multiplier);
   }
 
-  ProjectedPosition ProjectOutOfCollision3d(
+  ProjectedPosition ProjectLocationOutOfCollision3d(
       const Eigen::Vector3d& location,
       const double stepsize_multiplier = 1.0 / 10.0) const
   {
-    return ProjectOutOfCollision(
+    return ProjectLocationOutOfCollision(
         location.x(), location.y(), location.z(), stepsize_multiplier);
   }
 
-  ProjectedPosition ProjectOutOfCollision4d(
+  ProjectedPosition ProjectLocationOutOfCollision4d(
       const Eigen::Vector4d& location,
       const double stepsize_multiplier = 1.0 / 10.0) const
   {
-    return ProjectOutOfCollisionToMinimumDistance4d(
+    return ProjectLocationOutOfCollisionToMinimumDistance4d(
         location, 0.0, stepsize_multiplier);
   }
 
-  ProjectedPosition ProjectOutOfCollisionToMinimumDistance(
+  ProjectedPosition ProjectLocationOutOfCollisionToMinimumDistance(
       const double x, const double y, const double z,
       const double minimum_distance,
       const double stepsize_multiplier = 1.0 / 10.0) const
   {
-    return ProjectOutOfCollisionToMinimumDistance4d(
+    return ProjectLocationOutOfCollisionToMinimumDistance4d(
         Eigen::Vector4d(x, y, z, 1.0), minimum_distance, stepsize_multiplier);
   }
 
-  ProjectedPosition ProjectOutOfCollisionToMinimumDistance3d(
+  ProjectedPosition ProjectLocationOutOfCollisionToMinimumDistance3d(
       const Eigen::Vector3d& location, const double minimum_distance,
       const double stepsize_multiplier = 1.0 / 10.0) const
   {
-    return ProjectOutOfCollisionToMinimumDistance(
+    return ProjectLocationOutOfCollisionToMinimumDistance(
         location.x(), location.y(), location.z(),
         minimum_distance, stepsize_multiplier);
   }
 
-  ProjectedPosition ProjectOutOfCollisionToMinimumDistance4d(
+  ProjectedPosition ProjectLocationOutOfCollisionToMinimumDistance4d(
       const Eigen::Vector4d& location,
       const double minimum_distance,
       const double stepsize_multiplier = 1.0 / 10.0) const
@@ -1133,22 +1136,21 @@ public:
           = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
       const double max_stepsize = GetResolution() * stepsize_multiplier;
       const bool enable_edge_gradients = true;
-      double sdf_dist = EstimateDistance4d(mutable_location).Value();
+      double sdf_dist = EstimateLocationDistance4d(mutable_location).Value();
       while (sdf_dist <= minimum_distance)
       {
-        const GradientQuery gradient
-            = GetCoarseGradient4d(mutable_location, enable_edge_gradients);
+        const GradientQuery gradient = GetLocationCoarseGradient4d(
+            mutable_location, enable_edge_gradients);
         if (gradient.HasValue())
         {
           const Eigen::Vector4d& grad_vector = gradient.Value();
           if (grad_vector.norm() > GetResolution() * 0.25) // Sanity check
           {
             // Don't step any farther than is needed
-            const double step_distance
-                = std::min(max_stepsize,
-                           minimum_distance_with_margin - sdf_dist);
+            const double step_distance =
+                std::min(max_stepsize, minimum_distance_with_margin - sdf_dist);
             mutable_location += grad_vector.normalized() * step_distance;
-            sdf_dist = EstimateDistance4d(mutable_location).Value();
+            sdf_dist = EstimateLocationDistance4d(mutable_location).Value();
           }
           else
           {

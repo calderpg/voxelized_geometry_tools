@@ -17,7 +17,7 @@ find_package(CUDA)
 find_package(OpenCL)
 
 ## We don't depend on Drake, but we do use different build flags if present.
-find_package(drake)
+find_package(drake QUIET)
 
 #######################################
 ## Declare ROS messages and services ##

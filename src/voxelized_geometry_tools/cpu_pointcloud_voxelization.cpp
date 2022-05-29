@@ -5,9 +5,9 @@
 #endif
 
 #include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
-#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -21,45 +21,61 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
-    const CollisionMap& static_environment, const double step_size_multiplier,
-    const PointCloudVoxelizationFilterOptions& filter_options,
-    const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-    CollisionMap& output_environment) const
+namespace
 {
-  const std::chrono::time_point<std::chrono::steady_clock> start_time =
-      std::chrono::steady_clock::now();
-  // Pose of grid G in world W.
-  const Eigen::Isometry3d& X_WG = static_environment.GetOriginTransform();
-  // Get grid resolution and size parameters.
-  const auto& grid_size = static_environment.GetGridSizes();
-  const double cell_size = static_environment.GetResolution();
-  const double step_size = cell_size * step_size_multiplier;
-  // For each cloud, raycast it into its own "tracking grid"
-  VectorCpuVoxelizationTrackingGrid tracking_grids(
-          pointclouds.size(),
-          CpuVoxelizationTrackingGrid(
-              X_WG, grid_size, CpuVoxelizationTrackingCell()));
-  for (size_t idx = 0; idx < pointclouds.size(); idx++)
-  {
-    const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
-    CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
-    RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
-  }
-  const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
-      std::chrono::steady_clock::now();
-  // Combine & filter
-  CombineAndFilterGrids(filter_options, tracking_grids, output_environment);
-  const std::chrono::time_point<std::chrono::steady_clock> done_time =
-      std::chrono::steady_clock::now();
-  return VoxelizerRuntime(
-      std::chrono::duration<double>(raycasted_time - start_time).count(),
-      std::chrono::duration<double>(done_time - raycasted_time).count());
-}
+/// Struct to store free/filled counts in a voxel grid. Counts are stored in
+/// std::atomic<int32_t> since a given cell may be manipulated by multiple
+/// threads simultaneously and this gives us atomic fetch_add() to increment the
+/// stored values.
+struct CpuVoxelizationTrackingCell
+{
+  std::atomic<int32_t> seen_free_count;
+  std::atomic<int32_t> seen_filled_count;
 
-void CpuPointCloudVoxelizer::RaycastPointCloud(
+  CpuVoxelizationTrackingCell()
+  {
+    seen_free_count.store(0);
+    seen_filled_count.store(0);
+  }
+
+  CpuVoxelizationTrackingCell(
+      const int32_t seen_free, const int32_t seen_filled)
+  {
+    seen_free_count.store(seen_free);
+    seen_filled_count.store(seen_filled);
+  }
+
+  /// We need copy constructor since std::atomics do not have copy constructors.
+  CpuVoxelizationTrackingCell(const CpuVoxelizationTrackingCell& other)
+  {
+    seen_free_count.store(other.seen_free_count.load());
+    seen_filled_count.store(other.seen_filled_count.load());
+  }
+
+  /// We need assignment operator since std::atomics do not have it.
+  CpuVoxelizationTrackingCell& operator =
+      (const CpuVoxelizationTrackingCell& other)
+  {
+    if (this != &other)
+    {
+      this->seen_free_count.store(other.seen_free_count.load());
+      this->seen_filled_count.store(other.seen_filled_count.load());
+    }
+    return *this;
+  }
+};
+
+using CpuVoxelizationTrackingGrid = common_robotics_utilities::voxel_grid
+    ::VoxelGrid<CpuVoxelizationTrackingCell>;
+using CpuVoxelizationTrackingGridAllocator =
+      Eigen::aligned_allocator<CpuVoxelizationTrackingGrid>;
+using VectorCpuVoxelizationTrackingGrid =
+    std::vector<CpuVoxelizationTrackingGrid,
+                CpuVoxelizationTrackingGridAllocator>;
+
+void RaycastPointCloud(
     const PointCloudWrapper& cloud, const double step_size,
-    CpuVoxelizationTrackingGrid& tracking_grid) const
+    CpuVoxelizationTrackingGrid& tracking_grid)
 {
   // Get X_GW, the transform from grid origin to world
   const Eigen::Isometry3d& X_GW = tracking_grid.GetInverseOriginTransform();
@@ -138,10 +154,10 @@ void CpuPointCloudVoxelizer::RaycastPointCloud(
   }
 }
 
-void CpuPointCloudVoxelizer::CombineAndFilterGrids(
+void CombineAndFilterGrids(
     const PointCloudVoxelizationFilterOptions& filter_options,
     const VectorCpuVoxelizationTrackingGrid& tracking_grids,
-    CollisionMap& filtered_grid) const
+    CollisionMap& filtered_grid)
 {
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
@@ -192,6 +208,43 @@ void CpuPointCloudVoxelizer::CombineAndFilterGrids(
       }
     }
   }
+}
+}  // namespace
+
+VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
+    const CollisionMap& static_environment, const double step_size_multiplier,
+    const PointCloudVoxelizationFilterOptions& filter_options,
+    const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
+    CollisionMap& output_environment) const
+{
+  const std::chrono::time_point<std::chrono::steady_clock> start_time =
+      std::chrono::steady_clock::now();
+  // Pose of grid G in world W.
+  const Eigen::Isometry3d& X_WG = static_environment.GetOriginTransform();
+  // Get grid resolution and size parameters.
+  const auto& grid_size = static_environment.GetGridSizes();
+  const double cell_size = static_environment.GetResolution();
+  const double step_size = cell_size * step_size_multiplier;
+  // For each cloud, raycast it into its own "tracking grid"
+  VectorCpuVoxelizationTrackingGrid tracking_grids(
+          pointclouds.size(),
+          CpuVoxelizationTrackingGrid(
+              X_WG, grid_size, CpuVoxelizationTrackingCell()));
+  for (size_t idx = 0; idx < pointclouds.size(); idx++)
+  {
+    const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
+    CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
+    RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
+  }
+  const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
+      std::chrono::steady_clock::now();
+  // Combine & filter
+  CombineAndFilterGrids(filter_options, tracking_grids, output_environment);
+  const std::chrono::time_point<std::chrono::steady_clock> done_time =
+      std::chrono::steady_clock::now();
+  return VoxelizerRuntime(
+      std::chrono::duration<double>(raycasted_time - start_time).count(),
+      std::chrono::duration<double>(done_time - raycasted_time).count());
 }
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

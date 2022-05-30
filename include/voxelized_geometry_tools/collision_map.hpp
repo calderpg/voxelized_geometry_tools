@@ -233,8 +233,7 @@ public:
       const COMPONENT_TYPES component_types_to_use, const bool verbose);
 
   template<typename ScalarType>
-  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
-  ExtractSignedDistanceField(
+  SignedDistanceField<ScalarType> ExtractSignedDistanceField(
       const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
       const bool add_virtual_border = false) const
@@ -273,14 +272,12 @@ public:
                 add_virtual_border);
   }
 
-  signed_distance_field_generation::SignedDistanceFieldResult<double>
-  ExtractSignedDistanceFieldDouble(
+  SignedDistanceField<double> ExtractSignedDistanceFieldDouble(
       const double oob_value = std::numeric_limits<double>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
       const bool add_virtual_border = false) const;
 
-  signed_distance_field_generation::SignedDistanceFieldResult<float>
-  ExtractSignedDistanceFieldFloat(
+  SignedDistanceField<float> ExtractSignedDistanceFieldFloat(
       const float oob_value = std::numeric_limits<float>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
       const bool add_virtual_border = false) const;

@@ -568,7 +568,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<double>
+SignedDistanceField<double>
 TaggedObjectCollisionMap::ExtractSignedDistanceFieldDouble(
     const std::vector<uint32_t>& objects_to_use, const double oob_value,
     const bool unknown_is_filled, const bool use_parallel,
@@ -579,7 +579,7 @@ TaggedObjectCollisionMap::ExtractSignedDistanceFieldDouble(
       add_virtual_border);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<float>
+SignedDistanceField<float>
 TaggedObjectCollisionMap::ExtractSignedDistanceFieldFloat(
     const std::vector<uint32_t>& objects_to_use, const float oob_value,
     const bool unknown_is_filled, const bool use_parallel,
@@ -630,7 +630,7 @@ TaggedObjectCollisionMap::MakeAllObjectSDFsFloat(
       oob_value, unknown_is_filled, use_parallel, add_virtual_border);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<double>
+SignedDistanceField<double>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
     const double oob_value, const bool unknown_is_filled,
     const bool use_parallel) const
@@ -639,7 +639,7 @@ TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
       oob_value, unknown_is_filled, use_parallel);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<float>
+SignedDistanceField<float>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel) const
@@ -747,14 +747,13 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
     return number_of_spatial_segments_;
   }
   spatial_segments_valid_ = false;
-  const auto sdf_result
+  const auto sdf
       = (add_virtual_border)
         ? ExtractSignedDistanceFieldFloat(
               std::vector<uint32_t>(), std::numeric_limits<float>::infinity(),
               true, use_parallel, true)
         : ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
               std::numeric_limits<float>::infinity(), true, use_parallel);
-  const auto& sdf = sdf_result.DistanceField();
   const auto extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
   // This is not enough, we also need to limit the curvature of the

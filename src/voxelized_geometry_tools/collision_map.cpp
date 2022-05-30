@@ -610,8 +610,7 @@ CollisionMap::ComputeComponentTopology(
                                                         verbose);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<double>
-CollisionMap::ExtractSignedDistanceFieldDouble(
+SignedDistanceField<double> CollisionMap::ExtractSignedDistanceFieldDouble(
     const double oob_value, const bool unknown_is_filled,
     const bool use_parallel, const bool add_virtual_border) const
 {
@@ -619,8 +618,7 @@ CollisionMap::ExtractSignedDistanceFieldDouble(
       oob_value, unknown_is_filled, use_parallel, add_virtual_border);
 }
 
-signed_distance_field_generation::SignedDistanceFieldResult<float>
-CollisionMap::ExtractSignedDistanceFieldFloat(
+SignedDistanceField<float> CollisionMap::ExtractSignedDistanceFieldFloat(
     const float oob_value, const bool unknown_is_filled,
     const bool use_parallel, const bool add_virtual_border) const
 {

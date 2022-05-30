@@ -58,9 +58,11 @@ using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
 
 using CollisionMapMessage = msg::CollisionMapMessage;
-using DynamicSpatialHashedCollisionMapMessage = msg::DynamicSpatialHashedCollisionMapMessage;
+using DynamicSpatialHashedCollisionMapMessage =
+    msg::DynamicSpatialHashedCollisionMapMessage;
 using SignedDistanceFieldMessage = msg::SignedDistanceFieldMessage;
-using TaggedObjectCollisionMapMessage = msg::TaggedObjectCollisionMapMessage;
+using TaggedObjectCollisionMapMessage =
+    msg::TaggedObjectCollisionMapMessage;
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 using ColorRGBA = std_msgs::ColorRGBA;
 using Point = geometry_msgs::Point;
@@ -360,48 +362,37 @@ template<typename ScalarType>
 inline Marker ExportSDFForDisplay(
     const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
 {
-  ScalarType min_distance = 0.0;
-  ScalarType max_distance = 0.0;
-  for (int64_t x_index = 0; x_index < sdf.GetNumXCells(); x_index++)
+  const auto scale_color_value =
+      [] (const ScalarType distance, const ScalarType distance_extrema)
   {
-    for (int64_t y_index = 0; y_index < sdf.GetNumYCells(); y_index++)
-    {
-      for (int64_t z_index = 0; z_index < sdf.GetNumZCells(); z_index++)
-      {
-        // Update minimum/maximum distance variables
-        const ScalarType distance
-            = sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
-        if (distance < min_distance)
-        {
-          min_distance = distance;
-        }
-        if (distance > max_distance)
-        {
-          max_distance = distance;
-        }
-      }
-    }
-  }
+    constexpr float color_scaling = 0.8f;
+    constexpr float min_color_value = 0.2f;
+    const float distance_ratio =
+        static_cast<float>(std::abs(distance / distance_extrema));
+    const float color_value =
+        (distance_ratio * color_scaling) + min_color_value;
+    return color_value;
+  };
+
+  const auto min_max_distance = sdf.GetMinimumMaximum();
   const auto color_fn
       = [&] (const ScalarType& distance,
              const common_robotics_utilities::voxel_grid::GridIndex&)
   {
     ColorRGBA new_color;
-    new_color.a
-        = common_robotics_utilities::utility::ClampValue(alpha, 0.0f, 1.0f);
+    new_color.a =
+        common_robotics_utilities::utility::ClampValue(alpha, 0.0f, 1.0f);
     if (distance > 0.0)
     {
       new_color.b = 0.0;
-      new_color.g
-          = static_cast<float>(std::abs(distance / max_distance) * 0.8) + 0.2f;
+      new_color.g = scale_color_value(distance, min_max_distance.Maximum());
       new_color.r = 0.0;
     }
     else if (distance < 0.0)
     {
       new_color.b = 0.0;
       new_color.g = 0.0;
-      new_color.r
-          = static_cast<float>(std::abs(distance / min_distance) * 0.8) + 0.2f;
+      new_color.r = scale_color_value(distance, min_max_distance.Minimum());
     }
     else
     {

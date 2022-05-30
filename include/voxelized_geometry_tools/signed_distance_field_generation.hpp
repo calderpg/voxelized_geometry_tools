@@ -16,43 +16,6 @@ namespace voxelized_geometry_tools
 {
 namespace signed_distance_field_generation
 {
-/// Wrapper for a generated SignedDistanceField and min/max values.
-template<typename ScalarType>
-class SignedDistanceFieldResult
-{
-private:
-  SignedDistanceField<ScalarType> distance_field_;
-  ScalarType maximum_ = 0.0;
-  ScalarType minimum_ = 0.0;
-
-public:
-  SignedDistanceFieldResult(
-      const SignedDistanceField<ScalarType>& distance_field,
-      const ScalarType maximum, const ScalarType minimum)
-      : distance_field_(distance_field),
-        maximum_(maximum), minimum_(minimum)
-  {
-    if (minimum_ > maximum_)
-    {
-      throw std::invalid_argument("minimum_ > maximum_");
-    }
-  }
-
-  const SignedDistanceField<ScalarType>& DistanceField() const
-  {
-    return distance_field_;
-  }
-
-  SignedDistanceField<ScalarType>& MutableDistanceField()
-  {
-    return distance_field_;
-  }
-
-  ScalarType Maximum() const { return maximum_; }
-
-  ScalarType Minimum() const { return minimum_; }
-};
-
 // To allow for faster development/improvements, the SignedDistanceField
 // generation API has no stability guarantees and lives in an internal
 // namespace. Use the stable API exposed by CollisionMap and
@@ -80,7 +43,7 @@ DistanceField BuildDistanceField(
     const bool use_parallel);
 
 template<typename SDFScalarType>
-inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
+inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const Eigen::Isometry3d& grid_origin_tranform, const GridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
     const SDFScalarType oob_value, const std::string& frame,
@@ -108,18 +71,17 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
       }
     }
   }
+
   // Make two distance fields, one for distance to filled voxels, one for
   // distance to free voxels.
-  const DistanceField filled_distance_field =
-      BuildDistanceField(
-        grid_origin_tranform, grid_sizes, filled, use_parallel);
-  const DistanceField free_distance_field =
-      BuildDistanceField(grid_origin_tranform, grid_sizes, free, use_parallel);
+  const DistanceField filled_distance_field = BuildDistanceField(
+      grid_origin_tranform, grid_sizes, filled, use_parallel);
+  const DistanceField free_distance_field = BuildDistanceField(
+      grid_origin_tranform, grid_sizes, free, use_parallel);
+
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
       grid_origin_tranform, frame, grid_sizes, oob_value);
-  double max_distance = -std::numeric_limits<double>::infinity();
-  double min_distance = std::numeric_limits<double>::infinity();
   for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
@@ -139,27 +101,19 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
             std::sqrt(free_distance_squared) * new_sdf.GetResolution();
         const double distance = distance1 - distance2;
 
-        if (distance > max_distance)
-        {
-          max_distance = distance;
-        }
-        if (distance < min_distance)
-        {
-          min_distance = distance;
-        }
-
         new_sdf.SetIndex(
             x_index, y_index, z_index, static_cast<SDFScalarType>(distance));
       }
     }
   }
-  return SignedDistanceFieldResult<SDFScalarType>(
-      new_sdf, static_cast<SDFScalarType>(max_distance),
-      static_cast<SDFScalarType>(min_distance));
+
+  // Lock & update min/max values.
+  new_sdf.Lock();
+  return new_sdf;
 }
 
 template<typename T, typename BackingStore, typename SDFScalarType>
-inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
+inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& grid,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
@@ -283,10 +237,10 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
     // Make both SDFs
     const common_robotics_utilities::voxel_grid::GridSizes enlarged_sizes(
         grid.GetCellSizes().x(), num_x_cells, num_y_cells, num_z_cells);
-    const auto free_sdf_result = ExtractSignedDistanceField<SDFScalarType>(
+    const auto free_sdf = ExtractSignedDistanceField<SDFScalarType>(
         grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn, oob_value,
         frame, use_parallel);
-    const auto filled_sdf_result = ExtractSignedDistanceField<SDFScalarType>(
+    const auto filled_sdf = ExtractSignedDistanceField<SDFScalarType>(
         grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn,
         oob_value, frame, use_parallel);
 
@@ -302,12 +256,10 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
           const int64_t query_x_idx = x_idx + x_axis_query_offset;
           const int64_t query_y_idx = y_idx + y_axis_query_offset;
           const int64_t query_z_idx = z_idx + z_axis_query_offset;
-          const SDFScalarType free_sdf_value
-              = free_sdf_result.DistanceField().GetIndexImmutable(
-                  query_x_idx, query_y_idx, query_z_idx).Value();
-          const SDFScalarType filled_sdf_value
-              = filled_sdf_result.DistanceField().GetIndexImmutable(
-                  query_x_idx, query_y_idx, query_z_idx).Value();
+          const SDFScalarType free_sdf_value = free_sdf.GetIndexImmutable(
+              query_x_idx, query_y_idx, query_z_idx).Value();
+          const SDFScalarType filled_sdf_value = filled_sdf.GetIndexImmutable(
+              query_x_idx, query_y_idx, query_z_idx).Value();
 
           if (free_sdf_value >= 0.0)
           {
@@ -325,14 +277,14 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
       }
     }
 
-    // Get the combined max/min values
-    return SignedDistanceFieldResult<SDFScalarType>(
-        combined_sdf, free_sdf_result.Maximum(), filled_sdf_result.Minimum());
+    // Lock & update min/max values.
+    combined_sdf.Lock();
+    return combined_sdf;
   }
 }
 
 template<typename T, typename BackingStore, typename SDFScalarType>
-inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
+inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& grid,
     const std::function<bool(const T&)>& is_filled_fn,
@@ -365,8 +317,3 @@ inline SignedDistanceFieldResult<SDFScalarType> ExtractSignedDistanceField(
 }  // namespace internal
 }  // namespace signed_distance_field_generation
 }  // namespace voxelized_geometry_tools
-
-extern template class voxelized_geometry_tools::signed_distance_field_generation
-    ::SignedDistanceFieldResult<double>;
-extern template class voxelized_geometry_tools::signed_distance_field_generation
-    ::SignedDistanceFieldResult<float>;

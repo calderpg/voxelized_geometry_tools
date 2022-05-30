@@ -449,8 +449,3 @@ DistanceField BuildDistanceField(
 }  // namespace internal
 }  // namespace signed_distance_field_generation
 }  // namespace voxelized_geometry_tools
-
-template class voxelized_geometry_tools::signed_distance_field_generation
-    ::SignedDistanceFieldResult<double>;
-template class voxelized_geometry_tools::signed_distance_field_generation
-    ::SignedDistanceFieldResult<float>;

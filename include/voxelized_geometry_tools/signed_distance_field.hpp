@@ -122,6 +122,39 @@ public:
   explicit operator bool() const { return position_.HasValue(); }
 };
 
+/// Forward declaration.
+template<typename ScalarType>
+class SignedDistanceField;
+
+/// Storage of minimum and maximum values in a SignedDistanceField.
+template<typename ScalarType>
+class SignedDistanceFieldMinimumMaximum
+{
+private:
+  template<typename SDFScalarType> friend class SignedDistanceField;
+
+  ScalarType minimum_{};
+  ScalarType maximum_{};
+
+  /// Default constructor is private, accessible only by SignedDistanceField.
+  SignedDistanceFieldMinimumMaximum() = default;
+
+public:
+  SignedDistanceFieldMinimumMaximum(
+      const ScalarType minimum, const ScalarType maximum)
+      : minimum_(minimum), maximum_(maximum)
+  {
+    if (minimum_ > maximum_)
+    {
+      throw std::invalid_argument("minimum > maximum");
+    }
+  }
+
+  ScalarType Minimum() const { return minimum_; }
+
+  ScalarType Maximum() const { return maximum_; }
+};
+
 template<typename ScalarType>
 class SignedDistanceField final
     : public common_robotics_utilities::voxel_grid
@@ -135,6 +168,9 @@ private:
   using DeserializedSignedDistanceField
       = common_robotics_utilities::serialization
           ::Deserialized<SignedDistanceField<ScalarType>>;
+
+  /// NOTE: this is cached for performance, and is *not* serialized.
+  SignedDistanceFieldMinimumMaximum<ScalarType> minimum_maximum_;
 
   std::string frame_;
   bool locked_ = false;
@@ -598,8 +634,17 @@ private:
     const auto locked_deserialized
         = common_robotics_utilities::serialization
             ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-    locked_ = static_cast<bool>(locked_deserialized.Value());
+    const bool locked = static_cast<bool>(locked_deserialized.Value());
     current_position += locked_deserialized.BytesRead();
+    // Lock and update min/max values if specified.
+    if (locked)
+    {
+      Lock();
+    }
+    else
+    {
+      Unlock();
+    }
     // Figure out how many bytes were read
     const uint64_t bytes_read = current_position - starting_offset;
     return bytes_read;
@@ -766,9 +811,29 @@ public:
       : common_robotics_utilities::voxel_grid
             ::VoxelGridBase<ScalarType, std::vector<ScalarType>>() {}
 
+  SignedDistanceFieldMinimumMaximum<ScalarType> GetMinimumMaximum() const
+  {
+    if (IsLocked())
+    {
+      return minimum_maximum_;
+    }
+    else
+    {
+      const auto min_max_elements = std::minmax_element(
+          this->GetImmutableRawData().begin(),
+          this->GetImmutableRawData().end());
+      return SignedDistanceFieldMinimumMaximum<ScalarType>(
+          *min_max_elements.first, *min_max_elements.second);
+    }
+  }
+
   bool IsLocked() const { return locked_; }
 
-  void Lock() { locked_ = true; }
+  void Lock()
+  {
+    minimum_maximum_ = GetMinimumMaximum();
+    locked_ = true;
+  }
 
   void Unlock() { locked_ = false; }
 

@@ -87,8 +87,7 @@ void test_estimate_distance(
   const auto map_marker =
       voxelized_geometry_tools::ros_interface::ExportForDisplay(
           map, collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceFieldFloat(
-      1e6, true, false, false).DistanceField();
+  const auto sdf = map.ExtractSignedDistanceFieldFloat(1e6, true, false, false);
   const auto sdf_marker =
       voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
 

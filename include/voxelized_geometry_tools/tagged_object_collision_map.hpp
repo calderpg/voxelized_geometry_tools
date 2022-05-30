@@ -305,8 +305,7 @@ public:
       const bool connect_across_objects, const bool verbose);
 
   template<typename ScalarType>
-  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
-  ExtractSignedDistanceField(
+  SignedDistanceField<ScalarType> ExtractSignedDistanceField(
       const std::vector<uint32_t>& objects_to_use = {},
       const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
@@ -373,8 +372,7 @@ public:
       per_object_sdfs[object_id]
           = ExtractSignedDistanceField<ScalarType>(
               std::vector<uint32_t>{object_id}, oob_value,
-              unknown_is_filled, use_parallel, add_virtual_border)
-              .DistanceField();
+              unknown_is_filled, use_parallel, add_virtual_border);
     }
     return per_object_sdfs;
   }
@@ -409,8 +407,7 @@ public:
   }
 
   template<typename ScalarType>
-  signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>
-  ExtractFreeAndNamedObjectsSignedDistanceField(
+  SignedDistanceField<ScalarType> ExtractFreeAndNamedObjectsSignedDistanceField(
       const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
       const bool unknown_is_filled = true,
       const bool use_parallel = false) const
@@ -433,7 +430,7 @@ public:
       }
       return false;
     };
-    const auto free_sdf_result =
+    const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
              ScalarType>(
@@ -460,26 +457,25 @@ public:
       }
       return false;
     };
-    const auto named_objects_sdf_result =
+    const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
              ScalarType>(
                 *this, object_filled_fn, oob_value, GetFrame(), use_parallel,
                 false);
-    SignedDistanceField<ScalarType> combined_sdf
-        = free_sdf_result.DistanceField();
+
+    SignedDistanceField<ScalarType> combined_sdf = free_sdf;
+    combined_sdf.Unlock();
     for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
     {
       for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
       {
         for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
         {
-          const ScalarType free_sdf_value
-              = free_sdf_result.DistanceField().GetIndexImmutable(
-                  x_idx, y_idx, z_idx).Value();
-          const ScalarType named_objects_sdf_value
-              = named_objects_sdf_result.DistanceField().GetIndexImmutable(
-                  x_idx, y_idx, z_idx).Value();
+          const ScalarType free_sdf_value =
+              free_sdf.GetIndexImmutable(x_idx, y_idx, z_idx).Value();
+          const ScalarType named_objects_sdf_value =
+              named_objects_sdf.GetIndexImmutable(x_idx, y_idx, z_idx).Value();
           if (free_sdf_value >= 0.0)
           {
             combined_sdf.SetIndex(x_idx, y_idx, z_idx, free_sdf_value);
@@ -495,22 +491,19 @@ public:
         }
       }
     }
-    // Get the combined max/min values
-    return
-        signed_distance_field_generation::SignedDistanceFieldResult<ScalarType>(
-            combined_sdf, free_sdf_result.Maximum(),
-            named_objects_sdf_result.Minimum());
+
+    // Lock & update min/max values.
+    combined_sdf.Lock();
+    return combined_sdf;
   }
 
-  signed_distance_field_generation::SignedDistanceFieldResult<double>
-  ExtractSignedDistanceFieldDouble(
+  SignedDistanceField<double> ExtractSignedDistanceFieldDouble(
       const std::vector<uint32_t>& objects_to_use = {},
       const double oob_value = std::numeric_limits<double>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
       const bool add_virtual_border = false) const;
 
-  signed_distance_field_generation::SignedDistanceFieldResult<float>
-  ExtractSignedDistanceFieldFloat(
+  SignedDistanceField<float> ExtractSignedDistanceFieldFloat(
       const std::vector<uint32_t>& objects_to_use = {},
       const float oob_value = std::numeric_limits<float>::infinity(),
       const bool unknown_is_filled = true, const bool use_parallel = false,
@@ -540,13 +533,13 @@ public:
       const bool unknown_is_filled = true, const bool use_parallel = false,
       const bool add_virtual_border = false) const;
 
-  signed_distance_field_generation::SignedDistanceFieldResult<double>
+  SignedDistanceField<double>
   ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
       const double oob_value = std::numeric_limits<double>::infinity(),
       const bool unknown_is_filled = true,
       const bool use_parallel = false) const;
 
-  signed_distance_field_generation::SignedDistanceFieldResult<float>
+  SignedDistanceField<float>
   ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
       const float oob_value = std::numeric_limits<float>::infinity(),
       const bool unknown_is_filled = true,

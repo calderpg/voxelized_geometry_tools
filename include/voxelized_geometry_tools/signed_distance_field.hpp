@@ -20,88 +20,106 @@
 
 namespace voxelized_geometry_tools
 {
-/// Using declaration to make naming clearer and easier to read.
-using EstimateDistanceQuery = common_robotics_utilities::OwningMaybe<double>;
+/// This is similar to std::optional<double>, but kept separate here so as to
+/// not require C++17 support with a working std::optional<T>.
+class EstimateDistanceQuery
+{
+private:
+  common_robotics_utilities::OwningMaybe<double> distance_;
 
-/// This is similar to std::optional<Eigen::Vector4d>, but lets us enforce
-/// specific behavior in the contained Vector4d.
+public:
+  explicit EstimateDistanceQuery(const double distance) : distance_(distance) {}
+
+  EstimateDistanceQuery() = default;
+
+  double Value() const { return distance_.Value(); }
+
+  bool HasValue() const { return distance_.HasValue(); }
+
+  explicit operator bool() const { return distance_.HasValue(); }
+};
+
+/// This is similar to std::optional<Eigen::Vector4d>, but kept separate here so
+/// as to not require C++17 support with a working std::optional<T>. This also
+/// allows us to enforce specific behavior in the contained Vector4d.
 class GradientQuery
 {
 private:
-  Eigen::Vector4d gradient_ = Eigen::Vector4d(0.0, 0.0, 0.0, 0.0);
-  bool has_value_ = false;
+  common_robotics_utilities::OwningMaybe<Eigen::Vector4d> gradient_;
 
-public:
-  explicit GradientQuery(const Eigen::Vector4d& gradient)
-      : gradient_(gradient), has_value_(true)
+  void EnforceValidGradient() const
   {
-    if (gradient_(3) != 0.0)
+    if (Value()(3) != 0.0)
     {
       throw std::invalid_argument("gradient(3) != 0.0");
     }
   }
 
-  GradientQuery(const double x, const double y, const double z)
-      : gradient_(Eigen::Vector4d(x, y, z, 0.0)), has_value_(true) {}
+public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  GradientQuery() : has_value_(false) {}
-
-  const Eigen::Vector4d& Value() const
+  explicit GradientQuery(const Eigen::Vector4d& gradient) : gradient_(gradient)
   {
-    if (HasValue())
-    {
-      return gradient_;
-    }
-    else
-    {
-      throw std::runtime_error("GradientQuery does not have value");
-    }
+    EnforceValidGradient();
   }
 
-  bool HasValue() const { return has_value_; }
+  explicit GradientQuery(Eigen::Vector4d&& gradient) : gradient_(gradient)
+  {
+    EnforceValidGradient();
+  }
 
-  explicit operator bool() const { return HasValue(); }
+  GradientQuery(const double x, const double y, const double z)
+      : gradient_(Eigen::Vector4d(x, y, z, 0.0)) {}
+
+  GradientQuery() = default;
+
+  const Eigen::Vector4d& Value() const { return gradient_.Value(); }
+
+  bool HasValue() const { return gradient_.HasValue(); }
+
+  explicit operator bool() const { return gradient_.HasValue(); }
 };
 
-/// This is equivalent to std::optional<Eigen::Vector4d>, but kept separate here
-/// so as to not require C++17 support with a working std::optional<T>. This
-/// also allows us to enforce specific behavior in the contained Vector4d.
+/// This is similar to std::optional<Eigen::Vector4d>, but kept separate here so
+/// as to not require C++17 support with a working std::optional<T>. This also
+/// allows us to enforce specific behavior in the contained Vector4d.
 class ProjectedPosition
 {
 private:
-  const Eigen::Vector4d gradient_ = Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
-  const bool has_value_ = false;
+  common_robotics_utilities::OwningMaybe<Eigen::Vector4d> position_;
+
+  void EnforceValidPosition() const
+  {
+    if (Value()(3) != 1.0)
+    {
+      throw std::invalid_argument("position(3) != 1.0");
+    }
+  }
 
 public:
-  explicit ProjectedPosition(const Eigen::Vector4d& gradient)
-      : gradient_(gradient), has_value_(true)
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  explicit ProjectedPosition(const Eigen::Vector4d& position)
+      : position_(position)
   {
-    if (gradient_(3) != 1.0)
-    {
-      throw std::invalid_argument("gradient(3) != 1.0");
-    }
+    EnforceValidPosition();
+  }
+
+  explicit ProjectedPosition(Eigen::Vector4d&& position) : position_(position)
+  {
+    EnforceValidPosition();
   }
 
   ProjectedPosition(const double x, const double y, const double z)
-      : gradient_(Eigen::Vector4d(x, y, z, 1.0)), has_value_(true) {}
+      : position_(Eigen::Vector4d(x, y, z, 0.0)) {}
 
-  ProjectedPosition() : has_value_(false) {}
+  ProjectedPosition() = default;
 
-  const Eigen::Vector4d& Value() const
-  {
-    if (HasValue())
-    {
-      return gradient_;
-    }
-    else
-    {
-      throw std::runtime_error("ProjectedPosition does not have value");
-    }
-  }
+  const Eigen::Vector4d& Value() const { return position_.Value(); }
 
-  bool HasValue() const { return has_value_; }
+  bool HasValue() const { return position_.HasValue(); }
 
-  explicit operator bool() const { return HasValue(); }
+  explicit operator bool() const { return position_.HasValue(); }
 };
 
 template<typename ScalarType>

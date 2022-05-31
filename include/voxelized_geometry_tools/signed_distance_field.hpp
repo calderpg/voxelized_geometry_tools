@@ -28,9 +28,21 @@ private:
   common_robotics_utilities::OwningMaybe<double> distance_;
 
 public:
+  EstimateDistanceQuery() = default;
+
   explicit EstimateDistanceQuery(const double distance) : distance_(distance) {}
 
-  EstimateDistanceQuery() = default;
+  EstimateDistanceQuery(const EstimateDistanceQuery& other) = default;
+
+  EstimateDistanceQuery(EstimateDistanceQuery&& other) = default;
+
+  EstimateDistanceQuery& operator=(
+      const EstimateDistanceQuery& other) = default;
+
+  EstimateDistanceQuery& operator=(
+      EstimateDistanceQuery&& other) = default;
+
+  void Reset() { distance_.Reset(); }
 
   double Value() const { return distance_.Value(); }
 
@@ -58,6 +70,8 @@ private:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  GradientQuery() = default;
+
   explicit GradientQuery(const Eigen::Vector4d& gradient) : gradient_(gradient)
   {
     EnforceValidGradient();
@@ -71,7 +85,15 @@ public:
   GradientQuery(const double x, const double y, const double z)
       : gradient_(Eigen::Vector4d(x, y, z, 0.0)) {}
 
-  GradientQuery() = default;
+  GradientQuery(const GradientQuery& other) = default;
+
+  GradientQuery(GradientQuery&& other) = default;
+
+  GradientQuery& operator=(const GradientQuery& other) = default;
+
+  GradientQuery& operator=(GradientQuery&& other) = default;
+
+  void Reset() { gradient_.Reset(); }
 
   const Eigen::Vector4d& Value() const { return gradient_.Value(); }
 
@@ -99,6 +121,8 @@ private:
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
+  ProjectedPosition() = default;
+
   explicit ProjectedPosition(const Eigen::Vector4d& position)
       : position_(position)
   {
@@ -113,7 +137,15 @@ public:
   ProjectedPosition(const double x, const double y, const double z)
       : position_(Eigen::Vector4d(x, y, z, 0.0)) {}
 
-  ProjectedPosition() = default;
+  ProjectedPosition(const ProjectedPosition& other) = default;
+
+  ProjectedPosition(ProjectedPosition&& other) = default;
+
+  ProjectedPosition& operator=(const ProjectedPosition& other) = default;
+
+  ProjectedPosition& operator=(ProjectedPosition&& other) = default;
+
+  void Reset() { position_.Reset(); }
 
   const Eigen::Vector4d& Value() const { return position_.Value(); }
 

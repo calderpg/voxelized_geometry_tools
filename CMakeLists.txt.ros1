@@ -70,6 +70,9 @@ include_directories(include SYSTEM ${catkin_INCLUDE_DIRS}
                                    ${Eigen3_INCLUDE_DIRS})
 
 ## Build options
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+cmake_policy(SET CMP0069 NEW)
+
 add_compile_options(-std=c++11)
 add_compile_options(-Wall)
 add_compile_options(-Wextra)
@@ -78,10 +81,10 @@ add_compile_options(-Wconversion)
 add_compile_options(-Wshadow)
 add_compile_options(-O3)
 add_compile_options(-g)
-add_compile_options(-flto)
 add_compile_options(-Werror=non-virtual-dtor)
 add_compile_options(-Wold-style-cast)
-add_compile_options(-Wmaybe-uninitialized)
+add_compile_options(-Wpessimizing-move)
+add_compile_options(-Wuninitialized)
 
 if(drake_FOUND)
     message(STATUS "Drake found, disabling -march=native")

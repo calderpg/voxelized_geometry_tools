@@ -87,7 +87,8 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
       const float max_range = static_cast<float>(pointcloud->MaxRange());
 
       // Copy pointcloud
-      std::vector<float> raw_points(pointcloud->Size() * 3, 0.0);
+      std::vector<float> raw_points(
+          static_cast<size_t>(pointcloud->Size()) * 3, 0.0);
       for (int64_t point = 0; point < pointcloud->Size(); point++)
       {
         pointcloud->CopyPointLocationIntoVectorFloat(

@@ -307,17 +307,19 @@ public:
       const int64_t num_cells, const int32_t num_grids) override
   {
     const size_t tracking_grids_size =
-        sizeof(int32_t) * 2 * num_cells * num_grids;
+        sizeof(int32_t) * 2 * static_cast<size_t>(num_cells * num_grids);
     int32_t* tracking_grids_buffer = nullptr;
     cudaMalloc(&tracking_grids_buffer, tracking_grids_size);
     CudaCheckErrors("Failed to allocate device tracking grids");
     cudaMemset(tracking_grids_buffer, 0, tracking_grids_size);
     CudaCheckErrors("Failed to zero device tracking grids");
 
-    std::vector<int64_t> tracking_grid_offsets(num_grids, 0);
+    std::vector<int64_t> tracking_grid_offsets(
+        static_cast<size_t>(num_grids), 0);
     for (int32_t num_grid = 0; num_grid < num_grids; num_grid++)
     {
-      tracking_grid_offsets.at(num_grid) = num_grid * num_cells * 2;
+      tracking_grid_offsets.at(static_cast<size_t>(num_grid)) =
+          num_grid * num_cells * 2;
     }
 
     return std::unique_ptr<TrackingGridsHandle>(
@@ -383,7 +385,8 @@ public:
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(
        const int64_t num_cells, const void* host_data_ptr) override
   {
-    const size_t filter_grid_size = sizeof(float) * num_cells * 2;
+    const size_t filter_grid_size =
+        sizeof(float) * static_cast<size_t>(num_cells) * 2;
     float* filter_grid_buffer = nullptr;
     cudaMalloc(&filter_grid_buffer, filter_grid_size);
     CudaCheckErrors("Failed to allocate device filter grid");

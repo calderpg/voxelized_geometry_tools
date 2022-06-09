@@ -113,9 +113,9 @@ void RasterizeTriangle(
   const double max_check_radius_squared = std::pow(max_check_radius, 2.0);
 
   const Eigen::Vector3i& triangle = triangles.at(triangle_index);
-  const Eigen::Vector3d& p_Mv1 = vertices.at(triangle(0));
-  const Eigen::Vector3d& p_Mv2 = vertices.at(triangle(1));
-  const Eigen::Vector3d& p_Mv3 = vertices.at(triangle(2));
+  const Eigen::Vector3d& p_Mv1 = vertices.at(static_cast<size_t>(triangle(0)));
+  const Eigen::Vector3d& p_Mv2 = vertices.at(static_cast<size_t>(triangle(1)));
+  const Eigen::Vector3d& p_Mv3 = vertices.at(static_cast<size_t>(triangle(2)));
 
   const Eigen::Vector3d v1v2 = p_Mv2 - p_Mv1;
   const Eigen::Vector3d v1v3 = p_Mv3 - p_Mv1;

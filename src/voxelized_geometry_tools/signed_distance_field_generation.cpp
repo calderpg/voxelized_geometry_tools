@@ -52,7 +52,8 @@ MakeNeighborhoods()
       {
         for (int32_t dz = -1; dz <= 1; dz++)
         {
-          const int32_t direction_number = GetDirectionNumber(dx, dy, dz);
+          const size_t direction_number =
+              static_cast<size_t>(GetDirectionNumber(dx, dy, dz));
           // Loop through the target directions.
           for (int32_t tdx = -1; tdx <= 1; tdx++)
           {
@@ -68,7 +69,7 @@ MakeNeighborhoods()
                 // Why is one set of neighborhoods larger than the other?
                 if (n >= 1)
                 {
-                  if ((abs(tdx) + abs(tdy) + abs(tdz)) != 1)
+                  if ((std::abs(tdx) + std::abs(tdy) + std::abs(tdz)) != 1)
                   {
                     continue;
                   }
@@ -110,7 +111,8 @@ public:
   explicit MultipleThreadIndexQueueWrapper(const size_t max_queues)
   {
     per_thread_queues_.resize(
-        common_robotics_utilities::openmp_helpers::GetNumOmpThreads(),
+        static_cast<size_t>(
+            common_robotics_utilities::openmp_helpers::GetNumOmpThreads()),
         ThreadIndexQueues(max_queues));
   }
 
@@ -120,7 +122,8 @@ public:
     for (size_t thread = 0; thread < per_thread_queues_.size(); thread++)
     {
       const auto& current_thread_queue =
-          per_thread_queues_.at(thread).at(distance_squared);
+          per_thread_queues_.at(thread).at(
+              static_cast<size_t>(distance_squared));
       const size_t current_thread_queue_size = current_thread_queue.size();
       if (working_index < current_thread_queue_size)
       {
@@ -144,28 +147,31 @@ public:
     size_t total_size = 0;
     for (size_t thread = 0; thread < per_thread_queues_.size(); thread++)
     {
-      total_size += per_thread_queues_.at(thread).at(distance_squared).size();
+      total_size += per_thread_queues_.at(thread).at(
+          static_cast<size_t>(distance_squared)).size();
     }
     return total_size;
   }
 
   void Enqueue(const int32_t distance_squared, const GridIndex& index)
   {
-    const int32_t thread_num
-        = common_robotics_utilities::openmp_helpers::GetContextOmpThreadNum();
-    per_thread_queues_.at(thread_num).at(distance_squared).push_back(index);
+    const size_t thread_num = static_cast<size_t>(
+        common_robotics_utilities::openmp_helpers::GetContextOmpThreadNum());
+    per_thread_queues_.at(thread_num).at(
+        static_cast<size_t>(distance_squared)).push_back(index);
   }
 
   void ClearCompletedQueues(const int32_t distance_squared)
   {
     for (size_t thread = 0; thread < per_thread_queues_.size(); thread++)
     {
-      per_thread_queues_.at(thread).at(distance_squared).clear();
+      per_thread_queues_.at(thread).at(
+          static_cast<size_t>(distance_squared)).clear();
     }
   }
 
 private:
-  typedef std::vector<std::vector<GridIndex>> ThreadIndexQueues;
+  using ThreadIndexQueues = std::vector<std::vector<GridIndex>>;
   std::vector<ThreadIndexQueues> per_thread_queues_;
 
 };
@@ -184,7 +190,8 @@ DistanceField BuildDistanceFieldSerial(
       + (distance_field.GetNumYCells() * distance_field.GetNumYCells())
       + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
   // Make bucket queue
-  std::vector<std::vector<BucketCell>> bucket_queue(max_distance_square + 1);
+  std::vector<std::vector<BucketCell>> bucket_queue(
+      static_cast<size_t>(max_distance_square + 1));
   bucket_queue[0].reserve(points.size());
   // Set initial update direction
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
@@ -233,8 +240,10 @@ DistanceField BuildDistanceFieldSerial(
         continue;
       }
       // Get the current neighborhood list
+      const size_t update_direction =
+          static_cast<size_t>(cur_cell.update_direction);
       const std::vector<std::vector<int>>& neighborhood =
-          neighborhoods[direction_switch][cur_cell.update_direction];
+          neighborhoods[direction_switch][update_direction];
       // Update the distance from the neighboring cells
       for (size_t nh_idx = 0; nh_idx < neighborhood.size(); nh_idx++)
       {
@@ -256,10 +265,10 @@ DistanceField BuildDistanceFieldSerial(
         // Update the neighbor's distance based on the current
         const int32_t new_distance_square =
             static_cast<int32_t>(ComputeDistanceSquared(
-                                   nx, ny, nz,
-                                   cur_cell.closest_point[0],
-                                   cur_cell.closest_point[1],
-                                   cur_cell.closest_point[2]));
+                nx, ny, nz,
+                static_cast<int32_t>(cur_cell.closest_point[0]),
+                static_cast<int32_t>(cur_cell.closest_point[1]),
+                static_cast<int32_t>(cur_cell.closest_point[2])));
         if (new_distance_square > max_distance_square)
         {
           // Skip these cases
@@ -272,13 +281,14 @@ DistanceField BuildDistanceFieldSerial(
           neighbor_query.Value().closest_point[0] = cur_cell.closest_point[0];
           neighbor_query.Value().closest_point[1] = cur_cell.closest_point[1];
           neighbor_query.Value().closest_point[2] = cur_cell.closest_point[2];
-          neighbor_query.Value().location[0] = nx;
-          neighbor_query.Value().location[1] = ny;
-          neighbor_query.Value().location[2] = nz;
+          neighbor_query.Value().location[0] = static_cast<uint32_t>(nx);
+          neighbor_query.Value().location[1] = static_cast<uint32_t>(ny);
+          neighbor_query.Value().location[2] = static_cast<uint32_t>(nz);
           neighbor_query.Value().update_direction =
               GetDirectionNumber(dx, dy, dz);
           // Add the neighbor into the bucket queue
-          bucket_queue[new_distance_square].push_back(neighbor_query.Value());
+          bucket_queue[static_cast<size_t>(new_distance_square)].push_back(
+              neighbor_query.Value());
         }
       }
     }
@@ -303,9 +313,11 @@ DistanceField BuildDistanceFieldParallel(
       + (distance_field.GetNumYCells() * distance_field.GetNumYCells())
       + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
   // Make bucket queue
-  std::vector<std::vector<BucketCell>> bucket_queue(max_distance_square + 1);
+  std::vector<std::vector<BucketCell>> bucket_queue(
+      static_cast<size_t>(max_distance_square + 1));
   bucket_queue[0].reserve(points.size());
-  MultipleThreadIndexQueueWrapper bucket_queues(max_distance_square + 1);
+  MultipleThreadIndexQueueWrapper bucket_queues(
+      static_cast<size_t>(max_distance_square + 1));
   // Set initial update direction
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
   // Mark all provided points with distance zero and add to the bucket queues
@@ -368,8 +380,10 @@ DistanceField BuildDistanceFieldParallel(
         continue;
       }
       // Get the current neighborhood list
+      const size_t update_direction =
+          static_cast<size_t>(cur_cell.update_direction);
       const std::vector<std::vector<int32_t>>& neighborhood =
-          neighborhoods[direction_switch][cur_cell.update_direction];
+          neighborhoods[direction_switch][update_direction];
       // Update the distance from the neighboring cells
       for (size_t nh_idx = 0; nh_idx < neighborhood.size(); nh_idx++)
       {
@@ -392,10 +406,10 @@ DistanceField BuildDistanceFieldParallel(
         // Update the neighbor's distance based on the current
         const int32_t new_distance_square =
             static_cast<int32_t>(ComputeDistanceSquared(
-                                   nx, ny, nz,
-                                   cur_cell.closest_point[0],
-                                   cur_cell.closest_point[1],
-                                   cur_cell.closest_point[2]));
+                nx, ny, nz,
+                static_cast<int32_t>(cur_cell.closest_point[0]),
+                static_cast<int32_t>(cur_cell.closest_point[1]),
+                static_cast<int32_t>(cur_cell.closest_point[2])));
         if (new_distance_square > max_distance_square)
         {
           // Skip these cases
@@ -408,9 +422,9 @@ DistanceField BuildDistanceFieldParallel(
           neighbor_query.Value().closest_point[0] = cur_cell.closest_point[0];
           neighbor_query.Value().closest_point[1] = cur_cell.closest_point[1];
           neighbor_query.Value().closest_point[2] = cur_cell.closest_point[2];
-          neighbor_query.Value().location[0] = nx;
-          neighbor_query.Value().location[1] = ny;
-          neighbor_query.Value().location[2] = nz;
+          neighbor_query.Value().location[0] = static_cast<uint32_t>(nx);
+          neighbor_query.Value().location[1] = static_cast<uint32_t>(ny);
+          neighbor_query.Value().location[2] = static_cast<uint32_t>(nz);
           neighbor_query.Value().update_direction =
               GetDirectionNumber(dx, dy, dz);
           // Add the neighbor into the bucket queue

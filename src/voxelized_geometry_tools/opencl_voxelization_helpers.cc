@@ -249,7 +249,8 @@ public:
     if (all_platforms.size() > 0 && platform_index >= 0
         && platform_index < static_cast<int32_t>(all_platforms.size()))
     {
-      auto& opencl_platform = all_platforms.at(platform_index);
+      auto& opencl_platform =
+          all_platforms.at(static_cast<size_t>(platform_index));
 
       std::string platform_name;
       opencl_platform.getInfo(CL_PLATFORM_NAME, &platform_name);
@@ -268,7 +269,7 @@ public:
       if (all_devices.size() > 0 && device_index >= 0
           && device_index < static_cast<int32_t>(all_devices.size()))
       {
-        auto& opencl_device = all_devices.at(device_index);
+        auto& opencl_device = all_devices.at(static_cast<size_t>(device_index));
 
         std::string device_name;
         opencl_device.getInfo(CL_DEVICE_NAME, &device_name);
@@ -345,7 +346,8 @@ public:
   std::unique_ptr<TrackingGridsHandle> PrepareTrackingGrids(
       const int64_t num_cells, const int32_t num_grids) override
   {
-    const size_t buffer_size = sizeof(int32_t) * 2 * num_cells * num_grids;
+    const size_t buffer_size =
+        sizeof(int32_t) * 2 * static_cast<size_t>(num_cells * num_grids);
     cl_int err = 0;
     std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
@@ -360,10 +362,12 @@ public:
         err = event.wait();
         if (err == CL_SUCCESS)
         {
-          std::vector<int64_t> tracking_grid_offsets(num_grids, 0);
+          std::vector<int64_t> tracking_grid_offsets(
+              static_cast<size_t>(num_grids), 0);
           for (int32_t num_grid = 0; num_grid < num_grids; num_grid++)
           {
-            tracking_grid_offsets.at(num_grid) = num_grid * num_cells * 2;
+            tracking_grid_offsets.at(static_cast<size_t>(num_grid)) =
+                num_grid * num_cells * 2;
           }
           return std::unique_ptr<TrackingGridsHandle>(
               new OpenCLTrackingGridsHandle(
@@ -450,10 +454,12 @@ public:
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(
       const int64_t num_cells, const void* host_data_ptr) override
   {
+    const size_t filter_grid_buffer_size =
+        sizeof(float) * static_cast<size_t>(num_cells) * 2;
     cl_int err = 0;
     std::unique_ptr<cl::Buffer> filter_grid_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
-        sizeof(float) * num_cells * 2, const_cast<void*>(host_data_ptr), &err));
+        filter_grid_buffer_size, const_cast<void*>(host_data_ptr), &err));
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error("Failed to allocate and copy filtered buffer");
@@ -487,7 +493,8 @@ public:
     filter_kernel.setArg(6, num_cameras_seen_free);
     const cl_int err = queue_->enqueueNDRangeKernel(
         filter_kernel, cl::NullRange,
-        cl::NDRange(real_tracking_grids.NumCellsPerGrid()), cl::NullRange);
+        cl::NDRange(static_cast<size_t>(real_tracking_grids.NumCellsPerGrid())),
+        cl::NullRange);
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error(
@@ -505,9 +512,10 @@ public:
     queue_->finish();
     const size_t item_size = sizeof(int32_t) * 2;
     const size_t tracking_grid_size =
-        real_tracking_grids.NumCellsPerGrid() * item_size;
+        static_cast<size_t>(real_tracking_grids.NumCellsPerGrid()) * item_size;
     const size_t starting_offset =
-        real_tracking_grids.GetTrackingGridStartingOffset(tracking_grid_index)
+        static_cast<size_t>(real_tracking_grids.GetTrackingGridStartingOffset(
+            tracking_grid_index))
         * sizeof(int32_t);
     const cl_int err = queue_->enqueueReadBuffer(
         real_tracking_grids.GetBuffer(), CL_TRUE, starting_offset,
@@ -526,7 +534,8 @@ public:
 
     queue_->finish();
     const size_t item_size = sizeof(float) * 2;
-    const size_t buffer_size = real_filter_grid.NumCells() * item_size;
+    const size_t buffer_size =
+        static_cast<size_t>(real_filter_grid.NumCells()) * item_size;
     const cl_int err = queue_->enqueueReadBuffer(
         real_filter_grid.GetBuffer(), CL_TRUE, 0, buffer_size, host_data_ptr);
     if (err != CL_SUCCESS)

@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/maybe.hpp>
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
@@ -251,83 +252,6 @@ private:
     }
   }
 
-  /// Bilinear interpolation used in trilinear interpolation.
-  template<typename T>
-  inline T BilinearInterpolate(const double low_d1,
-                               const double high_d1,
-                               const double low_d2,
-                               const double high_d2,
-                               const T query_d1,
-                               const T query_d2,
-                               const double l1l2_val,
-                               const double l1h2_val,
-                               const double h1l2_val,
-                               const double h1h2_val) const
-  {
-    Eigen::Matrix<T, 1, 2> d1_offsets;
-    d1_offsets(0, 0) = high_d1 - query_d1;
-    d1_offsets(0, 1) = query_d1 - low_d1;
-    Eigen::Matrix<T, 2, 2> values;
-    values(0, 0) = l1l2_val;
-    values(0, 1) = l1h2_val;
-    values(1, 0) = h1l2_val;
-    values(1, 1) = h1h2_val;
-    Eigen::Matrix<T, 2, 1> d2_offsets;
-    d2_offsets(0, 0) = high_d2 - query_d2;
-    d2_offsets(1, 0) = query_d2 - low_d2;
-    const T multiplier = 1.0 / ((high_d1 - low_d1) * (high_d2 - low_d2));
-    const T bilinear_interpolated
-        = multiplier * d1_offsets * values * d2_offsets;
-    return bilinear_interpolated;
-  }
-
-  /// Wrapper around bilinear interpolation to set arguments more easily.
-  template<typename T>
-  inline T BilinearInterpolateDistanceXY(
-      const Eigen::Vector4d& corner_location,
-      const Eigen::Matrix<T, 4, 1>& query_location,
-      const double mxmy_dist, const double mxpy_dist,
-      const double pxmy_dist, const double pxpy_dist) const
-  {
-    return BilinearInterpolate(corner_location(0),
-                               corner_location(0) + GetResolution(),
-                               corner_location(1),
-                               corner_location(1) + GetResolution(),
-                               query_location(0),
-                               query_location(1),
-                               mxmy_dist, mxpy_dist,
-                               pxmy_dist, pxpy_dist);
-  }
-
-  /// Trilinear distance interpolation.
-  template<typename T>
-  inline T TrilinearInterpolateDistance(
-      const Eigen::Vector4d& corner_location,
-      const Eigen::Matrix<T, 4, 1>& query_location,
-      const double mxmymz_dist, const double mxmypz_dist,
-      const double mxpymz_dist, const double mxpypz_dist,
-      const double pxmymz_dist, const double pxmypz_dist,
-      const double pxpymz_dist, const double pxpypz_dist) const
-  {
-    // Do bilinear interpolation in the lower XY plane
-    const T mz_bilinear_interpolated
-        = BilinearInterpolateDistanceXY(corner_location, query_location,
-                                        mxmymz_dist, mxpymz_dist,
-                                        pxmymz_dist, pxpymz_dist);
-    // Do bilinear interpolation in the upper XY plane
-    const T pz_bilinear_interpolated
-        = BilinearInterpolateDistanceXY(corner_location, query_location,
-                                        mxmypz_dist, mxpypz_dist,
-                                        pxmypz_dist, pxpypz_dist);
-    // Perform linear interpolation/extrapolation between lower and upper planes
-    const double inv_resolution = 1.0 / GetResolution();
-    const T distance_delta
-        = pz_bilinear_interpolated - mz_bilinear_interpolated;
-    const T distance_slope = distance_delta * inv_resolution;
-    const T query_z_delta = query_location(2) - T(corner_location(2));
-    return mz_bilinear_interpolated + (query_z_delta * distance_slope);
-  }
-
   /// Computes "corrected" center distance accounting for the fact that SDF
   /// distance is the distance to the next filled cell center, *not* the
   /// distance to the boundary.
@@ -356,11 +280,10 @@ private:
   }
 
   /// Computes the axis lookup indices to use for interpolation.
-  template<typename T>
   std::pair<int64_t, int64_t> GetAxisInterpolationIndices(
       const int64_t initial_index,
       const int64_t axis_size,
-      const T axis_offset) const
+      const double axis_offset) const
   {
     int64_t lower = initial_index;
     int64_t upper = initial_index;
@@ -394,19 +317,18 @@ private:
   }
 
   /// Estimates distance via trilinear interpolation of the surrounding 8 cells.
-  template<typename T>
-  inline T EstimateDistanceInterpolateFromNeighbors(
-      const Eigen::Matrix<T, 4, 1>& query_location,
+  inline double EstimateDistanceInterpolateFromNeighbors(
+      const Eigen::Vector4d& query_location,
       const int64_t x_idx, const int64_t y_idx, const int64_t z_idx) const
   {
     // Get the query location in grid frame
-    const Eigen::Matrix<T, 4, 1> grid_frame_query_location
+    const Eigen::Vector4d grid_frame_query_location
         = this->GetInverseOriginTransform() * query_location;
     // Switch between all the possible options of where we are
     const Eigen::Vector4d cell_center_location
         = this->GridIndexToLocationInGridFrame(x_idx, y_idx, z_idx);
-    const Eigen::Matrix<T, 4, 1> query_offset
-        = grid_frame_query_location - cell_center_location.cast<T>();
+    const Eigen::Vector4d query_offset
+        = grid_frame_query_location - cell_center_location;
     // We can't catch the easiest case of being at a cell center, since doing so
     // breaks the ability of Eigen's Autodiff to autodiff this function.
     // Find the best-matching 8 surrounding cell centers
@@ -455,12 +377,12 @@ private:
         = GetCorrectedCenterDistance(x_axis_indices.second,
                                      y_axis_indices.second,
                                      z_axis_indices.second);
-    return TrilinearInterpolateDistance(lower_corner_location,
-                                        grid_frame_query_location,
-                                        mxmymz_distance, mxmypz_distance,
-                                        mxpymz_distance, mxpypz_distance,
-                                        pxmymz_distance, pxmypz_distance,
-                                        pxpymz_distance, pxpypz_distance);
+    return common_robotics_utilities::math::TrilinearInterpolate<double>(
+        lower_corner_location.head(3),
+        lower_corner_location.head(3) + this->GetCellSizes(),
+        mxmymz_distance, mxmypz_distance, mxpymz_distance, mxpypz_distance,
+        pxmymz_distance, pxmypz_distance, pxpymz_distance, pxpypz_distance,
+        grid_frame_query_location.head(3));
   }
 
   /// You *must* provide valid indices to this function, hence why it's private.
@@ -906,7 +828,7 @@ public:
     if (this->IndexInBounds(index))
     {
       return EstimateDistanceQuery(
-          EstimateDistanceInterpolateFromNeighbors<double>(
+          EstimateDistanceInterpolateFromNeighbors(
               location, index.X(), index.Y(), index.Z()));
     }
     else

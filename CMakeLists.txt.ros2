@@ -47,7 +47,7 @@ include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS})
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
 cmake_policy(SET CMP0069 NEW)
 
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++17)
 add_compile_options(-Wall)
 add_compile_options(-Wextra)
 add_compile_options(-Werror)

@@ -33,7 +33,10 @@ std::vector<AvailableBackend> GetAvailableBackends()
   }
 
   available_backends.push_back(AvailableBackend(
-      "CPU/OpenMP", {}, BackendOptions::CPU));
+      "CPU/OpenMP", {{"CPU_PARALLELIZE", 1}}, BackendOptions::CPU));
+
+  available_backends.push_back(AvailableBackend(
+      "CPU/OpenMP", {{"CPU_PARALLELIZE", 0}}, BackendOptions::CPU));
 
   return available_backends;
 }
@@ -50,7 +53,7 @@ MakePointCloudVoxelizer(
   else if (backend_option == BackendOptions::CPU)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CpuPointCloudVoxelizer());
+        new CpuPointCloudVoxelizer(device_options));
   }
   else if (backend_option == BackendOptions::OPENCL)
   {
@@ -108,7 +111,7 @@ MakeBestAvailablePointCloudVoxelizer(
   {
     std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CpuPointCloudVoxelizer());
+        new CpuPointCloudVoxelizer(device_options));
   }
   catch (std::runtime_error&)
   {

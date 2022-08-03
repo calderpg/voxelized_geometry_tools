@@ -13,7 +13,8 @@ namespace pointcloud_voxelization
 /// CPU-based (OpenMP) implementation of pointcloud voxelizer.
 class CpuPointCloudVoxelizer : public PointCloudVoxelizationInterface {
 public:
-  CpuPointCloudVoxelizer() {}
+  explicit CpuPointCloudVoxelizer(
+      const std::map<std::string, int32_t>& options);
 
 private:
   VoxelizerRuntime DoVoxelizePointClouds(
@@ -21,6 +22,8 @@ private:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const override;
+
+  bool use_parallel_ = true;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

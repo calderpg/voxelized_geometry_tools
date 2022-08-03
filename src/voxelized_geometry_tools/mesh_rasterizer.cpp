@@ -7,10 +7,8 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/math.hpp>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
-#if defined(_OPENMP)
-#include <omp.h>
-#endif
 #include <voxelized_geometry_tools/collision_map.hpp>
 
 namespace voxelized_geometry_tools
@@ -197,16 +195,15 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_mesh)
+    const bool enforce_collision_map_contains_mesh,
+    const bool use_parallel)
 {
   if (!collision_map.IsInitialized())
   {
     throw std::invalid_argument("collision_map must be initialized");
   }
 
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
+  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
   for (size_t idx = 0; idx < triangles.size(); idx++)
   {
     RasterizeTriangle(
@@ -218,7 +215,8 @@ void RasterizeMesh(
 voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
-    const double resolution)
+    const double resolution,
+    const bool use_parallel)
 {
   if (resolution <= 0.0)
   {
@@ -253,7 +251,7 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
   voxelized_geometry_tools::CollisionMap collision_map(
       X_OG, "mesh", filter_grid_sizes, empty_cell);
 
-  RasterizeMesh(vertices, triangles, collision_map);
+  RasterizeMesh(vertices, triangles, collision_map, true, use_parallel);
 
   return collision_map;
 }

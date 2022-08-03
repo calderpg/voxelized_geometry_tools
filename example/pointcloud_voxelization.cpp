@@ -295,7 +295,7 @@ void test_pointcloud_voxelization(
   {
     std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
-        new CpuPointCloudVoxelizer());
+        new CpuPointCloudVoxelizer(options));
     const auto cpu_voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud});

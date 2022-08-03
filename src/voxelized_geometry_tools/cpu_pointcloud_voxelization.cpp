@@ -1,9 +1,5 @@
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 
-#if defined(_OPENMP)
-#include <omp.h>
-#endif
-
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -13,8 +9,10 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 namespace voxelized_geometry_tools
@@ -75,7 +73,7 @@ using VectorCpuVoxelizationTrackingGrid =
 
 void RaycastPointCloud(
     const PointCloudWrapper& cloud, const double step_size,
-    CpuVoxelizationTrackingGrid& tracking_grid)
+    const bool use_parallel, CpuVoxelizationTrackingGrid& tracking_grid)
 {
   // Get X_GW, the transform from grid origin to world
   const Eigen::Isometry3d& X_GW = tracking_grid.GetInverseOriginTransform();
@@ -87,9 +85,7 @@ void RaycastPointCloud(
   const Eigen::Vector4d p_GCo = X_GC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
+  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
   for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
@@ -157,14 +153,12 @@ void RaycastPointCloud(
 void CombineAndFilterGrids(
     const PointCloudVoxelizationFilterOptions& filter_options,
     const VectorCpuVoxelizationTrackingGrid& tracking_grids,
-    CollisionMap& filtered_grid)
+    const bool use_parallel, CollisionMap& filtered_grid)
 {
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
+  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
   for (int64_t voxel = 0; voxel < filtered_grid.GetTotalCells(); voxel++)
   {
     auto& current_cell = filtered_grid.GetDataIndexMutable(voxel);
@@ -211,6 +205,14 @@ void CombineAndFilterGrids(
 }
 }  // namespace
 
+CpuPointCloudVoxelizer::CpuPointCloudVoxelizer(
+    const std::map<std::string, int32_t>& options)
+{
+  const int32_t cpu_parallelize =
+      RetrieveOptionOrDefault(options, "CPU_PARALLELIZE", 1);
+  use_parallel_ = static_cast<bool>(cpu_parallelize);
+}
+
 VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
@@ -234,12 +236,13 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   {
     const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
     CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
-    RaycastPointCloud(*cloud_ptr, step_size, tracking_grid);
+    RaycastPointCloud(*cloud_ptr, step_size, use_parallel_, tracking_grid);
   }
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();
   // Combine & filter
-  CombineAndFilterGrids(filter_options, tracking_grids, output_environment);
+  CombineAndFilterGrids(
+      filter_options, tracking_grids, use_parallel_, output_environment);
   const std::chrono::time_point<std::chrono::steady_clock> done_time =
       std::chrono::steady_clock::now();
   return VoxelizerRuntime(

@@ -1,9 +1,5 @@
 #include <voxelized_geometry_tools/signed_distance_field_generation.hpp>
 
-#if defined(_OPENMP)
-#include <omp.h>
-#endif
-
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -322,9 +318,7 @@ DistanceField BuildDistanceFieldParallel(
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
   // Mark all provided points with distance zero and add to the bucket queues
   // points MUST NOT CONTAIN DUPLICATE ENTRIES!
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
+  CRU_OMP_PARALLEL_FOR
   for (size_t index = 0; index < points.size(); index++)
   {
     const GridIndex& current_index = points[index];
@@ -356,9 +350,7 @@ DistanceField BuildDistanceFieldParallel(
            < static_cast<int32_t>(bucket_queues.NumQueues());
        current_distance_square++)
   {
-#if defined(_OPENMP)
-#pragma omp parallel for
-#endif
+    CRU_OMP_PARALLEL_FOR
     for (size_t idx = 0; idx < bucket_queues.Size(current_distance_square);
          idx++)
     {

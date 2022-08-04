@@ -136,20 +136,22 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 }
 
 CudaPointCloudVoxelizer::CudaPointCloudVoxelizer(
-    const std::map<std::string, int32_t>& options)
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
 {
   device_name_ = "CudaPointCloudVoxelizer";
   helper_interface_ = std::unique_ptr<DeviceVoxelizationHelperInterface>(
-      cuda_helpers::MakeCudaVoxelizationHelper(options));
+      cuda_helpers::MakeCudaVoxelizationHelper(options, logging_fn));
   EnforceAvailable();
 }
 
 OpenCLPointCloudVoxelizer::OpenCLPointCloudVoxelizer(
-    const std::map<std::string, int32_t>& options)
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
 {
   device_name_ = "OpenCLPointCloudVoxelizer";
   helper_interface_ = std::unique_ptr<DeviceVoxelizationHelperInterface>(
-      opencl_helpers::MakeOpenCLVoxelizationHelper(options));
+      opencl_helpers::MakeOpenCLVoxelizationHelper(options, logging_fn));
   EnforceAvailable();
 }
 }  // namespace pointcloud_voxelization

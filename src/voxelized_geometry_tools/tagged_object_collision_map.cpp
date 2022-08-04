@@ -14,6 +14,7 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/serialization.hpp>
+#include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
 #include <voxelized_geometry_tools/topology_computation.hpp>
@@ -508,7 +509,8 @@ TaggedObjectCollisionMap::ExtractEmptyComponentSurfaces() const
 topology_computation::TopologicalInvariants
 TaggedObjectCollisionMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use,
-    const bool connect_across_objects, const bool verbose)
+    const bool connect_across_objects,
+    const common_robotics_utilities::utility::LoggingFunction& logging_fn)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   UpdateConnectedComponents(connect_across_objects);
@@ -562,10 +564,8 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
     }
     return false;
   };
-  return topology_computation::ComputeComponentTopology(*this,
-                                                        get_component_fn,
-                                                        is_surface_index_fn,
-                                                        verbose);
+  return topology_computation::ComputeComponentTopology(
+      *this, get_component_fn, is_surface_index_fn, logging_fn);
 }
 
 SignedDistanceField<double>
@@ -728,10 +728,8 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
     }
   };
   number_of_components_
-      = topology_computation::ComputeConnectedComponents(*this,
-                                                         are_connected_fn,
-                                                         get_component_fn,
-                                                         mark_component_fn);
+      = topology_computation::ComputeConnectedComponents(
+          *this, are_connected_fn, get_component_fn, mark_component_fn);
   components_valid_ = true;
   return number_of_components_;
 }
@@ -829,10 +827,8 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
     }
   };
   number_of_spatial_segments_
-      = topology_computation::ComputeConnectedComponents(*this,
-                                                         are_connected_fn,
-                                                         get_component_fn,
-                                                         mark_component_fn);
+      = topology_computation::ComputeConnectedComponents(
+          *this, are_connected_fn, get_component_fn, mark_component_fn);
   spatial_segments_valid_ = true;
   return number_of_spatial_segments_;
 }

@@ -4,8 +4,6 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
-#include <fstream>
-#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -13,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 
 namespace voxelized_geometry_tools
@@ -195,7 +194,7 @@ uint32_t ComputeConnectedComponents(
 
 inline int32_t ComputeConnectivityOfSurfaceVertices(
     const std::unordered_map<GridIndex, uint8_t>&
-      surface_vertex_connectivity)
+        surface_vertex_connectivity)
 {
   int32_t connected_components = 0;
   int64_t processed_vertices = 0;
@@ -330,7 +329,7 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
     const uint32_t component,
     const std::unordered_map<GridIndex, uint8_t>& surface,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
-    const bool verbose)
+    const common_robotics_utilities::utility::LoggingFunction& logging_fn)
 {
   // We have a list of all voxels with an exposed surface face
   // We loop through this list of voxels, and convert each voxel
@@ -486,11 +485,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
       surface_vertices.insert(vertex8);
     }
   }
-  if (verbose)
-  {
-    std::cerr << "Surface with " << surface.size() << " voxels has "
-              << surface_vertices.size() << " surface vertices" << std::endl;
-  }
+  logging_fn(
+      "Surface with " + std::to_string(surface.size()) + " voxels has " +
+      std::to_string(surface_vertices.size()) + " surface vertices");
   // Iterate through the surface vertices and count the neighbors of each vertex
   int32_t M3 = 0;
   int32_t M5 = 0;
@@ -627,13 +624,12 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
   // Compute the number of holes in the surface
   const int32_t raw_number_of_holes = 1 + ((M5 + (2 * M6) - M3) / 8);
   const int32_t number_of_holes = raw_number_of_holes + number_of_voids;
-  if (verbose)
-  {
-    std::cout << "Processing surface with M3 = " << M3 << " M5 = " << M5
-              << " M6 = " << M6 << " holes = " << number_of_holes
-              << " surfaces = " << number_of_surfaces
-              << " voids = " << number_of_voids << std::endl;
-  }
+  logging_fn(
+      "Processed surface with M3 = " + std::to_string(M3) + " M5 = " +
+      std::to_string(M5) + " M6 = " + std::to_string(M6) + " into # holes = " +
+      std::to_string(number_of_holes) + " # of surfaces = " +
+      std::to_string(number_of_surfaces) + " # of voids = " +
+      std::to_string(number_of_voids));
   return NumberOfHolesAndVoids(number_of_holes, number_of_voids);
 }
 
@@ -643,13 +639,12 @@ TopologicalInvariants ComputeComponentTopology(
         ::VoxelGridBase<T, BackingStore>& source_grid,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
     const std::function<bool(const GridIndex&)>& is_surface_index_fn,
-    const bool verbose)
+    const common_robotics_utilities::utility::LoggingFunction& logging_fn)
 {
   // Extract the surfaces of each connected component
   const std::map<uint32_t, std::unordered_map<GridIndex, uint8_t>>
-      component_surfaces = ExtractComponentSurfaces(source_grid,
-                                                    get_component_fn,
-                                                    is_surface_index_fn);
+      component_surfaces = ExtractComponentSurfaces(
+          source_grid, get_component_fn, is_surface_index_fn);
   // Compute the number of holes in each surface
   TopologicalInvariants component_holes_and_voids;
   for (const auto& component_and_surface : component_surfaces)
@@ -659,7 +654,7 @@ TopologicalInvariants ComputeComponentTopology(
         = component_and_surface.second;
     const NumberOfHolesAndVoids number_of_holes_and_voids
         = ComputeHolesAndVoidsInSurface(
-            component_number, component_surface, get_component_fn, verbose);
+            component_number, component_surface, get_component_fn, logging_fn);
     component_holes_and_voids[component_number] = number_of_holes_and_voids;
   }
   return component_holes_and_voids;

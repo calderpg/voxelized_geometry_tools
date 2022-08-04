@@ -238,14 +238,15 @@ class OpenCLVoxelizationHelperInterface
     : public DeviceVoxelizationHelperInterface
 {
 public:
-  explicit OpenCLVoxelizationHelperInterface(
-      const std::map<std::string, int32_t>& options)
+  OpenCLVoxelizationHelperInterface(
+      const std::map<std::string, int32_t>& options,
+      const LoggingFunction& logging_fn)
   {
     std::vector<cl::Platform> all_platforms;
     cl::Platform::get(&all_platforms);
 
-    const int32_t platform_index =
-        RetrieveOptionOrDefault(options, "OPENCL_PLATFORM_INDEX", 0);
+    const int32_t platform_index = RetrieveOptionOrDefault(
+        options, "OPENCL_PLATFORM_INDEX", 0, logging_fn);
     if (all_platforms.size() > 0 && platform_index >= 0
         && platform_index < static_cast<int32_t>(all_platforms.size()))
     {
@@ -257,15 +258,16 @@ public:
       std::string platform_vendor;
       opencl_platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
 
-      std::cout << "Using OpenCL Platform [" << platform_index << "] - Name: ["
-                << platform_name << "], Vendor: [" << platform_vendor << "]"
-                << std::endl;
+      logging_fn(
+          "Using OpenCL Platform [" + std::to_string(platform_index) +
+          "] - Name: [" + platform_name + "], Vendor: [" + platform_vendor +
+          "]");
 
       std::vector<cl::Device> all_devices;
       opencl_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
 
-      const int32_t device_index =
-          RetrieveOptionOrDefault(options, "OPENCL_DEVICE_INDEX", 0);
+      const int32_t device_index = RetrieveOptionOrDefault(
+          options, "OPENCL_DEVICE_INDEX", 0, logging_fn);
       if (all_devices.size() > 0 && device_index >= 0
           && device_index < static_cast<int32_t>(all_devices.size()))
       {
@@ -274,8 +276,9 @@ public:
         std::string device_name;
         opencl_device.getInfo(CL_DEVICE_NAME, &device_name);
 
-        std::cout << "Using OpenCL Device [" << device_index << "] - Name: ["
-                  << device_name << "]" << std::endl;
+        logging_fn(
+            "Using OpenCL Device [" + std::to_string(device_index) +
+            "] - Name: [" + device_name + "]");
 
         // Make context + queue
         context_ = std::unique_ptr<cl::Context>(
@@ -299,42 +302,44 @@ public:
         if (raycasting_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
-          std::cerr << " Error building raycasting kernel: "
-                    << raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                        opencl_device)
-                    << std::endl;
+          logging_fn(
+              "Error building raycasting kernel: " +
+              raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                  opencl_device));
           raycasting_program_.reset();
         }
         if (filter_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
-          std::cerr << " Error building filter kernel: "
-                    << filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                        opencl_device)
-                    << std::endl;
+          logging_fn(
+              "Error building filter kernel: " +
+              filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                  opencl_device));
           filter_program_.reset();
         }
       }
       else if (all_devices.size() > 0)
       {
-        std::cerr << "OPENCL_DEVICE_INDEX = " << device_index
-                  << " out of range for " << all_devices.size() << " devices"
-                  << std::endl;
+        logging_fn(
+            "OPENCL_DEVICE_INDEX = " + std::to_string(device_index) +
+            " out of range for " + std::to_string(all_devices.size()) +
+            " devices");
       }
       else
       {
-        std::cerr << "No OpenCL device available" << std::endl;
+        logging_fn("No OpenCL device available");
       }
     }
     else if (all_platforms.size() > 0)
     {
-      std::cerr << "OPENCL_PLATFORM_INDEX = " << platform_index
-                << " out of range for " << all_platforms.size() << " platforms"
-                << std::endl;
+      logging_fn(
+          "OPENCL_PLATFORM_INDEX = " + std::to_string(platform_index) +
+          " out of range for " + std::to_string(all_platforms.size()) +
+          " platforms");
     }
     else
     {
-      std::cerr << "No OpenCL platform available" << std::endl;
+      logging_fn("No OpenCL platform available");
     }
   }
 
@@ -592,10 +597,12 @@ std::vector<AvailableDevice> GetAvailableDevices()
 }
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
-MakeOpenCLVoxelizationHelper(const std::map<std::string, int32_t>& options)
+MakeOpenCLVoxelizationHelper(
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
 {
   return std::unique_ptr<DeviceVoxelizationHelperInterface>(
-      new OpenCLVoxelizationHelperInterface(options));
+      new OpenCLVoxelizationHelperInterface(options, logging_fn));
 }
 }  // namespace opencl_helpers
 }  // namespace pointcloud_voxelization

@@ -232,6 +232,8 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   // Run all available voxelizers
   const auto available_backends =
       pointcloud_voxelization::GetAvailableBackends();
+  const pointcloud_voxelization::LoggingFunction logging_fn =
+      [] (const std::string& msg) { std::cout << msg << std::endl; };
 
   for (size_t idx = 0; idx < available_backends.size(); idx++)
   {
@@ -239,8 +241,8 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
     std::cout << "Trying voxelizer [" << idx << "] "
               << available_backend.DeviceName() << std::endl;
 
-    auto voxelizer =
-        pointcloud_voxelization::MakePointCloudVoxelizer(available_backend);
+    auto voxelizer = pointcloud_voxelization::MakePointCloudVoxelizer(
+        available_backend, logging_fn);
 
     const auto empty_voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, {});

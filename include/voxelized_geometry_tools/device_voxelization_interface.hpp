@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <iostream>
@@ -11,6 +12,17 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
+// Signature of basic text logging function. This is the same as CRU's logging
+// function type, but repeated here as some of our build systems are limited in
+// handling includes for device-specific compilers (e.g. NVCC).
+using LoggingFunction = std::function<void(const std::string&)>;
+
+/// Make a do-nothing logging function.
+inline LoggingFunction NoOpLoggingFunction()
+{
+  return [] (const std::string&) {};
+}
+
 // Wrapper for device name and the options necessary to retrieve it.
 class AvailableDevice
 {
@@ -35,20 +47,21 @@ private:
 // Helper for common option retrieval in device voxelizers.
 inline int32_t RetrieveOptionOrDefault(
     const std::map<std::string, int32_t>& options, const std::string& option,
-    const int32_t default_value)
+    const int32_t default_value, const LoggingFunction& logging_fn)
 {
   auto found_itr = options.find(option);
   if (found_itr != options.end())
   {
     const int32_t value = found_itr->second;
-    std::cout << "Option [" << option << "] found with value [" << value << "]"
-              << std::endl;
+    logging_fn(
+        "Option [" + option + "] found, value [" + std::to_string(value) + "]");
     return value;
   }
   else
   {
-    std::cout << "Option [" << option << "] not found, default ["
-              << default_value << "]" << std::endl;
+    logging_fn(
+        "Option [" + option + "] not found, default ["
+        + std::to_string(default_value) + "]");
     return default_value;
   }
 }

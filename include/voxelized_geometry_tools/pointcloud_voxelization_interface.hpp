@@ -226,17 +226,8 @@ public:
       const CollisionMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-      const std::function<void(const VoxelizerRuntime&)>&
-          runtime_log_fn = [] (const VoxelizerRuntime& voxelizer_runtime)
-          {
-            const double raycasting_time = voxelizer_runtime.RaycastingTime();
-            const double filtering_time = voxelizer_runtime.FilteringTime();
-            std::cout
-                << "Raycasting time " << raycasting_time
-                << ", filtering time " << filtering_time
-                << ", total time " << raycasting_time + filtering_time
-                << std::endl;
-          }) const {
+      const std::function<void(const VoxelizerRuntime&)>& runtime_log_fn =
+          [] (const VoxelizerRuntime&){}) const {
     CollisionMap output_environment = static_environment;
     const auto voxelizer_runtime = VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, pointclouds,

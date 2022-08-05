@@ -206,10 +206,11 @@ void CombineAndFilterGrids(
 }  // namespace
 
 CpuPointCloudVoxelizer::CpuPointCloudVoxelizer(
-    const std::map<std::string, int32_t>& options)
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
 {
   const int32_t cpu_parallelize =
-      RetrieveOptionOrDefault(options, "CPU_PARALLELIZE", 1);
+      RetrieveOptionOrDefault(options, "CPU_PARALLELIZE", 1, logging_fn);
   use_parallel_ = static_cast<bool>(cpu_parallelize);
 }
 

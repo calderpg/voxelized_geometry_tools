@@ -307,7 +307,8 @@ public:
       if (logging_fn)
       {
         logging_fn(
-            "Failed to load CUDA runtime and set device: " + ex.what());
+            "Failed to load CUDA runtime and set device: " +
+            std::string(ex.what()));
       }
       cuda_device_num_ = -1;
     }

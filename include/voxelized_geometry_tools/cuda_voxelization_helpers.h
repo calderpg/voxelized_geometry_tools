@@ -17,7 +17,9 @@ namespace cuda_helpers
 std::vector<AvailableDevice> GetAvailableDevices();
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
-MakeCudaVoxelizationHelper(const std::map<std::string, int32_t>& options);
+MakeCudaVoxelizationHelper(
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn);
 }  // namespace cuda_helpers
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

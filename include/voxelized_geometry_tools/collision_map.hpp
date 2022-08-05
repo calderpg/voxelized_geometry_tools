@@ -16,6 +16,7 @@
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/maybe.hpp>
 #include <common_robotics_utilities/serialization.hpp>
+#include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/signed_distance_field_generation.hpp>
@@ -230,7 +231,9 @@ public:
   ExtractEmptyComponentSurfaces() const;
 
   topology_computation::TopologicalInvariants ComputeComponentTopology(
-      const COMPONENT_TYPES component_types_to_use, const bool verbose);
+      const COMPONENT_TYPES component_types_to_use,
+      const common_robotics_utilities::utility::LoggingFunction&
+          logging_fn = {});
 
   template<typename ScalarType>
   SignedDistanceField<ScalarType> ExtractSignedDistanceField(

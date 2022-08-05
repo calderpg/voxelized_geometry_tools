@@ -262,11 +262,12 @@ private:
 class CudaVoxelizationHelperInterface : public DeviceVoxelizationHelperInterface
 {
 public:
-  explicit CudaVoxelizationHelperInterface(
-      const std::map<std::string, int32_t>& options)
+  CudaVoxelizationHelperInterface(
+      const std::map<std::string, int32_t>& options,
+      const LoggingFunction& logging_fn)
   {
-    const int32_t cuda_device =
-        RetrieveOptionOrDefault(options, "CUDA_DEVICE", 0);
+    const int32_t cuda_device = RetrieveOptionOrDefault(
+        options, "CUDA_DEVICE", 0, logging_fn);
     try
     {
       int32_t device_count = 0;
@@ -283,20 +284,31 @@ public:
         CudaCheckErrors("Failed to get device properties");
         const std::string device_name(device_properties.name);
 
-        std::cout << "Using CUDA device [" << cuda_device << "] - Name: ["
-                  << device_name << "]" << std::endl;
+        if (logging_fn)
+        {
+          logging_fn(
+              "Using CUDA device [" + std::to_string(cuda_device) +
+              "] - Name: [" + device_name + "]");
+        }
       }
       else
       {
-        std::cerr << "CUDA_DEVICE = " << cuda_device << " out of range for "
-                  << device_count << " devices" << std::endl;
+        if (logging_fn)
+        {
+          logging_fn(
+              "CUDA_DEVICE = " + std::to_string(cuda_device) +
+              " out of range for " + std::to_string(device_count) + " devices");
+        }
         cuda_device_num_ = -1;
       }
     }
     catch (const std::runtime_error& ex)
     {
-      std::cerr << "Failed to load CUDA runtime and set device: "
-                << ex.what() << std::endl;
+      if (logging_fn)
+      {
+        logging_fn(
+            "Failed to load CUDA runtime and set device: " + ex.what());
+      }
       cuda_device_num_ = -1;
     }
   }
@@ -491,19 +503,18 @@ std::vector<AvailableDevice> GetAvailableDevices()
       available_devices.push_back(AvailableDevice(full_name, device_options));
     }
   }
-  catch (const std::runtime_error& ex)
-  {
-    std::cerr << ex.what() << std::endl;
-  }
+  catch (const std::runtime_error&) {}
 
   return available_devices;
 }
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
-MakeCudaVoxelizationHelper(const std::map<std::string, int32_t>& options)
+MakeCudaVoxelizationHelper(
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
 {
   return std::unique_ptr<DeviceVoxelizationHelperInterface>(
-      new CudaVoxelizationHelperInterface(options));
+      new CudaVoxelizationHelperInterface(options, logging_fn));
 }
 }  // namespace cuda_helpers
 }  // namespace pointcloud_voxelization

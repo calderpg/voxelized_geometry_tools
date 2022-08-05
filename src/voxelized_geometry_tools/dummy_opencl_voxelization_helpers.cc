@@ -14,7 +14,8 @@ namespace opencl_helpers
 std::vector<AvailableDevice> GetAvailableDevices() { return {}; }
 
 std::unique_ptr<DeviceVoxelizationHelperInterface>
-MakeOpenCLVoxelizationHelper(const std::map<std::string, int32_t>&)
+MakeOpenCLVoxelizationHelper(
+    const std::map<std::string, int32_t>&, const LoggingFunction&)
 {
   return std::unique_ptr<DeviceVoxelizationHelperInterface>();
 }

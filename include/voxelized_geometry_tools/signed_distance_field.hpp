@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <functional>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -329,8 +328,6 @@ private:
         = this->GridIndexToLocationInGridFrame(x_idx, y_idx, z_idx);
     const Eigen::Vector4d query_offset
         = grid_frame_query_location - cell_center_location;
-    // We can't catch the easiest case of being at a cell center, since doing so
-    // breaks the ability of Eigen's Autodiff to autodiff this function.
     // Find the best-matching 8 surrounding cell centers
     const std::pair<int64_t, int64_t> x_axis_indices
         = GetAxisInterpolationIndices(
@@ -427,11 +424,6 @@ private:
                                     -std::numeric_limits<double>::infinity());
       while (true)
       {
-        if (path.size() == 10000)
-        {
-          std::cerr << "Warning, gradient path is long (i.e >= 10000 steps)"
-                    << std::endl;
-        }
         current_index = GetNextFromGradient(current_index, gradient_vector);
         if (path[current_index] != 0)
         {
@@ -1178,10 +1170,12 @@ public:
       {
         const GradientQuery gradient = GetLocationCoarseGradient4d(
             mutable_location, enable_edge_gradients);
+        // Make sure we haven't run off the edge of the grid
         if (gradient.HasValue())
         {
           const Eigen::Vector4d& grad_vector = gradient.Value();
-          if (grad_vector.norm() > GetResolution() * 0.25) // Sanity check
+          // Make sure the gradient is large enough to be productive
+          if (grad_vector.norm() > GetResolution() * 0.25)
           {
             // Don't step any farther than is needed
             const double step_distance =
@@ -1191,13 +1185,11 @@ public:
           }
           else
           {
-            std::cerr << "Encountered flat gradient - stuck" << std::endl;
             return ProjectedPosition();
           }
         }
         else
         {
-          std::cerr << "Failed to compute gradient - out of SDF?" << std::endl;
           return ProjectedPosition();
         }
       }

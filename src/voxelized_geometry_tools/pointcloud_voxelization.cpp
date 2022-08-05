@@ -38,14 +38,14 @@ std::vector<AvailableBackend> GetAvailableBackends()
   return available_backends;
 }
 
-std::unique_ptr<PointCloudVoxelizationInterface>
-MakePointCloudVoxelizer(
+std::unique_ptr<PointCloudVoxelizationInterface> MakePointCloudVoxelizer(
     const BackendOptions backend_option,
-    const std::map<std::string, int32_t>& device_options)
+    const std::map<std::string, int32_t>& device_options,
+    const LoggingFunction& logging_fn)
 {
   if (backend_option == BackendOptions::BEST_AVAILABLE)
   {
-    return MakeBestAvailablePointCloudVoxelizer(device_options);
+    return MakeBestAvailablePointCloudVoxelizer(device_options, logging_fn);
   }
   else if (backend_option == BackendOptions::CPU)
   {
@@ -55,12 +55,12 @@ MakePointCloudVoxelizer(
   else if (backend_option == BackendOptions::OPENCL)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer(device_options));
+        new OpenCLPointCloudVoxelizer(device_options, logging_fn));
   }
   else if (backend_option == BackendOptions::CUDA)
   {
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer(device_options));
+        new CudaPointCloudVoxelizer(device_options, logging_fn));
   }
   else
   {
@@ -68,16 +68,17 @@ MakePointCloudVoxelizer(
   }
 }
 
-std::unique_ptr<PointCloudVoxelizationInterface>
-MakePointCloudVoxelizer(const AvailableBackend& backend)
+std::unique_ptr<PointCloudVoxelizationInterface> MakePointCloudVoxelizer(
+    const AvailableBackend& backend, const LoggingFunction& logging_fn)
 {
   return MakePointCloudVoxelizer(
-      backend.BackendOption(), backend.DeviceOptions());
+      backend.BackendOption(), backend.DeviceOptions(), logging_fn);
 }
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakeBestAvailablePointCloudVoxelizer(
-    const std::map<std::string, int32_t>& device_options)
+    const std::map<std::string, int32_t>& device_options,
+    const LoggingFunction& logging_fn)
 {
   // Since not all voxelizers will be available on all platforms, we try them
   // in order of preference. If available (i.e. on NVIDIA platforms), CUDA is
@@ -86,31 +87,46 @@ MakeBestAvailablePointCloudVoxelizer(
   // directly construct the desired voxelizer.
   try
   {
-    std::cout << "Trying CUDA PointCloud Voxelizer..." << std::endl;
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct CUDA PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new CudaPointCloudVoxelizer(device_options));
+        new CudaPointCloudVoxelizer(device_options, logging_fn));
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
-    std::cerr << "CUDA PointCloud Voxelizer is not available" << std::endl;
+    if (logging_fn)
+    {
+      logging_fn("CUDA PointCloud Voxelizer is not available");
+    }
   }
   try
   {
-    std::cout << "Trying OpenCL PointCloud Voxelizer..." << std::endl;
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct OpenCL PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
-        new OpenCLPointCloudVoxelizer(device_options));
+        new OpenCLPointCloudVoxelizer(device_options, logging_fn));
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
-    std::cerr << "OpenCL PointCloud Voxelizer is not available" << std::endl;
+    if (logging_fn)
+    {
+      logging_fn("OpenCL PointCloud Voxelizer is not available");
+    }
   }
   try
   {
-    std::cout << "Trying CPU PointCloud Voxelizer..." << std::endl;
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct CPU PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new CpuPointCloudVoxelizer());
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
     throw std::runtime_error("No PointCloud Voxelizers available");
   }

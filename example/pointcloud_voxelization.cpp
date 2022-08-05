@@ -262,7 +262,7 @@ void test_pointcloud_voxelization(
                                    environment_display.markers.begin(),
                                    environment_display.markers.end());
   }
-  catch (std::runtime_error& ex)
+  catch (const std::runtime_error& ex)
   {
     std::cerr << ex.what() << std::endl;
   }
@@ -287,7 +287,7 @@ void test_pointcloud_voxelization(
                                    environment_display.markers.begin(),
                                    environment_display.markers.end());
   }
-  catch (std::runtime_error& ex)
+  catch (const std::runtime_error& ex)
   {
     std::cerr << ex.what() << std::endl;
   }
@@ -312,7 +312,7 @@ void test_pointcloud_voxelization(
                                    environment_display.markers.begin(),
                                    environment_display.markers.end());
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
     throw std::runtime_error("CPU PointCloud Voxelizer is not available");
   }

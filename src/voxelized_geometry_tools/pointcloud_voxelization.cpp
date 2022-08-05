@@ -87,31 +87,46 @@ MakeBestAvailablePointCloudVoxelizer(
   // directly construct the desired voxelizer.
   try
   {
-    logging_fn("Trying to construct CUDA PointCloud Voxelizer...");
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct CUDA PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new CudaPointCloudVoxelizer(device_options, logging_fn));
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
-    logging_fn("CUDA PointCloud Voxelizer is not available");
+    if (logging_fn)
+    {
+      logging_fn("CUDA PointCloud Voxelizer is not available");
+    }
   }
   try
   {
-    logging_fn("Trying to construct OpenCL PointCloud Voxelizer...");
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct OpenCL PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new OpenCLPointCloudVoxelizer(device_options, logging_fn));
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
-    logging_fn("OpenCL PointCloud Voxelizer is not available");
+    if (logging_fn)
+    {
+      logging_fn("OpenCL PointCloud Voxelizer is not available");
+    }
   }
   try
   {
-    logging_fn("Trying to construct CPU PointCloud Voxelizer...");
+    if (logging_fn)
+    {
+      logging_fn("Trying to construct CPU PointCloud Voxelizer...");
+    }
     return std::unique_ptr<PointCloudVoxelizationInterface>(
         new CpuPointCloudVoxelizer());
   }
-  catch (std::runtime_error&)
+  catch (const std::runtime_error&)
   {
     throw std::runtime_error("No PointCloud Voxelizers available");
   }

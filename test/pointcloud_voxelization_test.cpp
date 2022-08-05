@@ -253,6 +253,22 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
         {cam1_cloud, cam2_cloud, cam3_cloud});
     check_voxelization(voxelized);
   }
+
+  // Ensure all voxelizers support null logging functions
+  for (size_t idx = 0; idx < available_backends.size(); idx++)
+  {
+    const auto& available_backend = available_backends.at(idx);
+    std::cout << "Trying voxelizer [" << idx << "] "
+              << available_backend.DeviceName() << std::endl;
+
+    ASSERT_NO_THROW(pointcloud_voxelization::MakePointCloudVoxelizer(
+        available_backend, {}));
+  }
+
+  // Ensure that MakeBestAvailablePointCloudVoxelizer works, with empty device
+  // options and null logging function.
+  ASSERT_NO_THROW(
+      pointcloud_voxelization::MakeBestAvailablePointCloudVoxelizer({}, {}));
 }
 }  // namespace
 }  // namespace voxelized_geometry_tools

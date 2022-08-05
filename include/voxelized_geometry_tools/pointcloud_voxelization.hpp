@@ -54,15 +54,15 @@ std::vector<AvailableBackend> GetAvailableBackends();
 std::unique_ptr<PointCloudVoxelizationInterface> MakePointCloudVoxelizer(
     const BackendOptions backend_option,
     const std::map<std::string, int32_t>& device_options,
-    const LoggingFunction& logging_fn = NoOpLoggingFunction());
+    const LoggingFunction& logging_fn = {});
 
 std::unique_ptr<PointCloudVoxelizationInterface> MakePointCloudVoxelizer(
     const AvailableBackend& backend,
-    const LoggingFunction& logging_fn = NoOpLoggingFunction());
+    const LoggingFunction& logging_fn = {});
 
 std::unique_ptr<PointCloudVoxelizationInterface>
 MakeBestAvailablePointCloudVoxelizer(
     const std::map<std::string, int32_t>& device_options,
-    const LoggingFunction& logging_fn = NoOpLoggingFunction());
+    const LoggingFunction& logging_fn = {});
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

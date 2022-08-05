@@ -17,12 +17,6 @@ namespace pointcloud_voxelization
 // handling includes for device-specific compilers (e.g. NVCC).
 using LoggingFunction = std::function<void(const std::string&)>;
 
-/// Make a do-nothing logging function.
-inline LoggingFunction NoOpLoggingFunction()
-{
-  return [] (const std::string&) {};
-}
-
 // Wrapper for device name and the options necessary to retrieve it.
 class AvailableDevice
 {
@@ -53,15 +47,22 @@ inline int32_t RetrieveOptionOrDefault(
   if (found_itr != options.end())
   {
     const int32_t value = found_itr->second;
-    logging_fn(
-        "Option [" + option + "] found, value [" + std::to_string(value) + "]");
+    if (logging_fn)
+    {
+      logging_fn(
+          "Option [" + option + "] found, value [" + std::to_string(value)
+          + "]");
+    }
     return value;
   }
   else
   {
-    logging_fn(
-        "Option [" + option + "] not found, default ["
-        + std::to_string(default_value) + "]");
+    if (logging_fn)
+    {
+      logging_fn(
+          "Option [" + option + "] not found, default ["
+          + std::to_string(default_value) + "]");
+    }
     return default_value;
   }
 }

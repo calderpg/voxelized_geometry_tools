@@ -58,7 +58,7 @@ class CudaPointCloudVoxelizer : public DevicePointCloudVoxelizer
 public:
   CudaPointCloudVoxelizer(
       const std::map<std::string, int32_t>& options,
-      const LoggingFunction& logging_fn = NoOpLoggingFunction());
+      const LoggingFunction& logging_fn = {});
 };
 
 /// Implementation of device-accelerated pointcloud voxelization for OpenCL
@@ -68,7 +68,7 @@ class OpenCLPointCloudVoxelizer : public DevicePointCloudVoxelizer
 public:
   OpenCLPointCloudVoxelizer(
       const std::map<std::string, int32_t>& options,
-      const LoggingFunction& logging_fn = NoOpLoggingFunction());
+      const LoggingFunction& logging_fn = {});
 };
 
 }  // namespace pointcloud_voxelization

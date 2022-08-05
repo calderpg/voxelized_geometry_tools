@@ -304,8 +304,8 @@ public:
   topology_computation::TopologicalInvariants ComputeComponentTopology(
       const COMPONENT_TYPES component_types_to_use,
       const bool connect_across_objects,
-      const common_robotics_utilities::utility::LoggingFunction& logging_fn =
-          common_robotics_utilities::utility::NoOpLoggingFunction());
+      const common_robotics_utilities::utility::LoggingFunction&
+          logging_fn = {});
 
   template<typename ScalarType>
   SignedDistanceField<ScalarType> ExtractSignedDistanceField(

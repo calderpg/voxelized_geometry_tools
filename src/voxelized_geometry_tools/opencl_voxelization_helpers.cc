@@ -258,10 +258,13 @@ public:
       std::string platform_vendor;
       opencl_platform.getInfo(CL_PLATFORM_VENDOR, &platform_vendor);
 
-      logging_fn(
-          "Using OpenCL Platform [" + std::to_string(platform_index) +
-          "] - Name: [" + platform_name + "], Vendor: [" + platform_vendor +
-          "]");
+      if (logging_fn)
+      {
+        logging_fn(
+            "Using OpenCL Platform [" + std::to_string(platform_index) +
+            "] - Name: [" + platform_name + "], Vendor: [" + platform_vendor +
+            "]");
+      }
 
       std::vector<cl::Device> all_devices;
       opencl_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
@@ -276,9 +279,12 @@ public:
         std::string device_name;
         opencl_device.getInfo(CL_DEVICE_NAME, &device_name);
 
-        logging_fn(
-            "Using OpenCL Device [" + std::to_string(device_index) +
-            "] - Name: [" + device_name + "]");
+        if (logging_fn)
+        {
+          logging_fn(
+              "Using OpenCL Device [" + std::to_string(device_index) +
+              "] - Name: [" + device_name + "]");
+        }
 
         // Make context + queue
         context_ = std::unique_ptr<cl::Context>(
@@ -302,44 +308,62 @@ public:
         if (raycasting_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
-          logging_fn(
-              "Error building raycasting kernel: " +
-              raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                  opencl_device));
+          if (logging_fn)
+          {
+            logging_fn(
+                "Error building raycasting kernel: " +
+                raycasting_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                    opencl_device));
+          }
           raycasting_program_.reset();
         }
         if (filter_program_->build({opencl_device}, build_options.c_str())
             != CL_SUCCESS)
         {
-          logging_fn(
-              "Error building filter kernel: " +
-              filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                  opencl_device));
+          if (logging_fn)
+          {
+            logging_fn(
+                "Error building filter kernel: " +
+                filter_program_->getBuildInfo<CL_PROGRAM_BUILD_LOG>(
+                    opencl_device));
+          }
           filter_program_.reset();
         }
       }
       else if (all_devices.size() > 0)
       {
-        logging_fn(
-            "OPENCL_DEVICE_INDEX = " + std::to_string(device_index) +
-            " out of range for " + std::to_string(all_devices.size()) +
-            " devices");
+        if (logging_fn)
+        {
+          logging_fn(
+              "OPENCL_DEVICE_INDEX = " + std::to_string(device_index) +
+              " out of range for " + std::to_string(all_devices.size()) +
+              " devices");
+        }
       }
       else
       {
-        logging_fn("No OpenCL device available");
+        if (logging_fn)
+        {
+          logging_fn("No OpenCL device available");
+        }
       }
     }
     else if (all_platforms.size() > 0)
     {
-      logging_fn(
-          "OPENCL_PLATFORM_INDEX = " + std::to_string(platform_index) +
-          " out of range for " + std::to_string(all_platforms.size()) +
-          " platforms");
+      if (logging_fn)
+      {
+        logging_fn(
+            "OPENCL_PLATFORM_INDEX = " + std::to_string(platform_index) +
+            " out of range for " + std::to_string(all_platforms.size()) +
+            " platforms");
+      }
     }
     else
     {
-      logging_fn("No OpenCL platform available");
+      if (logging_fn)
+      {
+        logging_fn("No OpenCL platform available");
+      }
     }
   }
 

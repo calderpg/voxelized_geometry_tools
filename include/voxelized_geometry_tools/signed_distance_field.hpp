@@ -328,8 +328,6 @@ private:
         = this->GridIndexToLocationInGridFrame(x_idx, y_idx, z_idx);
     const Eigen::Vector4d query_offset
         = grid_frame_query_location - cell_center_location;
-    // We can't catch the easiest case of being at a cell center, since doing so
-    // breaks the ability of Eigen's Autodiff to autodiff this function.
     // Find the best-matching 8 surrounding cell centers
     const std::pair<int64_t, int64_t> x_axis_indices
         = GetAxisInterpolationIndices(

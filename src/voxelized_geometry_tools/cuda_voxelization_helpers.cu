@@ -284,22 +284,31 @@ public:
         CudaCheckErrors("Failed to get device properties");
         const std::string device_name(device_properties.name);
 
-        logging_fn(
-            "Using CUDA device [" + std::to_string(cuda_device) +
-            "] - Name: [" + device_name + "]");
+        if (logging_fn)
+        {
+          logging_fn(
+              "Using CUDA device [" + std::to_string(cuda_device) +
+              "] - Name: [" + device_name + "]");
+        }
       }
       else
       {
-        logging_fn(
-            "CUDA_DEVICE = " + std::to_string(cuda_device) +
-            " out of range for " + std::to_string(device_count) + " devices");
+        if (logging_fn)
+        {
+          logging_fn(
+              "CUDA_DEVICE = " + std::to_string(cuda_device) +
+              " out of range for " + std::to_string(device_count) + " devices");
+        }
         cuda_device_num_ = -1;
       }
     }
     catch (const std::runtime_error& ex)
     {
-      logging_fn(
-          "Failed to load CUDA runtime and set device: " + ex.what());
+      if (logging_fn)
+      {
+        logging_fn(
+            "Failed to load CUDA runtime and set device: " + ex.what());
+      }
       cuda_device_num_ = -1;
     }
   }

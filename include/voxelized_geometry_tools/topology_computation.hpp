@@ -485,9 +485,12 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
       surface_vertices.insert(vertex8);
     }
   }
-  logging_fn(
-      "Surface with " + std::to_string(surface.size()) + " voxels has " +
-      std::to_string(surface_vertices.size()) + " surface vertices");
+  if (logging_fn)
+  {
+    logging_fn(
+        "Surface with " + std::to_string(surface.size()) + " voxels has " +
+        std::to_string(surface_vertices.size()) + " surface vertices");
+  }
   // Iterate through the surface vertices and count the neighbors of each vertex
   int32_t M3 = 0;
   int32_t M5 = 0;
@@ -624,12 +627,15 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
   // Compute the number of holes in the surface
   const int32_t raw_number_of_holes = 1 + ((M5 + (2 * M6) - M3) / 8);
   const int32_t number_of_holes = raw_number_of_holes + number_of_voids;
-  logging_fn(
-      "Processed surface with M3 = " + std::to_string(M3) + " M5 = " +
-      std::to_string(M5) + " M6 = " + std::to_string(M6) + " into # holes = " +
-      std::to_string(number_of_holes) + " # of surfaces = " +
-      std::to_string(number_of_surfaces) + " # of voids = " +
-      std::to_string(number_of_voids));
+  if (logging_fn)
+  {
+    logging_fn(
+        "Processed surface with M3 = " + std::to_string(M3) + " M5 = " +
+        std::to_string(M5) + " M6 = " + std::to_string(M6) +
+        " into # holes = " + std::to_string(number_of_holes) +
+        " # of surfaces = " + std::to_string(number_of_surfaces) +
+        " # of voids = " + std::to_string(number_of_voids));
+  }
   return NumberOfHolesAndVoids(number_of_holes, number_of_voids);
 }
 

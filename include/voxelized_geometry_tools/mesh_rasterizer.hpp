@@ -31,7 +31,8 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_mesh = true);
+    const bool enforce_collision_map_contains_mesh = true,
+    const bool use_parallel = true);
 
 /// This sets all voxels intersected by the provided mesh to filled. Note
 /// that it sets voxels filled regardless of whether or not the voxel cell
@@ -40,6 +41,6 @@ void RasterizeMesh(
 voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
-    const double resolution);
+    const double resolution, const bool use_parallel = true);
 }  // namespace voxelized_geometry_tools
 

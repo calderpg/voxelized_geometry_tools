@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/cuda_voxelization_helpers.h>
 #include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
@@ -32,11 +33,15 @@ std::vector<AvailableBackend> GetAvailableBackends()
         opencl_device, BackendOptions::OPENCL));
   }
 
-  available_backends.push_back(AvailableBackend(
-      "CPU/OpenMP (parallel)", {{"CPU_PARALLELIZE", 1}}, BackendOptions::CPU));
+  if (common_robotics_utilities::openmp_helpers::IsOmpEnabledInBuild())
+  {
+    available_backends.push_back(AvailableBackend(
+        "CPU/OpenMP (parallel)", {{"CPU_PARALLELIZE", 1}},
+        BackendOptions::CPU));
+  }
 
   available_backends.push_back(AvailableBackend(
-      "CPU/OpenMP (serial)", {{"CPU_PARALLELIZE", 0}}, BackendOptions::CPU));
+      "CPU (serial)", {{"CPU_PARALLELIZE", 0}}, BackendOptions::CPU));
 
   return available_backends;
 }

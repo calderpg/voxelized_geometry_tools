@@ -185,6 +185,11 @@ static std::string GetFilterKernelCode()
   return std::string(kFilterGridsKernelCode);
 }
 
+std::string LogOpenCLError(const cl_int error_code)
+{
+  return "[error code " + std::to_string(error_code) + "]";
+}
+
 class OpenCLTrackingGridsHandle : public TrackingGridsHandle
 {
 public:
@@ -380,43 +385,38 @@ public:
     cl_int err = 0;
     std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
-    if (err == 0)
+    if (err != CL_SUCCESS)
     {
-      // This is how we zero the buffer
-      cl::Event event;
-      err = queue_->enqueueFillBuffer<int32_t>(
-          *tracking_grids_buffer, 0, 0, buffer_size, nullptr, &event);
-      if (err == CL_SUCCESS)
-      {
-        err = queue_->finish();
-        if (err == CL_SUCCESS)
-        {
-          std::vector<int64_t> tracking_grid_offsets(
-              static_cast<size_t>(num_grids), 0);
-          for (int32_t num_grid = 0; num_grid < num_grids; num_grid++)
-          {
-            tracking_grid_offsets.at(static_cast<size_t>(num_grid)) =
-                num_grid * num_cells * 2;
-          }
-          return std::unique_ptr<TrackingGridsHandle>(
-              new OpenCLTrackingGridsHandle(
-                  std::move(tracking_grids_buffer), tracking_grid_offsets,
-                  num_cells));
-        }
-        else
-        {
-          throw std::runtime_error("Failed to complete enqueueFillBuffer");
-        }
-      }
-      else
-      {
-        throw std::runtime_error("Failed to enqueueFillBuffer");
-      }
+      throw std::runtime_error(
+          "Failed to allocate tracking grid buffer: " + LogOpenCLError(err));
     }
-    else
+
+    // This is how we zero the buffer
+    err = queue_->enqueueFillBuffer<int32_t>(
+        *tracking_grids_buffer, 0, 0, buffer_size, nullptr, nullptr);
+    if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Failed to allocate tracking grid buffer");
+      throw std::runtime_error(
+          "Failed to enqueueFillBuffer: " + LogOpenCLError(err));
     }
+
+    err = queue_->finish();
+    if (err != CL_SUCCESS)
+    {
+      throw std::runtime_error(
+          "Failed to complete enqueueFillBuffer: " + LogOpenCLError(err));
+    }
+
+    // Calculate offsets into the buffer
+    std::vector<int64_t> tracking_grid_offsets(
+        static_cast<size_t>(num_grids), 0);
+    for (int32_t num_grid = 0; num_grid < num_grids; num_grid++)
+    {
+      tracking_grid_offsets.at(static_cast<size_t>(num_grid)) =
+          num_grid * num_cells * 2;
+    }
+    return std::unique_ptr<TrackingGridsHandle>(new OpenCLTrackingGridsHandle(
+        std::move(tracking_grids_buffer), tracking_grid_offsets, num_cells));
   }
 
   void RaycastPoints(
@@ -439,7 +439,8 @@ public:
         &err);
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Failed to allocate and copy pointcloud");
+      throw std::runtime_error(
+          "Failed to allocate and copy pointcloud: " + LogOpenCLError(err));
     }
 
     cl::Buffer device_grid_pointcloud_transform_buffer(
@@ -450,7 +451,8 @@ public:
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error(
-          "Failed to allocate and copy grid pointcloud transform");
+          "Failed to allocate and copy grid pointcloud transform: "
+          + LogOpenCLError(err));
     }
 
     const int32_t stride1 = num_y_cells * num_z_cells;
@@ -476,7 +478,8 @@ public:
         cl::NullRange);
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Failed to enqueue raycasting kernel");
+      throw std::runtime_error(
+          "Failed to enqueue raycasting kernel: " + LogOpenCLError(err));
     }
   }
 
@@ -491,7 +494,9 @@ public:
         filter_grid_buffer_size, const_cast<void*>(host_data_ptr), &err));
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Failed to allocate and copy filtered buffer");
+      throw std::runtime_error(
+          "Failed to allocate and copy filtered buffer: "
+          + LogOpenCLError(err));
     }
 
     return std::unique_ptr<FilterGridHandle>(new OpenCLFilterGridHandle(
@@ -527,7 +532,7 @@ public:
     if (err != CL_SUCCESS)
     {
       throw std::runtime_error(
-          "Failed to enqueue filter kernel [" + std::to_string(err) + "]");
+          "Failed to enqueue filter kernel: " + LogOpenCLError(err));
     }
   }
 
@@ -538,7 +543,13 @@ public:
     const OpenCLTrackingGridsHandle& real_tracking_grids =
         dynamic_cast<const OpenCLTrackingGridsHandle&>(tracking_grids);
 
-    queue_->finish();
+    cl_int err = queue_->finish();
+    if (err != CL_SUCCESS)
+    {
+      throw std::runtime_error(
+          "RetrieveTrackingGrid finish failed: " + LogOpenCLError(err));
+    }
+
     const size_t item_size = sizeof(int32_t) * 2;
     const size_t tracking_grid_size =
         static_cast<size_t>(real_tracking_grids.NumCellsPerGrid()) * item_size;
@@ -546,12 +557,14 @@ public:
         static_cast<size_t>(real_tracking_grids.GetTrackingGridStartingOffset(
             tracking_grid_index))
         * sizeof(int32_t);
-    const cl_int err = queue_->enqueueReadBuffer(
+    err = queue_->enqueueReadBuffer(
         real_tracking_grids.GetBuffer(), CL_TRUE, starting_offset,
         tracking_grid_size, host_data_ptr);
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Tracking buffer enqueueReadBuffer failed");
+      throw std::runtime_error(
+          "RetrieveTrackingGrid enqueueReadBuffer failed: "
+          + LogOpenCLError(err));
     }
   }
 
@@ -561,15 +574,23 @@ public:
     const OpenCLFilterGridHandle& real_filter_grid =
         dynamic_cast<const OpenCLFilterGridHandle&>(filter_grid);
 
-    queue_->finish();
+    cl_int err = queue_->finish();
+    if (err != CL_SUCCESS)
+    {
+      throw std::runtime_error(
+          "RetrieveFilteredGrid finish failed: " + LogOpenCLError(err));
+    }
+
     const size_t item_size = sizeof(float) * 2;
     const size_t buffer_size =
         static_cast<size_t>(real_filter_grid.NumCells()) * item_size;
-    const cl_int err = queue_->enqueueReadBuffer(
+    err = queue_->enqueueReadBuffer(
         real_filter_grid.GetBuffer(), CL_TRUE, 0, buffer_size, host_data_ptr);
     if (err != CL_SUCCESS)
     {
-      throw std::runtime_error("Filtered buffer enqueueReadBuffer failed");
+      throw std::runtime_error(
+          "RetrieveFilteredGrid enqueueReadBuffer failed: "
+          + LogOpenCLError(err));
     }
   }
 

@@ -11,9 +11,6 @@
 // supported by these OpenCL bindings and Intel, Nvidia, AMD, and Apple drivers.
 #define CL_TARGET_OPENCL_VERSION 120
 
-// Enable OpenCL exceptions.
-#define __CL_ENABLE_EXCEPTIONS
-
 /*******************************************************************************
  * Copyright (c) 2008-2015 The Khronos Group Inc.
  *

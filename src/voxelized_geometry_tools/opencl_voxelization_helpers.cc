@@ -388,7 +388,7 @@ public:
           *tracking_grids_buffer, 0, 0, buffer_size, nullptr, &event);
       if (err == CL_SUCCESS)
       {
-        err = event.wait();
+        err = queue_->finish();
         if (err == CL_SUCCESS)
         {
           std::vector<int64_t> tracking_grid_offsets(
@@ -405,7 +405,7 @@ public:
         }
         else
         {
-          throw std::runtime_error("Failed to wait for event");
+          throw std::runtime_error("Failed to complete enqueueFillBuffer");
         }
       }
       else

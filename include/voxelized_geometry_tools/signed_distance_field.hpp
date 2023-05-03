@@ -258,23 +258,16 @@ private:
                                            const int64_t y_idx,
                                            const int64_t z_idx) const
   {
-    const auto query = this->GetIndexImmutable(x_idx, y_idx, z_idx);
-    if (query)
+    const double nominal_sdf_distance = static_cast<double>(
+        this->GetIndexImmutable(x_idx, y_idx, z_idx).Value());
+    const double cell_center_distance_offset = GetResolution() * 0.5;
+    if (nominal_sdf_distance >= 0.0)
     {
-      const double nominal_sdf_distance = static_cast<double>(query.Value());
-      const double cell_center_distance_offset = GetResolution() * 0.5;
-      if (nominal_sdf_distance >= 0.0)
-      {
-        return nominal_sdf_distance - cell_center_distance_offset;
-      }
-      else
-      {
-        return nominal_sdf_distance + cell_center_distance_offset;
-      }
+      return nominal_sdf_distance - cell_center_distance_offset;
     }
     else
     {
-      throw std::invalid_argument("Index out of bounds");
+      return nominal_sdf_distance + cell_center_distance_offset;
     }
   }
 

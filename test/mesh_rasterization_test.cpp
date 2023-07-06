@@ -17,40 +17,46 @@ GTEST_TEST(MeshRasterizationTest, Test)
   const std::vector<Eigen::Vector3i> triangles = { Eigen::Vector3i(0, 1, 2) };
 
   const double resolution = 0.125;
-  const auto collision_map =
-      RasterizeMeshIntoCollisionMap(vertices, triangles, resolution);
 
-  const auto get_cell_occupancy =
-      [&] (const int64_t x, const int64_t y, const int64_t z)
+  for (const bool use_parallel : {false, true})
   {
-    return collision_map.GetIndexImmutable(x, y, z).Value().Occupancy();
-  };
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism
+        parallelism(use_parallel);
+    const auto collision_map = RasterizeMeshIntoCollisionMap(
+        vertices, triangles, resolution, parallelism);
 
-  // Due to how the triangle discretizes, we expect the lower layer to be empty.
-  for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
-  {
-    for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
+    const auto get_cell_occupancy =
+        [&] (const int64_t x, const int64_t y, const int64_t z)
     {
-      EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
+      return collision_map.GetIndexImmutable(x, y, z).Value().Occupancy();
+    };
+
+    // Due to how the triangle discretizes, we expect the lower layer to be empty.
+    for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
+    {
+      for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
+      {
+        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
+      }
     }
-  }
 
-  // Check the upper layer of voxels.
-  for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
-  {
-    for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
+    // Check the upper layer of voxels.
+    for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
     {
-      if (xidx == 0 || yidx == 0)
+      for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
       {
-        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
-      }
-      else if (yidx >= (collision_map.GetNumYCells() - xidx))
-      {
-        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
-      }
-      else
-      {
-        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 1.0f);
+        if (xidx == 0 || yidx == 0)
+        {
+          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
+        }
+        else if (yidx >= (collision_map.GetNumYCells() - xidx))
+        {
+          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
+        }
+        else
+        {
+          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 1.0f);
+        }
       }
     }
   }

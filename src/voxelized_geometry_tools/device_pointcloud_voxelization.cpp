@@ -4,12 +4,12 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <stdexcept>
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cuda_voxelization_helpers.h>
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
@@ -62,9 +62,8 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   const int32_t num_z_cells =
       static_cast<int32_t>(static_environment.GetNumZCells());
 
-  // Do raycasting of the pointclouds
-  CRU_OMP_PARALLEL_FOR
-  for (size_t idx = 0; idx < pointclouds.size(); idx++)
+  // Lambda for the raycasting of a single pointcloud.
+  const auto raycast_cloud = [&](const size_t idx)
   {
     const PointCloudWrapperSharedPtr& pointcloud = pointclouds.at(idx);
 
@@ -96,6 +95,20 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
           inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
           num_z_cells, *tracking_grids, idx);
     }
+  };
+
+  // Dispatch worker threads.
+  std::vector<std::future<void>> workers;
+  for (size_t idx = 0; idx < pointclouds.size(); idx++)
+  {
+    workers.emplace_back(std::async(std::launch::async, raycast_cloud, idx));
+  }
+
+  // Wait for worker threads to complete. This also rethrows any exception
+  // thrown in a worker thread.
+  for (auto& worker : workers)
+  {
+    worker.get();
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =

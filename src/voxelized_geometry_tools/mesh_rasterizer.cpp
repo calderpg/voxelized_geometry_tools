@@ -196,14 +196,15 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
     const bool enforce_collision_map_contains_mesh,
-    const bool use_parallel)
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism)
 {
   if (!collision_map.IsInitialized())
   {
     throw std::invalid_argument("collision_map must be initialized");
   }
 
-  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
+  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
   for (size_t idx = 0; idx < triangles.size(); idx++)
   {
     RasterizeTriangle(
@@ -216,7 +217,8 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     const double resolution,
-    const bool use_parallel)
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism)
 {
   if (resolution <= 0.0)
   {
@@ -251,7 +253,7 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
   voxelized_geometry_tools::CollisionMap collision_map(
       X_OG, "mesh", filter_grid_sizes, empty_cell);
 
-  RasterizeMesh(vertices, triangles, collision_map, true, use_parallel);
+  RasterizeMesh(vertices, triangles, collision_map, true, parallelism);
 
   return collision_map;
 }

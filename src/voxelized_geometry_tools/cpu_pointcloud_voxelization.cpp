@@ -73,7 +73,9 @@ using VectorCpuVoxelizationTrackingGrid =
 
 void RaycastPointCloud(
     const PointCloudWrapper& cloud, const double step_size,
-    const bool use_parallel, CpuVoxelizationTrackingGrid& tracking_grid)
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism,
+    CpuVoxelizationTrackingGrid& tracking_grid)
 {
   // Get X_GW, the transform from grid origin to world
   const Eigen::Isometry3d& X_GW = tracking_grid.GetInverseOriginTransform();
@@ -85,7 +87,7 @@ void RaycastPointCloud(
   const Eigen::Vector4d p_GCo = X_GC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
-  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
+  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
   for (int64_t idx = 0; idx < cloud.Size(); idx++)
   {
     // Location of point P in frame of camera C
@@ -153,12 +155,14 @@ void RaycastPointCloud(
 void CombineAndFilterGrids(
     const PointCloudVoxelizationFilterOptions& filter_options,
     const VectorCpuVoxelizationTrackingGrid& tracking_grids,
-    const bool use_parallel, CollisionMap& filtered_grid)
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism,
+    CollisionMap& filtered_grid)
 {
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
-  CRU_OMP_PARALLEL_FOR_IF(use_parallel)
+  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
   for (int64_t voxel = 0; voxel < filtered_grid.GetTotalCells(); voxel++)
   {
     auto& current_cell = filtered_grid.GetDataIndexMutable(voxel);
@@ -211,7 +215,19 @@ CpuPointCloudVoxelizer::CpuPointCloudVoxelizer(
 {
   const int32_t cpu_parallelize =
       RetrieveOptionOrDefault(options, "CPU_PARALLELIZE", 1, logging_fn);
-  use_parallel_ = static_cast<bool>(cpu_parallelize);
+  const int32_t cpu_num_threads =
+      RetrieveOptionOrDefault(options, "CPU_NUM_THREADS", -1, logging_fn);
+  if (cpu_parallelize > 0)
+  {
+    parallelism_ =
+        common_robotics_utilities::openmp_helpers::DegreeOfParallelism(
+            cpu_num_threads);
+  }
+  else
+  {
+    parallelism_ =
+        common_robotics_utilities::openmp_helpers::DegreeOfParallelism(false);
+  }
 }
 
 VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
@@ -237,13 +253,13 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   {
     const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);
     CpuVoxelizationTrackingGrid& tracking_grid = tracking_grids.at(idx);
-    RaycastPointCloud(*cloud_ptr, step_size, use_parallel_, tracking_grid);
+    RaycastPointCloud(*cloud_ptr, step_size, Parallelism(), tracking_grid);
   }
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();
   // Combine & filter
   CombineAndFilterGrids(
-      filter_options, tracking_grids, use_parallel_, output_environment);
+      filter_options, tracking_grids, Parallelism(), output_environment);
   const std::chrono::time_point<std::chrono::steady_clock> done_time =
       std::chrono::steady_clock::now();
   return VoxelizerRuntime(

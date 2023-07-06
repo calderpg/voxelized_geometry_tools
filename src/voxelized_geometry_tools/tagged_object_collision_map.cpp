@@ -480,9 +480,8 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
     }
     return false;
   };
-  return topology_computation::ExtractComponentSurfaces(*this,
-                                                        get_component_fn,
-                                                        is_surface_index_fn);
+  return topology_computation::ExtractComponentSurfaces(
+      *this, get_component_fn, is_surface_index_fn);
 }
 
 std::map<uint32_t, std::unordered_map<
@@ -570,82 +569,62 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
 
 SignedDistanceField<double>
 TaggedObjectCollisionMap::ExtractSignedDistanceFieldDouble(
-    const std::vector<uint32_t>& objects_to_use, const double oob_value,
-    const bool unknown_is_filled, const bool use_parallel,
-    const bool add_virtual_border) const
+    const std::vector<uint32_t>& objects_to_use,
+    const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
-  return ExtractSignedDistanceField<double>(
-      objects_to_use, oob_value, unknown_is_filled, use_parallel,
-      add_virtual_border);
+  return ExtractSignedDistanceField<double>(objects_to_use, parameters);
 }
 
 SignedDistanceField<float>
 TaggedObjectCollisionMap::ExtractSignedDistanceFieldFloat(
-    const std::vector<uint32_t>& objects_to_use, const float oob_value,
-    const bool unknown_is_filled, const bool use_parallel,
-    const bool add_virtual_border) const
+    const std::vector<uint32_t>& objects_to_use,
+    const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
-  return ExtractSignedDistanceField<float>(
-      objects_to_use, oob_value, unknown_is_filled, use_parallel,
-      add_virtual_border);
+  return ExtractSignedDistanceField<float>(objects_to_use, parameters);
 }
 
 std::map<uint32_t, SignedDistanceField<double>>
 TaggedObjectCollisionMap::MakeSeparateObjectSDFsDouble(
-    const std::vector<uint32_t>& object_ids, const double oob_value,
-    const bool unknown_is_filled, const bool use_parallel,
-    const bool add_virtual_border) const
+    const std::vector<uint32_t>& object_ids,
+    const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
-  return MakeSeparateObjectSDFs<double>(
-      object_ids, oob_value, unknown_is_filled, use_parallel,
-      add_virtual_border);
+  return MakeSeparateObjectSDFs<double>(object_ids, parameters);
 }
 
 std::map<uint32_t, SignedDistanceField<float>>
 TaggedObjectCollisionMap::MakeSeparateObjectSDFsFloat(
-    const std::vector<uint32_t>& object_ids, const float oob_value,
-    const bool unknown_is_filled, const bool use_parallel,
-    const bool add_virtual_border) const
+    const std::vector<uint32_t>& object_ids,
+    const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
-  return MakeSeparateObjectSDFs<float>(
-      object_ids, oob_value, unknown_is_filled, use_parallel,
-      add_virtual_border);
+  return MakeSeparateObjectSDFs<float>(object_ids, parameters);
 }
 
 std::map<uint32_t, SignedDistanceField<double>>
 TaggedObjectCollisionMap::MakeAllObjectSDFsDouble(
-    const double oob_value, const bool unknown_is_filled,
-    const bool use_parallel, const bool add_virtual_border) const
+    const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
-  return MakeAllObjectSDFs<double>(
-      oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+  return MakeAllObjectSDFs<double>(parameters);
 }
 
 std::map<uint32_t, SignedDistanceField<float>>
 TaggedObjectCollisionMap::MakeAllObjectSDFsFloat(
-    const float oob_value, const bool unknown_is_filled,
-    const bool use_parallel, const bool add_virtual_border) const
+    const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
-  return MakeAllObjectSDFs<float>(
-      oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+  return MakeAllObjectSDFs<float>(parameters);
 }
 
 SignedDistanceField<double>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
-    const double oob_value, const bool unknown_is_filled,
-    const bool use_parallel) const
+    const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
-  return ExtractFreeAndNamedObjectsSignedDistanceField<double>(
-      oob_value, unknown_is_filled, use_parallel);
+  return ExtractFreeAndNamedObjectsSignedDistanceField<double>(parameters);
 }
 
 SignedDistanceField<float>
 TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
-    const float oob_value, const bool unknown_is_filled,
-    const bool use_parallel) const
+    const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
-  return ExtractFreeAndNamedObjectsSignedDistanceField<float>(
-      oob_value, unknown_is_filled, use_parallel);
+  return ExtractFreeAndNamedObjectsSignedDistanceField<float>(parameters);
 }
 
 uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
@@ -735,8 +714,8 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
 }
 
 uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
-    const double connected_threshold, const bool add_virtual_border,
-    const bool use_parallel)
+    const double connected_threshold,
+    const SignedDistanceFieldGenerationParameters<float>& sdf_parameters)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
@@ -746,12 +725,9 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   }
   spatial_segments_valid_ = false;
   const auto sdf
-      = (add_virtual_border)
-        ? ExtractSignedDistanceFieldFloat(
-              std::vector<uint32_t>(), std::numeric_limits<float>::infinity(),
-              true, use_parallel, true)
-        : ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
-              std::numeric_limits<float>::infinity(), true, use_parallel);
+      = (sdf_parameters.AddVirtualBorder())
+        ? ExtractSignedDistanceFieldFloat({}, sdf_parameters)
+        : ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(sdf_parameters);
   const auto extrema_map = sdf.ComputeLocalExtremaMap();
   // Make the helper functions
   // This is not enough, we also need to limit the curvature of the
@@ -790,8 +766,7 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
     const auto extrema_query = extrema_map.GetIndexImmutable(index);
     if (query)
     {
-      if ((query.Value().Occupancy() < 0.5f)
-          || (query.Value().ObjectId() > 0u))
+      if ((query.Value().Occupancy() < 0.5f) || (query.Value().ObjectId() > 0u))
       {
         const Eigen::Vector3d& extrema = extrema_query.Value();
         if (!std::isinf(extrema.x())

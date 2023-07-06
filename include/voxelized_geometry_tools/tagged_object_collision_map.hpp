@@ -6,7 +6,9 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -251,21 +253,21 @@ public:
       const int64_t x_index, const int64_t y_index,
       const int64_t z_index) const;
 
-   /// Options for handling the edges of the grid in convex segmentation:
-   ///
-   /// add_virtual_border=false: Uses the current grid as-is. If the outside
-   /// cells (for any axis more than one layer thick) use the special value
-   /// occupancy>=0.5 and object_id=0u, all interior (non-edge-layer) free and
-   /// filled areas will be completely segmented. If not, artifacts or
-   /// incompletely-segmented areas will result.
-   ///
-   /// add_virtual_border=true: Adds the equivalent of an additional layer of
-   /// cells with special value occupancy>=0.5 and object_id=0u around the grid.
-   /// All free and filled areas will be completely segmented. This option is
-   /// the most expensive in terms of memory and computation.
+  /// Options for handling the edges of the grid in convex segmentation:
+  ///
+  /// add_virtual_border=false: Uses the current grid as-is. If the outside
+  /// cells (for any axis more than one layer thick) use the special value
+  /// occupancy>=0.5 and object_id=0u, all interior (non-edge-layer) free and
+  /// filled areas will be completely segmented. If not, artifacts or
+  /// incompletely-segmented areas will result.
+  ///
+  /// add_virtual_border=true: Adds the equivalent of an additional layer of
+  /// cells with special value occupancy>=0.5 and object_id=0u around the grid.
+  /// All free and filled areas will be completely segmented. This option is
+  /// the most expensive in terms of memory and computation.
   uint32_t UpdateSpatialSegments(
-      const double connected_threshold, const bool add_virtual_border,
-      const bool use_parallel);
+      const double connected_threshold,
+      const SignedDistanceFieldGenerationParameters<float>& sdf_parameters);
 
   common_robotics_utilities::OwningMaybe<uint32_t> GetNumSpatialSegments() const
   {
@@ -309,17 +311,16 @@ public:
 
   template<typename ScalarType>
   SignedDistanceField<ScalarType> ExtractSignedDistanceField(
-      const std::vector<uint32_t>& objects_to_use = {},
-      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const
+      const std::vector<uint32_t>& objects_to_use,
+      const SignedDistanceFieldGenerationParameters<ScalarType>& parameters)
+      const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
-    // To make this faster, we put the objects to use into a map
-    std::map<uint32_t, int32_t> object_use_map;
+    // To make this faster, we put the objects to use into a set
+    std::set<uint32_t> objects_to_use_set;
     for (auto object_to_use : objects_to_use)
     {
-      object_use_map[object_to_use] = 1;
+      objects_to_use_set.insert(object_to_use);
     }
     // Make the helper function
     const std::function<bool(const GridIndex&)>
@@ -329,7 +330,7 @@ public:
       if (query)
       {
         // If it matches an object to use OR there are no objects supplied
-        if ((object_use_map[query.Value().ObjectId()] == 1)
+        if ((objects_to_use_set.count(query.Value().ObjectId()) == 1)
             || (objects_to_use.size() == 0))
         {
           const float occupancy = query.Value().Occupancy();
@@ -338,7 +339,7 @@ public:
             // Mark as filled
             return true;
           }
-          else if (unknown_is_filled && (occupancy == 0.5))
+          else if (parameters.UnknownIsFilled() && (occupancy == 0.5))
           {
             // Mark as filled
             return true;
@@ -355,38 +356,30 @@ public:
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
-             ScalarType>(
-                *this, is_filled_fn, oob_value, GetFrame(), use_parallel,
-                add_virtual_border);
+             ScalarType>(*this, is_filled_fn, GetFrame(), parameters);
   }
 
   template<typename ScalarType>
   std::map<uint32_t, SignedDistanceField<ScalarType>> MakeSeparateObjectSDFs(
       const std::vector<uint32_t>& object_ids,
-      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
-      const bool unknown_is_filled = true,
-      const bool use_parallel = false,
-      const bool add_virtual_border = false) const
+      const SignedDistanceFieldGenerationParameters<ScalarType>& parameters)
+      const
   {
     std::map<uint32_t, SignedDistanceField<ScalarType>> per_object_sdfs;
-    for (size_t idx = 0; idx < object_ids.size(); idx++)
+    for (auto object_id : object_ids)
     {
-      const uint32_t object_id = object_ids[idx];
-      per_object_sdfs[object_id]
-          = ExtractSignedDistanceField<ScalarType>(
-              std::vector<uint32_t>{object_id}, oob_value,
-              unknown_is_filled, use_parallel, add_virtual_border);
+      per_object_sdfs[object_id] = ExtractSignedDistanceField<ScalarType>(
+          std::vector<uint32_t>{object_id}, parameters);
     }
     return per_object_sdfs;
   }
 
   template<typename ScalarType>
   std::map<uint32_t, SignedDistanceField<ScalarType>> MakeAllObjectSDFs(
-      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const
+      const SignedDistanceFieldGenerationParameters<ScalarType>& parameters)
+      const
   {
-    std::map<uint32_t, int32_t> object_id_map;
+    std::set<uint32_t> object_ids_set;
     for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
     {
       for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
@@ -398,22 +391,21 @@ public:
           const uint32_t cell_object_id = cell.ObjectId();
           if (cell_object_id > 0)
           {
-            object_id_map[cell_object_id] = 1;
+            object_ids_set.insert(cell_object_id);
           }
         }
       }
     }
-    return MakeSeparateObjectSDFs<ScalarType>(
-        common_robotics_utilities::utility
-            ::GetKeysFromMapLike<uint32_t, int32_t>(object_id_map),
-        oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+    const std::vector<uint32_t> object_ids =
+        common_robotics_utilities::utility::GetKeysFromSetLike<uint32_t>(
+            object_ids_set);
+    return MakeSeparateObjectSDFs<ScalarType>(object_ids, parameters);
   }
 
   template<typename ScalarType>
   SignedDistanceField<ScalarType> ExtractFreeAndNamedObjectsSignedDistanceField(
-      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
-      const bool unknown_is_filled = true,
-      const bool use_parallel = false) const
+      const SignedDistanceFieldGenerationParameters<ScalarType>& parameters)
+      const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
     // Make the helper function
@@ -426,7 +418,7 @@ public:
         // Mark as filled
         return true;
       }
-      else if (unknown_is_filled && (stored.Occupancy() == 0.5))
+      else if (parameters.UnknownIsFilled() && (stored.Occupancy() == 0.5))
       {
         // Mark as filled
         return true;
@@ -436,9 +428,8 @@ public:
     const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
-             ScalarType>(
-                *this, free_sdf_filled_fn, oob_value, GetFrame(), use_parallel,
-                false);
+             ScalarType>(*this, free_sdf_filled_fn, GetFrame(), parameters);
+
     // Make the helper function
     const std::function<bool(const GridIndex&)>
         object_filled_fn = [&] (const GridIndex& index)
@@ -452,7 +443,7 @@ public:
           // Mark as filled
           return true;
         }
-        else if (unknown_is_filled && (stored.Occupancy() == 0.5))
+        else if (parameters.UnknownIsFilled() && (stored.Occupancy() == 0.5))
         {
           // Mark as filled
           return true;
@@ -463,9 +454,7 @@ public:
     const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
-             ScalarType>(
-                *this, object_filled_fn, oob_value, GetFrame(), use_parallel,
-                false);
+             ScalarType>(*this, object_filled_fn, GetFrame(), parameters);
 
     SignedDistanceField<ScalarType> combined_sdf = free_sdf;
     combined_sdf.Unlock();
@@ -489,7 +478,8 @@ public:
           }
           else
           {
-            combined_sdf.SetIndex(x_idx, y_idx, z_idx, 0.0f);
+            combined_sdf.SetIndex(
+                x_idx, y_idx, z_idx, static_cast<ScalarType>(0.0));
           }
         }
       }
@@ -501,51 +491,35 @@ public:
   }
 
   SignedDistanceField<double> ExtractSignedDistanceFieldDouble(
-      const std::vector<uint32_t>& objects_to_use = {},
-      const double oob_value = std::numeric_limits<double>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const std::vector<uint32_t>& objects_to_use,
+      const SignedDistanceFieldGenerationParameters<double>& parameters) const;
 
   SignedDistanceField<float> ExtractSignedDistanceFieldFloat(
-      const std::vector<uint32_t>& objects_to_use = {},
-      const float oob_value = std::numeric_limits<float>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const std::vector<uint32_t>& objects_to_use,
+      const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 
   std::map<uint32_t, SignedDistanceField<double>>
   MakeSeparateObjectSDFsDouble(
       const std::vector<uint32_t>& object_ids,
-      const double oob_value = std::numeric_limits<double>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<double>& parameters) const;
 
   std::map<uint32_t, SignedDistanceField<float>>
   MakeSeparateObjectSDFsFloat(
       const std::vector<uint32_t>& object_ids,
-      const float oob_value = std::numeric_limits<float>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 
   std::map<uint32_t, SignedDistanceField<double>> MakeAllObjectSDFsDouble(
-      const double oob_value = std::numeric_limits<double>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<double>& parameters) const;
 
   std::map<uint32_t, SignedDistanceField<float>> MakeAllObjectSDFsFloat(
-      const float oob_value = std::numeric_limits<float>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 
   SignedDistanceField<double>
   ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
-      const double oob_value = std::numeric_limits<double>::infinity(),
-      const bool unknown_is_filled = true,
-      const bool use_parallel = false) const;
+      const SignedDistanceFieldGenerationParameters<double>& parameters) const;
 
   SignedDistanceField<float>
   ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
-      const float oob_value = std::numeric_limits<float>::infinity(),
-      const bool unknown_is_filled = true,
-      const bool use_parallel = false) const;
+      const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 };
 }  // namespace voxelized_geometry_tools

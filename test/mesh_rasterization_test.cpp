@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include <voxelized_geometry_tools/mesh_rasterizer.hpp>
 
+using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+
 namespace voxelized_geometry_tools
 {
 namespace
@@ -20,8 +22,9 @@ GTEST_TEST(MeshRasterizationTest, Test)
 
   for (const bool use_parallel : {false, true})
   {
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism
-        parallelism(use_parallel);
+    const DegreeOfParallelism parallelism = (use_parallel)
+        ? DegreeOfParallelism::FromOmp()
+        : DegreeOfParallelism::None();
     const auto collision_map = RasterizeMeshIntoCollisionMap(
         vertices, triangles, resolution, parallelism);
 

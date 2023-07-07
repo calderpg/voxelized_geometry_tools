@@ -91,8 +91,8 @@ void test_spatial_segments(
   display_markers.markers.push_back(components_marker);
 
   const float oob_value = std::numeric_limits<float>::infinity();
-  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism
-      parallelism(false);
+  const auto parallelism =
+      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
   const bool unknown_is_filled = true;
 
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>

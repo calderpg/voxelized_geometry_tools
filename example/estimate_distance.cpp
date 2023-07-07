@@ -89,8 +89,8 @@ void test_estimate_distance(
           map, collision_color, free_color, unknown_color);
 
   const float oob_value = 1e6;
-  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism
-      parallelism(false);
+  const auto parallelism =
+      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
   const bool unknown_is_filled = true;
   const bool add_virtual_border = false;
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>

@@ -15,6 +15,8 @@
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
+using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+
 namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
@@ -217,16 +219,33 @@ CpuPointCloudVoxelizer::CpuPointCloudVoxelizer(
       RetrieveOptionOrDefault(options, "CPU_PARALLELIZE", 1, logging_fn);
   const int32_t cpu_num_threads =
       RetrieveOptionOrDefault(options, "CPU_NUM_THREADS", -1, logging_fn);
-  if (cpu_parallelize > 0)
+  if (cpu_parallelize > 0 && cpu_num_threads >= 1)
   {
-    parallelism_ =
-        common_robotics_utilities::openmp_helpers::DegreeOfParallelism(
-            cpu_num_threads);
+    parallelism_ = DegreeOfParallelism(cpu_num_threads);
+    if (logging_fn)
+    {
+      logging_fn(
+          "Configured parallelism using provided number of threads "
+          + std::to_string(cpu_num_threads));
+    }
+  }
+  else if (cpu_parallelize > 0)
+  {
+    parallelism_ = DegreeOfParallelism::FromOmp();
+    if (logging_fn)
+    {
+      logging_fn(
+          "Configured parallelism using OpenMP num threads "
+          + std::to_string(Parallelism().GetNumThreads()));
+    }
   }
   else
   {
-    parallelism_ =
-        common_robotics_utilities::openmp_helpers::DegreeOfParallelism(false);
+    parallelism_ = DegreeOfParallelism::None();
+    if (logging_fn)
+    {
+      logging_fn("Parallelism disabled");
+    }
   }
 }
 
@@ -246,9 +265,9 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   const double step_size = cell_size * step_size_multiplier;
   // For each cloud, raycast it into its own "tracking grid"
   VectorCpuVoxelizationTrackingGrid tracking_grids(
-          pointclouds.size(),
-          CpuVoxelizationTrackingGrid(
-              X_WG, grid_size, CpuVoxelizationTrackingCell()));
+      pointclouds.size(),
+      CpuVoxelizationTrackingGrid(
+          X_WG, grid_size, CpuVoxelizationTrackingCell()));
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);

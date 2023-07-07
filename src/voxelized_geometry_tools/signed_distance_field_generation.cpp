@@ -299,7 +299,7 @@ DistanceField BuildDistanceFieldParallel(
     const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
         parallelism)
 {
-  const int32_t num_threads = parallelism.GetNumOmpThreads();
+  const int32_t num_threads = parallelism.GetNumThreads();
   // Make the DistanceField container
   BucketCell default_cell;
   default_cell.distance_square = std::numeric_limits<double>::infinity();

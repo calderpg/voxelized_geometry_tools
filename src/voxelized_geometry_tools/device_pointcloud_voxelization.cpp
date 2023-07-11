@@ -13,6 +13,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/utility.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cuda_voxelization_helpers.h>
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
@@ -24,16 +25,6 @@ namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
-template <typename T>
-bool IsFutureReady(const std::future<T>& future)
-{
-  // future.wait_for() is the only method to check the status of a future
-  // without waiting for it to complete.
-  const std::future_status status =
-      future.wait_for(std::chrono::microseconds(1));
-  return (status == std::future_status::ready);
-}
-
 DevicePointCloudVoxelizer::DevicePointCloudVoxelizer(
     const std::map<std::string, int32_t>& options,
     const LoggingFunction& logging_fn)
@@ -154,6 +145,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   const int32_t num_dispatch_threads = DispatchParallelism().GetNumThreads();
 
   size_t workers_dispatched = 0;
+  size_t num_live_workers = 0;
 
   std::mutex cv_mutex;
   std::condition_variable cv;
@@ -165,7 +157,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     // Check for completed workers.
     for (auto worker = active_workers.begin(); worker != active_workers.end();)
     {
-      if (IsFutureReady(*worker))
+      if (common_robotics_utilities::utility::IsFutureReady(*worker))
       {
         // This call to future.get() is necessary to propagate any exception
         // thrown during simulation execution.
@@ -186,9 +178,18 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     {
       active_workers.emplace_back(std::async(
           std::launch::async,
-          [&raycast_cloud, &cv](const size_t pointcloud_idx)
+          [&raycast_cloud, &cv, &cv_mutex, &num_live_workers](
+              const size_t pointcloud_idx)
           {
+            {
+              std::lock_guard<std::mutex> lock(cv_mutex);
+              num_live_workers++;
+            }
             raycast_cloud(pointcloud_idx);
+            {
+              std::lock_guard<std::mutex> lock(cv_mutex);
+              num_live_workers--;
+            }
             cv.notify_all();
           },
           workers_dispatched));
@@ -196,11 +197,14 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     }
 
     // Wait until a worker completes.
-    if (active_workers.size() > 0)
-    {
-      std::unique_lock<std::mutex> wait_lock(cv_mutex);
-      cv.wait(wait_lock);
-    }
+    std::unique_lock<std::mutex> wait_lock(cv_mutex);
+    cv.wait(
+        wait_lock,
+        [&num_live_workers, &active_workers]()
+        {
+          return (num_live_workers == 0) ||
+                 (num_live_workers < active_workers.size());
+        });
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =

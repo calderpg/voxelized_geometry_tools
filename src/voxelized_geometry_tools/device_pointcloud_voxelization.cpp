@@ -3,9 +3,12 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <cstdint>
 #include <future>
+#include <list>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -15,10 +18,60 @@
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
+using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+
 namespace voxelized_geometry_tools
 {
 namespace pointcloud_voxelization
 {
+template <typename T>
+bool IsFutureReady(const std::future<T>& future)
+{
+  // future.wait_for() is the only method to check the status of a future
+  // without waiting for it to complete.
+  const std::future_status status =
+      future.wait_for(std::chrono::microseconds(1));
+  return (status == std::future_status::ready);
+}
+
+DevicePointCloudVoxelizer::DevicePointCloudVoxelizer(
+    const std::map<std::string, int32_t>& options,
+    const LoggingFunction& logging_fn)
+{
+  const int32_t dispatch_parallelize =
+      RetrieveOptionOrDefault(options, "DISPATCH_PARALLELIZE", 1, logging_fn);
+  const int32_t dispatch_num_threads =
+      RetrieveOptionOrDefault(options, "DISPATCH_NUM_THREADS", -1, logging_fn);
+  if (dispatch_parallelize > 0 && dispatch_num_threads >= 1)
+  {
+    dispatch_parallelism_ = DegreeOfParallelism(dispatch_num_threads);
+    if (logging_fn)
+    {
+      logging_fn(
+          "Configured dispatch parallelism using provided number of threads "
+          + std::to_string(dispatch_num_threads));
+    }
+  }
+  else if (dispatch_parallelize > 0)
+  {
+    dispatch_parallelism_ = DegreeOfParallelism::FromOmp();
+    if (logging_fn)
+    {
+      logging_fn(
+          "Configured dispatch parallelism using OpenMP num threads "
+          + std::to_string(DispatchParallelism().GetNumThreads()));
+    }
+  }
+  else
+  {
+    dispatch_parallelism_ = DegreeOfParallelism::None();
+    if (logging_fn)
+    {
+      logging_fn("Dispatch parallelism disabled");
+    }
+  }
+}
+
 VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     const CollisionMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
@@ -98,17 +151,56 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   };
 
   // Dispatch worker threads.
-  std::vector<std::future<void>> workers;
-  for (size_t idx = 0; idx < pointclouds.size(); idx++)
-  {
-    workers.emplace_back(std::async(std::launch::async, raycast_cloud, idx));
-  }
+  const int32_t num_dispatch_threads = DispatchParallelism().GetNumThreads();
 
-  // Wait for worker threads to complete. This also rethrows any exception
-  // thrown in a worker thread.
-  for (auto& worker : workers)
+  size_t workers_dispatched = 0;
+
+  std::mutex cv_mutex;
+  std::condition_variable cv;
+
+  std::list<std::future<void>> active_workers;
+
+  while (active_workers.size() > 0 || workers_dispatched < pointclouds.size())
   {
-    worker.get();
+    // Check for completed workers.
+    for (auto worker = active_workers.begin(); worker != active_workers.end();)
+    {
+      if (IsFutureReady(*worker))
+      {
+        // This call to future.get() is necessary to propagate any exception
+        // thrown during simulation execution.
+        worker->get();
+        // Erase returns iterator to the next node in the list.
+        worker = active_workers.erase(worker);
+      }
+      else
+      {
+        // Advance to next node in the list.
+        ++worker;
+      }
+    }
+
+    // Dispatch new workers.
+    while (static_cast<int32_t>(active_workers.size()) < num_dispatch_threads
+           && workers_dispatched < pointclouds.size())
+    {
+      active_workers.emplace_back(std::async(
+          std::launch::async,
+          [&raycast_cloud, &cv](const size_t pointcloud_idx)
+          {
+            raycast_cloud(pointcloud_idx);
+            cv.notify_all();
+          },
+          workers_dispatched));
+      workers_dispatched++;
+    }
+
+    // Wait until a worker completes.
+    if (active_workers.size() > 0)
+    {
+      std::unique_lock<std::mutex> wait_lock(cv_mutex);
+      cv.wait(wait_lock);
+    }
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
@@ -146,6 +238,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 CudaPointCloudVoxelizer::CudaPointCloudVoxelizer(
     const std::map<std::string, int32_t>& options,
     const LoggingFunction& logging_fn)
+    : DevicePointCloudVoxelizer(options, logging_fn)
 {
   device_name_ = "CudaPointCloudVoxelizer";
   helper_interface_ = std::unique_ptr<DeviceVoxelizationHelperInterface>(
@@ -156,6 +249,7 @@ CudaPointCloudVoxelizer::CudaPointCloudVoxelizer(
 OpenCLPointCloudVoxelizer::OpenCLPointCloudVoxelizer(
     const std::map<std::string, int32_t>& options,
     const LoggingFunction& logging_fn)
+    : DevicePointCloudVoxelizer(options, logging_fn)
 {
   device_name_ = "OpenCLPointCloudVoxelizer";
   helper_interface_ = std::unique_ptr<DeviceVoxelizationHelperInterface>(

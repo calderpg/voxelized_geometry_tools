@@ -8,6 +8,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
@@ -24,7 +25,9 @@ public:
   virtual ~DevicePointCloudVoxelizer() {}
 
 protected:
-  DevicePointCloudVoxelizer() {}
+  DevicePointCloudVoxelizer(
+      const std::map<std::string, int32_t>& options,
+      const LoggingFunction& logging_fn);
 
   void EnforceAvailable() const
   {
@@ -49,6 +52,12 @@ private:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const override;
+
+  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+  DispatchParallelism() const { return dispatch_parallelism_; }
+
+  common_robotics_utilities::openmp_helpers::DegreeOfParallelism
+      dispatch_parallelism_;
 };
 
 /// Implementation of device-accelerated pointcloud voxelization for CUDA

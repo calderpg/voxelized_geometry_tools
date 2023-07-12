@@ -1,7 +1,6 @@
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 
 #include <memory>
-#include <iostream>
 #include <stdexcept>
 
 #include <common_robotics_utilities/openmp_helpers.hpp>

@@ -16,6 +16,7 @@
 #endif
 
 #include <functional>
+#include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 

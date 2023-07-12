@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/math.hpp>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 
@@ -22,7 +22,7 @@ void RasterizeTriangle(
     const std::vector<Eigen::Vector3i>& triangles,
     const size_t triangle_index,
     voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_triangle = true);
+    const bool enforce_collision_map_contains_triangle);
 
 /// This sets all voxels intersected by the provided mesh to filled. Note
 /// that it sets voxels filled regardless of whether or not the voxel cell
@@ -31,8 +31,9 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_mesh = true,
-    const bool use_parallel = true);
+    const bool enforce_collision_map_contains_mesh,
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism);
 
 /// This sets all voxels intersected by the provided mesh to filled. Note
 /// that it sets voxels filled regardless of whether or not the voxel cell
@@ -41,6 +42,8 @@ void RasterizeMesh(
 voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
-    const double resolution, const bool use_parallel = true);
+    const double resolution,
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism);
 }  // namespace voxelized_geometry_tools
 

@@ -16,6 +16,7 @@
 #endif
 
 #include <functional>
+#include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
@@ -89,9 +90,23 @@ void test_spatial_segments(
   components_marker.id = 1;
   components_marker.ns = "environment_components";
   display_markers.markers.push_back(components_marker);
+
+  const float oob_value = std::numeric_limits<float>::infinity();
+  const auto parallelism =
+      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
+  const bool unknown_is_filled = true;
+
+  const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+      no_border_sdf_parameters(
+          oob_value, parallelism, unknown_is_filled, false);
+  const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+      virtual_border_sdf_parameters(
+          oob_value, parallelism, unknown_is_filled, true);
+
   const double connected_threshold = 1.75;
   const uint32_t number_of_spatial_segments_manual_border =
-      tocmap.UpdateSpatialSegments(connected_threshold, false, false);
+      tocmap.UpdateSpatialSegments(
+          connected_threshold, no_border_sdf_parameters);
 
   std::cout << "Identified " << number_of_spatial_segments_manual_border
             << " spatial segments via SDF->maxima map->connected components"
@@ -115,7 +130,8 @@ void test_spatial_segments(
   }
 
   const uint32_t number_of_spatial_segments_virtual_border =
-      tocmap.UpdateSpatialSegments(connected_threshold, true, false);
+      tocmap.UpdateSpatialSegments(
+          connected_threshold, virtual_border_sdf_parameters);
   std::cout << "Identified " << number_of_spatial_segments_virtual_border
             << " spatial segments via SDF->maxima map->connected components"
             << " (virtual border added)"
@@ -138,8 +154,7 @@ void test_spatial_segments(
   }
 
   const auto sdf = tocmap.ExtractSignedDistanceFieldFloat(
-      std::vector<uint32_t>(), std::numeric_limits<float>::infinity(),
-      true, false, false);
+      std::vector<uint32_t>(), no_border_sdf_parameters);
   Marker sdf_marker =
       voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 1.0f);
   sdf_marker.id = 1;
@@ -147,8 +162,7 @@ void test_spatial_segments(
   display_markers.markers.push_back(sdf_marker);
 
   const auto virtual_border_sdf = tocmap.ExtractSignedDistanceFieldFloat(
-      std::vector<uint32_t>(), std::numeric_limits<float>::infinity(),
-      true, false, true);
+      std::vector<uint32_t>(), virtual_border_sdf_parameters);
   Marker virtual_border_sdf_marker = voxelized_geometry_tools::ros_interface
       ::ExportSDFForDisplay(virtual_border_sdf, 1.0f);
   virtual_border_sdf_marker.id = 1;

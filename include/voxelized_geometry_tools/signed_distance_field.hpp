@@ -14,6 +14,7 @@
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/maybe.hpp>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
@@ -1217,6 +1218,38 @@ public:
     }
     return watershed_map;
   }
+};
+
+template<typename ScalarType>
+class SignedDistanceFieldGenerationParameters
+{
+private:
+  ScalarType oob_value_;
+  common_robotics_utilities::openmp_helpers::DegreeOfParallelism parallelism_;
+  bool unknown_is_filled_ = true;
+  bool add_virtual_border_ = false;
+
+public:
+  SignedDistanceFieldGenerationParameters()
+      : oob_value_(std::numeric_limits<ScalarType>::infinity()) {}
+
+  SignedDistanceFieldGenerationParameters(
+      const ScalarType& oob_value,
+      const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+          parallelism,
+      const bool unknown_is_filled, const bool add_virtual_border)
+      : oob_value_(oob_value), parallelism_(parallelism),
+        unknown_is_filled_(unknown_is_filled),
+        add_virtual_border_(add_virtual_border) {}
+
+  const ScalarType& OOBValue() const { return oob_value_; }
+
+  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+  Parallelism() const { return parallelism_; }
+
+  bool UnknownIsFilled() const { return unknown_is_filled_; }
+
+  bool AddVirtualBorder() const { return add_virtual_border_; }
 };
 }  // namespace voxelized_geometry_tools
 

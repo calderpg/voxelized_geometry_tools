@@ -18,6 +18,7 @@
 #endif
 
 #include <functional>
+#include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
@@ -87,7 +88,16 @@ void test_estimate_distance(
   const auto map_marker =
       voxelized_geometry_tools::ros_interface::ExportForDisplay(
           map, collision_color, free_color, unknown_color);
-  const auto sdf = map.ExtractSignedDistanceFieldFloat(1e6, true, false, false);
+
+  const float oob_value = 1e6;
+  const auto parallelism =
+      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
+  const bool unknown_is_filled = true;
+  const bool add_virtual_border = false;
+  const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+      sdf_parameters(
+          oob_value, parallelism, unknown_is_filled, add_virtual_border);
+  const auto sdf = map.ExtractSignedDistanceFieldFloat(sdf_parameters);
   const auto sdf_marker =
       voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);
 

@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <functional>
 #include <fstream>
-#include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -237,9 +237,8 @@ public:
 
   template<typename ScalarType>
   SignedDistanceField<ScalarType> ExtractSignedDistanceField(
-      const ScalarType oob_value = std::numeric_limits<ScalarType>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const
+      const SignedDistanceFieldGenerationParameters<ScalarType>& parameters)
+      const
   {
     using common_robotics_utilities::voxel_grid::GridIndex;
     // Make the helper function
@@ -255,7 +254,7 @@ public:
           // Mark as filled
           return true;
         }
-        else if (unknown_is_filled && (occupancy == 0.5))
+        else if (parameters.UnknownIsFilled() && (occupancy == 0.5))
         {
           // Mark as filled
           return true;
@@ -271,18 +270,13 @@ public:
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <CollisionCell, std::vector<CollisionCell>, ScalarType>(
-                *this, is_filled_fn, oob_value, GetFrame(), use_parallel,
-                add_virtual_border);
+                *this, is_filled_fn, GetFrame(), parameters);
   }
 
   SignedDistanceField<double> ExtractSignedDistanceFieldDouble(
-      const double oob_value = std::numeric_limits<double>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<double>& parameters) const;
 
   SignedDistanceField<float> ExtractSignedDistanceFieldFloat(
-      const float oob_value = std::numeric_limits<float>::infinity(),
-      const bool unknown_is_filled = true, const bool use_parallel = false,
-      const bool add_virtual_border = false) const;
+      const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 };
 }  // namespace voxelized_geometry_tools

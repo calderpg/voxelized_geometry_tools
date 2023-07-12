@@ -9,6 +9,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 
@@ -40,14 +41,15 @@ DistanceField BuildDistanceField(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const bool use_parallel);
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism);
 
 template<typename SDFScalarType>
 inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const Eigen::Isometry3d& grid_origin_tranform, const GridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const SDFScalarType oob_value, const std::string& frame,
-    const bool use_parallel)
+    const std::string& frame,
+    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
 {
   std::vector<GridIndex> filled;
   std::vector<GridIndex> free;
@@ -75,13 +77,13 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   // Make two distance fields, one for distance to filled voxels, one for
   // distance to free voxels.
   const DistanceField filled_distance_field = BuildDistanceField(
-      grid_origin_tranform, grid_sizes, filled, use_parallel);
+      grid_origin_tranform, grid_sizes, filled, parameters.Parallelism());
   const DistanceField free_distance_field = BuildDistanceField(
-      grid_origin_tranform, grid_sizes, free, use_parallel);
+      grid_origin_tranform, grid_sizes, free, parameters.Parallelism());
 
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
-      grid_origin_tranform, frame, grid_sizes, oob_value);
+      grid_origin_tranform, frame, grid_sizes, parameters.OOBValue());
   for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
@@ -117,19 +119,19 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid
         ::VoxelGridBase<T, BackingStore>& grid,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const SDFScalarType oob_value, const std::string& frame,
-    const bool use_parallel, const bool add_virtual_border)
+    const std::string& frame,
+    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
 {
   if (!grid.HasUniformCellSize())
   {
     throw std::invalid_argument("Grid must have uniform resolution");
   }
-  if (add_virtual_border == false)
+  if (!parameters.AddVirtualBorder())
   {
     // This is the conventional single-pass result
     return ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), grid.GetGridSizes(), is_filled_fn, oob_value,
-        frame, use_parallel);
+        grid.GetOriginTransform(), grid.GetGridSizes(), is_filled_fn, frame,
+        parameters);
   }
   else
   {
@@ -238,15 +240,16 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const common_robotics_utilities::voxel_grid::GridSizes enlarged_sizes(
         grid.GetCellSizes().x(), num_x_cells, num_y_cells, num_z_cells);
     const auto free_sdf = ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn, oob_value,
-        frame, use_parallel);
+        grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn, frame,
+        parameters);
     const auto filled_sdf = ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn,
-        oob_value, frame, use_parallel);
+        grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn, frame,
+        parameters);
 
     // Combine to make a single SDF
     SignedDistanceField<SDFScalarType> combined_sdf(
-          grid.GetOriginTransform(), frame, grid.GetGridSizes(), oob_value);
+        grid.GetOriginTransform(), frame, grid.GetGridSizes(),
+        parameters.OOBValue());
     for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
     {
       for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
@@ -281,38 +284,6 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     combined_sdf.Lock();
     return combined_sdf;
   }
-}
-
-template<typename T, typename BackingStore, typename SDFScalarType>
-inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& grid,
-    const std::function<bool(const T&)>& is_filled_fn,
-    const SDFScalarType oob_value, const std::string& frame,
-    const bool use_parallel)
-{
-  if (!grid.HasUniformCellSize())
-  {
-    throw std::invalid_argument("Grid must have uniform resolution");
-  }
-  const std::function<bool(const GridIndex&)> real_is_filled_fn =
-      [&] (const GridIndex& index)
-  {
-    const T& stored = grid.GetIndexImmutable(index).Value();
-    // If it matches an object to use OR there are no objects supplied
-    if (is_filled_fn(stored))
-    {
-      // Mark as filled
-      return true;
-    }
-    else
-    {
-      // Mark as free space
-      return false;
-    }
-  };
-  return ExtractSignedDistanceField<T, BackingStore, SDFScalarType>(
-      grid, real_is_filled_fn, oob_value, frame, use_parallel, false);
 }
 }  // namespace internal
 }  // namespace signed_distance_field_generation

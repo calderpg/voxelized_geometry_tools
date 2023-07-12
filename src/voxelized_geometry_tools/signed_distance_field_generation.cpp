@@ -104,12 +104,10 @@ class MultipleThreadIndexQueueWrapper
 {
 public:
 
-  explicit MultipleThreadIndexQueueWrapper(const size_t max_queues)
+  MultipleThreadIndexQueueWrapper(
+      const size_t num_threads, const size_t max_queues)
   {
-    per_thread_queues_.resize(
-        static_cast<size_t>(
-            common_robotics_utilities::openmp_helpers::GetNumOmpThreads()),
-        ThreadIndexQueues(max_queues));
+    per_thread_queues_.resize(num_threads, ThreadIndexQueues(max_queues));
   }
 
   const GridIndex& Query(const int32_t distance_squared, const size_t idx) const
@@ -297,7 +295,9 @@ DistanceField BuildDistanceFieldSerial(
 DistanceField BuildDistanceFieldParallel(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
-    const std::vector<GridIndex>& points)
+    const std::vector<GridIndex>& points,
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism)
 {
   // Make the DistanceField container
   BucketCell default_cell;
@@ -313,12 +313,13 @@ DistanceField BuildDistanceFieldParallel(
       static_cast<size_t>(max_distance_square + 1));
   bucket_queue[0].reserve(points.size());
   MultipleThreadIndexQueueWrapper bucket_queues(
+      static_cast<size_t>(parallelism.GetNumThreads()),
       static_cast<size_t>(max_distance_square + 1));
   // Set initial update direction
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
   // Mark all provided points with distance zero and add to the bucket queues
   // points MUST NOT CONTAIN DUPLICATE ENTRIES!
-  CRU_OMP_PARALLEL_FOR
+  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
   for (size_t index = 0; index < points.size(); index++)
   {
     const GridIndex& current_index = points[index];
@@ -350,7 +351,7 @@ DistanceField BuildDistanceFieldParallel(
            < static_cast<int32_t>(bucket_queues.NumQueues());
        current_distance_square++)
   {
-    CRU_OMP_PARALLEL_FOR
+    CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
     for (size_t idx = 0; idx < bucket_queues.Size(current_distance_square);
          idx++)
     {
@@ -435,17 +436,18 @@ DistanceField BuildDistanceField(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const bool use_parallel)
+    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+        parallelism)
 {
   if (!grid_sizes.UniformCellSize())
   {
     throw std::invalid_argument(
         "Cannot build distance field from grid with non-uniform cells");
   }
-  if (use_parallel)
+  if (parallelism.IsParallel())
   {
     return BuildDistanceFieldParallel(
-        grid_origin_transform, grid_sizes, points);
+        grid_origin_transform, grid_sizes, points, parallelism);
   }
   else
   {

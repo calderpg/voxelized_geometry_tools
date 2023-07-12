@@ -1,4 +1,5 @@
 #include <cstring>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <memory>
@@ -7,18 +8,25 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/math.hpp>
+#include <common_robotics_utilities/openmp_helpers.hpp>
 #include <gtest/gtest.h>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
+
+using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
 
 namespace voxelized_geometry_tools
 {
 namespace
 {
+using pointcloud_voxelization::AvailableBackend;
 using pointcloud_voxelization::PointCloudVoxelizationFilterOptions;
 using pointcloud_voxelization::PointCloudVoxelizationInterface;
 using pointcloud_voxelization::PointCloudWrapper;
 using pointcloud_voxelization::PointCloudWrapperSharedPtr;
+
+class PointCloudVoxelizationTestSuite
+    : public testing::TestWithParam<DegreeOfParallelism> {};
 
 class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 {
@@ -144,8 +152,12 @@ void check_voxelization(const CollisionMap& occupancy)
   }
 }
 
-GTEST_TEST(PointCloudVoxelizationTest, Test)
+TEST_P(PointCloudVoxelizationTestSuite, Test)
 {
+  const DegreeOfParallelism dispatch_parallelism = GetParam();
+  std::cout << "Dispatch parallelism num threads = "
+            << dispatch_parallelism.GetNumThreads() << std::endl;
+
   // Make the static environment
   const Eigen::Isometry3d X_WG(Eigen::Translation3d(-1.0, -1.0, -1.0));
   // Grid 2m in each axis
@@ -229,6 +241,27 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   const PointCloudVoxelizationFilterOptions filter_options(
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
 
+  // Set dispatch parallelism options
+  std::map<std::string, int32_t> dispatch_options;
+  dispatch_options["DISPATCH_PARALLELIZE"] =
+      (dispatch_parallelism.IsParallel()) ? 1 : 0;
+  dispatch_options["DISPATCH_NUM_THREADS"] =
+      dispatch_parallelism.GetNumThreads();
+
+  const auto add_options_to_backend = [] (
+      const AvailableBackend& backend,
+      const std::map<std::string, int32_t>& options)
+  {
+    std::map<std::string, int32_t> merged_options = backend.DeviceOptions();
+    for (auto itr = options.begin(); itr != options.end(); ++itr)
+    {
+      merged_options[itr->first] = itr->second;
+    }
+
+    return AvailableBackend(
+        backend.DeviceName(), merged_options, backend.BackendOption());
+  };
+
   // Run all available voxelizers
   const auto available_backends =
       pointcloud_voxelization::GetAvailableBackends();
@@ -237,7 +270,8 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
 
   for (size_t idx = 0; idx < available_backends.size(); idx++)
   {
-    const auto& available_backend = available_backends.at(idx);
+    const auto available_backend =
+        add_options_to_backend(available_backends.at(idx), dispatch_options);
     std::cout << "Trying voxelizer [" << idx << "] "
               << available_backend.DeviceName() << std::endl;
 
@@ -270,6 +304,27 @@ GTEST_TEST(PointCloudVoxelizationTest, Test)
   ASSERT_NO_THROW(
       pointcloud_voxelization::MakeBestAvailablePointCloudVoxelizer({}, {}));
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    SerialDispatchPointCloudVoxelizationTest, PointCloudVoxelizationTestSuite,
+    testing::Values(DegreeOfParallelism::None()));
+
+// For fallback testing on platforms with no OpenMP support, specify 2 threads.
+int32_t GetNumThreads()
+{
+  if (common_robotics_utilities::openmp_helpers::IsOmpEnabledInBuild())
+  {
+    return common_robotics_utilities::openmp_helpers::GetNumOmpThreads();
+  }
+  else
+  {
+    return 2;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ParallelDispatchPointCloudVoxelizationTest, PointCloudVoxelizationTestSuite,
+    testing::Values(DegreeOfParallelism(GetNumThreads())));
 }  // namespace
 }  // namespace voxelized_geometry_tools
 

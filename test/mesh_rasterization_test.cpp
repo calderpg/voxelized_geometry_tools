@@ -5,20 +5,29 @@
 #include <gtest/gtest.h>
 #include <voxelized_geometry_tools/mesh_rasterizer.hpp>
 
+using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+
 namespace voxelized_geometry_tools
 {
 namespace
 {
-GTEST_TEST(MeshRasterizationTest, Test)
+class MeshRasterizationTestSuite
+    : public testing::TestWithParam<DegreeOfParallelism> {};
+
+TEST_P(MeshRasterizationTestSuite, Test)
 {
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
+
   const std::vector<Eigen::Vector3d> vertices = {
       Eigen::Vector3d(0.0, 0.0, 0.0), Eigen::Vector3d(1.0, 0.0, 0.0),
       Eigen::Vector3d(0.0, 1.0, 0.0) };
   const std::vector<Eigen::Vector3i> triangles = { Eigen::Vector3i(0, 1, 2) };
 
   const double resolution = 0.125;
-  const auto collision_map =
-      RasterizeMeshIntoCollisionMap(vertices, triangles, resolution);
+
+  const auto collision_map = RasterizeMeshIntoCollisionMap(
+      vertices, triangles, resolution, parallelism);
 
   const auto get_cell_occupancy =
       [&] (const int64_t x, const int64_t y, const int64_t z)
@@ -55,6 +64,14 @@ GTEST_TEST(MeshRasterizationTest, Test)
     }
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    SerialMeshRasterizationTest, MeshRasterizationTestSuite,
+    testing::Values(DegreeOfParallelism::None()));
+
+INSTANTIATE_TEST_SUITE_P(
+    ParallelMeshRasterizationTest, MeshRasterizationTestSuite,
+    testing::Values(DegreeOfParallelism::FromOmp()));
 }  // namespace
 }  // namespace voxelized_geometry_tools
 

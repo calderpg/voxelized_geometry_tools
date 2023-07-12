@@ -4,7 +4,6 @@
 #include <cstdint>
 #include <functional>
 #include <fstream>
-#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -609,18 +608,14 @@ CollisionMap::ComputeComponentTopology(
 }
 
 SignedDistanceField<double> CollisionMap::ExtractSignedDistanceFieldDouble(
-    const double oob_value, const bool unknown_is_filled,
-    const bool use_parallel, const bool add_virtual_border) const
+    const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
-  return ExtractSignedDistanceField<double>(
-      oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+  return ExtractSignedDistanceField<double>(parameters);
 }
 
 SignedDistanceField<float> CollisionMap::ExtractSignedDistanceFieldFloat(
-    const float oob_value, const bool unknown_is_filled,
-    const bool use_parallel, const bool add_virtual_border) const
+    const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
-  return ExtractSignedDistanceField<float>(
-      oob_value, unknown_is_filled, use_parallel, add_virtual_border);
+  return ExtractSignedDistanceField<float>(parameters);
 }
 }  // namespace voxelized_geometry_tools

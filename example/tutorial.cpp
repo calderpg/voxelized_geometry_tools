@@ -14,6 +14,7 @@
 #error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
 #endif
 #include <functional>
+#include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
@@ -185,9 +186,19 @@ int main(int argc, char** argv)
 
   // We pick a reasonable out-of-bounds value
   const float oob_value = std::numeric_limits<float>::infinity();
+  // Disable parallelism in SDF generation
+  const auto parallelism =
+      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
+  // Treat cells with unknown occupancy as if they were filled
+  const bool unknown_is_filled = true;
+  // Don't add a virtual border
+  const bool add_virtual_border = false;
+  const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+      sdf_parameters(
+          oob_value, parallelism, unknown_is_filled, add_virtual_border);
   // We start by extracting the SDF from the CollisionMap
-  const auto sdf = collision_map.ExtractSignedDistanceFieldFloat(
-      oob_value, true, false, false);
+  const auto sdf =
+      collision_map.ExtractSignedDistanceFieldFloat(sdf_parameters);
   const auto sdf_extrema = sdf.GetMinimumMaximum();
   std::cout << "Maximum distance in the SDF: " << sdf_extrema.Maximum()
             << ", minimum distance in the SDF: " << sdf_extrema.Minimum()

@@ -11,8 +11,14 @@ namespace voxelized_geometry_tools
 {
 namespace
 {
-GTEST_TEST(MeshRasterizationTest, Test)
+class MeshRasterizationTestSuite
+    : public testing::TestWithParam<DegreeOfParallelism> {};
+
+TEST_P(MeshRasterizationTestSuite, Test)
 {
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
+
   const std::vector<Eigen::Vector3d> vertices = {
       Eigen::Vector3d(0.0, 0.0, 0.0), Eigen::Vector3d(1.0, 0.0, 0.0),
       Eigen::Vector3d(0.0, 1.0, 0.0) };
@@ -20,50 +26,52 @@ GTEST_TEST(MeshRasterizationTest, Test)
 
   const double resolution = 0.125;
 
-  for (const bool use_parallel : {false, true})
+  const auto collision_map = RasterizeMeshIntoCollisionMap(
+      vertices, triangles, resolution, parallelism);
+
+  const auto get_cell_occupancy =
+      [&] (const int64_t x, const int64_t y, const int64_t z)
   {
-    const DegreeOfParallelism parallelism = (use_parallel)
-        ? DegreeOfParallelism::FromOmp()
-        : DegreeOfParallelism::None();
-    const auto collision_map = RasterizeMeshIntoCollisionMap(
-        vertices, triangles, resolution, parallelism);
+    return collision_map.GetIndexImmutable(x, y, z).Value().Occupancy();
+  };
 
-    const auto get_cell_occupancy =
-        [&] (const int64_t x, const int64_t y, const int64_t z)
+  // Due to how the triangle discretizes, we expect the lower layer to be empty.
+  for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
+  {
+    for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
     {
-      return collision_map.GetIndexImmutable(x, y, z).Value().Occupancy();
-    };
-
-    // Due to how the triangle discretizes, we expect the lower layer to be empty.
-    for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
-    {
-      for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
-      {
-        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
-      }
+      EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
     }
+  }
 
-    // Check the upper layer of voxels.
-    for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
+  // Check the upper layer of voxels.
+  for (int64_t xidx = 0; xidx < collision_map.GetNumXCells(); xidx++)
+  {
+    for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
     {
-      for (int64_t yidx = 0; yidx < collision_map.GetNumYCells(); yidx++)
+      if (xidx == 0 || yidx == 0)
       {
-        if (xidx == 0 || yidx == 0)
-        {
-          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
-        }
-        else if (yidx >= (collision_map.GetNumYCells() - xidx))
-        {
-          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
-        }
-        else
-        {
-          EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 1.0f);
-        }
+        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
+      }
+      else if (yidx >= (collision_map.GetNumYCells() - xidx))
+      {
+        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
+      }
+      else
+      {
+        EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 1.0f);
       }
     }
   }
 }
+
+INSTANTIATE_TEST_SUITE_P(
+    SerialMeshRasterizationTest, MeshRasterizationTestSuite,
+    testing::Values(DegreeOfParallelism::None()));
+
+INSTANTIATE_TEST_SUITE_P(
+    ParallelMeshRasterizationTest, MeshRasterizationTestSuite,
+    testing::Values(DegreeOfParallelism::FromOmp()));
 }  // namespace
 }  // namespace voxelized_geometry_tools
 

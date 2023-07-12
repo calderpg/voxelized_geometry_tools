@@ -176,15 +176,15 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     while (static_cast<int32_t>(active_workers.size()) < num_dispatch_threads
            && workers_dispatched < pointclouds.size())
     {
+      {
+        std::lock_guard<std::mutex> lock(cv_mutex);
+        num_live_workers++;
+      }
       active_workers.emplace_back(std::async(
           std::launch::async,
           [&raycast_cloud, &cv, &cv_mutex, &num_live_workers](
               const size_t pointcloud_idx)
           {
-            {
-              std::lock_guard<std::mutex> lock(cv_mutex);
-              num_live_workers++;
-            }
             raycast_cloud(pointcloud_idx);
             {
               std::lock_guard<std::mutex> lock(cv_mutex);
@@ -197,14 +197,16 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     }
 
     // Wait until a worker completes.
-    std::unique_lock<std::mutex> wait_lock(cv_mutex);
-    cv.wait(
-        wait_lock,
-        [&num_live_workers, &active_workers]()
-        {
-          return (num_live_workers == 0) ||
-                 (num_live_workers < active_workers.size());
-        });
+    if (active_workers.size() > 0)
+    {
+      std::unique_lock<std::mutex> wait_lock(cv_mutex);
+      cv.wait(
+          wait_lock,
+          [&num_live_workers, &active_workers]()
+          {
+            return num_live_workers < active_workers.size();
+          });
+    }
   }
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =

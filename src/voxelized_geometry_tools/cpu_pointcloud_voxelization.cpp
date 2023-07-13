@@ -11,12 +11,14 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+using common_robotics_utilities::utility::CalcThreadRangeStartAndEnd;
 
 namespace voxelized_geometry_tools
 {
@@ -159,41 +161,11 @@ void RaycastPointCloud(
   const int64_t num_points = cloud.Size();
   const int64_t num_threads = parallelism.GetNumThreads();
 
-  // Every thread gets at least floor(num_points / num_threads) work, and the
-  // remainder is distributed across the first num_points % num_threads as one
-  // additional element each. Note that starting with per-thread range of
-  // ceil(num_points / num_threads) will not leave enough work for all threads.
-  const int64_t quotient = num_points / num_threads;
-  const int64_t remainder = num_points % num_threads;
-
-  const int64_t nominal_range = quotient;
-  const int64_t remainder_range = nominal_range + 1;
-
-  const auto calc_thread_range_start_end = [&](const int64_t thread_num)
-  {
-    if (thread_num < remainder)
-    {
-      const int64_t thread_range = remainder_range;
-      const int64_t thread_range_start = thread_num * remainder_range;
-      const int64_t thread_range_end = thread_range_start + thread_range;
-      return std::make_pair(thread_range_start, thread_range_end);
-    }
-    else
-    {
-      const int64_t thread_range = nominal_range;
-      const int64_t thread_range_start =
-          (remainder * remainder_range) +
-              ((thread_num - remainder) * nominal_range);
-      const int64_t thread_range_end = thread_range_start + thread_range;
-      return std::make_pair(thread_range_start, thread_range_end);
-    }
-  };
-
   // Helper lambda for each thread's work
   const auto per_thread_work = [&](const int64_t thread_num)
   {
     const auto thread_range_start_end =
-        calc_thread_range_start_end(thread_num);
+        CalcThreadRangeStartAndEnd(0, num_points, num_threads, thread_num);
 
     for (int64_t point_index = thread_range_start_end.first;
          point_index < thread_range_start_end.second;

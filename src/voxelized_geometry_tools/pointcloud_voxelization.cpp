@@ -38,6 +38,12 @@ std::vector<AvailableBackend> GetAvailableBackends()
         "CPU/OpenMP (parallel)", {{"CPU_PARALLELIZE", 1}},
         BackendOptions::CPU));
   }
+  else
+  {
+    available_backends.push_back(AvailableBackend(
+        "CPU/async (parallel)", {{"CPU_PARALLELIZE", 1}},
+        BackendOptions::CPU));
+  }
 
   available_backends.push_back(AvailableBackend(
       "CPU (serial)", {{"CPU_PARALLELIZE", 0}}, BackendOptions::CPU));

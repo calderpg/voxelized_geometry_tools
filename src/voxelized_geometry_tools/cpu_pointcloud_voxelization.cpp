@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -89,11 +90,12 @@ void RaycastPointCloud(
   const Eigen::Vector4d p_GCo = X_GC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
-  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
-  for (int64_t idx = 0; idx < cloud.Size(); idx++)
+
+  // Helper lambda for raycasting a single point
+  const auto raycast_point = [&](const int64_t point_index)
   {
     // Location of point P in frame of camera C
-    const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(idx);
+    const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(point_index);
     // Skip invalid points marked with NaN or infinity
     if (std::isfinite(p_CP(0)) && std::isfinite(p_CP(1)) &&
         std::isfinite(p_CP(2)))
@@ -150,6 +152,82 @@ void RaycastPointCloud(
           query.Value().seen_filled_count.fetch_add(1);
         }
       }
+    }
+  };
+
+  // Per-thread work calculation
+  const int64_t num_points = cloud.Size();
+  const int64_t num_threads = parallelism.GetNumThreads();
+
+  // Every thread gets at least floor(num_points / num_threads) work, and the
+  // remainder is distributed across the first num_points % num_threads as one
+  // additional element each. Note that starting with per-thread range of
+  // ceil(num_points / num_threads) will not leave enough work for all threads.
+  const int64_t quotient = num_points / num_threads;
+  const int64_t remainder = num_points % num_threads;
+
+  const int64_t nominal_range = quotient;
+  const int64_t remainder_range = nominal_range + 1;
+
+  const auto calc_thread_range_start_end = [&](const int64_t thread_num)
+  {
+    if (thread_num < remainder)
+    {
+      const int64_t thread_range = remainder_range;
+      const int64_t thread_range_start = thread_num * remainder_range;
+      const int64_t thread_range_end = thread_range_start + thread_range;
+      return std::make_pair(thread_range_start, thread_range_end);
+    }
+    else
+    {
+      const int64_t thread_range = nominal_range;
+      const int64_t thread_range_start =
+          (remainder * remainder_range) +
+              ((thread_num - remainder) * nominal_range);
+      const int64_t thread_range_end = thread_range_start + thread_range;
+      return std::make_pair(thread_range_start, thread_range_end);
+    }
+  };
+
+  // Helper lambda for each thread's work
+  const auto per_thread_work = [&](const int64_t thread_num)
+  {
+    const auto thread_range_start_end =
+        calc_thread_range_start_end(thread_num);
+
+    for (int64_t point_index = thread_range_start_end.first;
+         point_index < thread_range_start_end.second;
+         point_index++)
+    {
+      raycast_point(point_index);
+    }
+  };
+
+  // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
+  // back to manual dispatch via std::async.
+  if (common_robotics_utilities::openmp_helpers::IsOmpEnabledInBuild())
+  {
+    CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
+    for (int64_t thread_num = 0; thread_num < num_threads; thread_num++)
+    {
+      per_thread_work(thread_num);
+    }
+  }
+  else
+  {
+    // Dispatch worker threads.
+    std::vector<std::future<void>> workers;
+    for (int64_t thread_num = 0; thread_num < num_threads; thread_num++)
+    {
+      workers.emplace_back(
+          std::async(std::launch::async, per_thread_work, thread_num));
+    }
+
+    // Wait for worker threads to complete. This also rethrows any exception
+    // thrown in a worker thread.
+    for (auto& worker : workers)
+    {
+      worker.get();
     }
   }
 }

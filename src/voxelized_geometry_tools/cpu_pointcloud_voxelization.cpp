@@ -4,18 +4,21 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <future>
 #include <memory>
 #include <stdexcept>
 #include <vector>
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+using common_robotics_utilities::utility::CalcThreadRangeStartAndEnd;
 
 namespace voxelized_geometry_tools
 {
@@ -89,11 +92,12 @@ void RaycastPointCloud(
   const Eigen::Vector4d p_GCo = X_GC * Eigen::Vector4d(0.0, 0.0, 0.0, 1.0);
   // Get the max range
   const double max_range = cloud.MaxRange();
-  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
-  for (int64_t idx = 0; idx < cloud.Size(); idx++)
+
+  // Helper lambda for raycasting a single point
+  const auto raycast_point = [&](const int64_t point_index)
   {
     // Location of point P in frame of camera C
-    const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(idx);
+    const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(point_index);
     // Skip invalid points marked with NaN or infinity
     if (std::isfinite(p_CP(0)) && std::isfinite(p_CP(1)) &&
         std::isfinite(p_CP(2)))
@@ -150,6 +154,52 @@ void RaycastPointCloud(
           query.Value().seen_filled_count.fetch_add(1);
         }
       }
+    }
+  };
+
+  // Per-thread work calculation
+  const int64_t num_points = cloud.Size();
+  const int64_t num_threads = parallelism.GetNumThreads();
+
+  // Helper lambda for each thread's work
+  const auto per_thread_work = [&](const int64_t thread_num)
+  {
+    const auto thread_range_start_end =
+        CalcThreadRangeStartAndEnd(0, num_points, num_threads, thread_num);
+
+    for (int64_t point_index = thread_range_start_end.first;
+         point_index < thread_range_start_end.second;
+         point_index++)
+    {
+      raycast_point(point_index);
+    }
+  };
+
+  // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
+  // back to manual dispatch via std::async.
+  if (common_robotics_utilities::openmp_helpers::IsOmpEnabledInBuild())
+  {
+    CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
+    for (int64_t thread_num = 0; thread_num < num_threads; thread_num++)
+    {
+      per_thread_work(thread_num);
+    }
+  }
+  else
+  {
+    // Dispatch worker threads.
+    std::vector<std::future<void>> workers;
+    for (int64_t thread_num = 0; thread_num < num_threads; thread_num++)
+    {
+      workers.emplace_back(
+          std::async(std::launch::async, per_thread_work, thread_num));
+    }
+
+    // Wait for worker threads to complete. This also rethrows any exception
+    // thrown in a worker thread.
+    for (auto& worker : workers)
+    {
+      worker.get();
     }
   }
 }

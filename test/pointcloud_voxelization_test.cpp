@@ -154,9 +154,8 @@ void check_voxelization(const CollisionMap& occupancy)
 
 TEST_P(PointCloudVoxelizationTestSuite, Test)
 {
-  const DegreeOfParallelism dispatch_parallelism = GetParam();
-  std::cout << "Dispatch parallelism num threads = "
-            << dispatch_parallelism.GetNumThreads() << std::endl;
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
 
   // Make the static environment
   const Eigen::Isometry3d X_WG(Eigen::Translation3d(-1.0, -1.0, -1.0));
@@ -242,11 +241,11 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
       percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
 
   // Set dispatch parallelism options
-  std::map<std::string, int32_t> dispatch_options;
-  dispatch_options["DISPATCH_PARALLELIZE"] =
-      (dispatch_parallelism.IsParallel()) ? 1 : 0;
-  dispatch_options["DISPATCH_NUM_THREADS"] =
-      dispatch_parallelism.GetNumThreads();
+  std::map<std::string, int32_t> parallelism_options;
+  parallelism_options["DISPATCH_PARALLELIZE"] =
+      (parallelism.IsParallel()) ? 1 : 0;
+  parallelism_options["DISPATCH_NUM_THREADS"] = parallelism.GetNumThreads();
+  parallelism_options["CPU_NUM_THREADS"] = parallelism.GetNumThreads();
 
   const auto add_options_to_backend = [] (
       const AvailableBackend& backend,
@@ -271,7 +270,7 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
   for (size_t idx = 0; idx < available_backends.size(); idx++)
   {
     const auto available_backend =
-        add_options_to_backend(available_backends.at(idx), dispatch_options);
+        add_options_to_backend(available_backends.at(idx), parallelism_options);
     std::cout << "Trying voxelizer [" << idx << "] "
               << available_backend.DeviceName() << std::endl;
 

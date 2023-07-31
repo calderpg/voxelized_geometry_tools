@@ -220,6 +220,8 @@ public:
   {
     if (this != std::addressof(other))
     {
+      Clear();
+
       buffer_ = other.buffer_;
       other.buffer_ = nullptr;
     }
@@ -270,6 +272,8 @@ public:
   }
 
   ~CudaBuffer() { FreeBuffer(); }
+
+  void Clear() { FreeBuffer(); }
 
   T* Get() const { return buffer_; }
 

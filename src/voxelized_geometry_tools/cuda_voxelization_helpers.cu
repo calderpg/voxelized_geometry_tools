@@ -17,6 +17,8 @@ namespace pointcloud_voxelization
 {
 namespace cuda_helpers
 {
+constexpr int32_t kDefaultThreadsPerBlock = 256;
+
 void CudaCheckErrors(const cudaError_t error, const std::string& msg)
 {
   if (error != cudaSuccess)
@@ -281,7 +283,7 @@ public:
     }
     else
     {
-      cuda_threads_per_block_ = 256;
+      cuda_threads_per_block_ = kDefaultThreadsPerBlock;
       if (logging_fn)
       {
         logging_fn(

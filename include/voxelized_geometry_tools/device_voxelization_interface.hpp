@@ -70,6 +70,12 @@ inline int32_t RetrieveOptionOrDefault(
 class TrackingGridsHandle
 {
 public:
+  // Delete copy and move constructors and assignment operators.
+  explicit TrackingGridsHandle(const TrackingGridsHandle&) = delete;
+  explicit TrackingGridsHandle(TrackingGridsHandle&&) = delete;
+  TrackingGridsHandle& operator=(const TrackingGridsHandle&) = delete;
+  TrackingGridsHandle& operator=(TrackingGridsHandle&&) = delete;
+
   virtual ~TrackingGridsHandle() {}
 
   int64_t GetTrackingGridStartingOffset(const size_t index) const
@@ -100,6 +106,12 @@ private:
 class FilterGridHandle
 {
 public:
+  // Delete copy and move constructors and assignment operators.
+  explicit FilterGridHandle(const FilterGridHandle&) = delete;
+  explicit FilterGridHandle(FilterGridHandle&&) = delete;
+  FilterGridHandle& operator=(const FilterGridHandle&) = delete;
+  FilterGridHandle& operator=(FilterGridHandle&&) = delete;
+
   virtual ~FilterGridHandle() {}
 
   int64_t NumCells() const { return num_cells_; }
@@ -114,6 +126,16 @@ private:
 class DeviceVoxelizationHelperInterface
 {
 public:
+  // Delete copy and move constructors and assignment operators.
+  explicit DeviceVoxelizationHelperInterface(
+      const DeviceVoxelizationHelperInterface&) = delete;
+  explicit DeviceVoxelizationHelperInterface(
+      DeviceVoxelizationHelperInterface&&) = delete;
+  DeviceVoxelizationHelperInterface& operator=(
+      const DeviceVoxelizationHelperInterface&) = delete;
+  DeviceVoxelizationHelperInterface& operator=(
+      DeviceVoxelizationHelperInterface&&) = delete;
+
   virtual ~DeviceVoxelizationHelperInterface() {}
 
   virtual bool IsAvailable() const = 0;
@@ -143,6 +165,9 @@ public:
 
   virtual void RetrieveFilteredGrid(
       const FilterGridHandle& filter_grid, void* host_data_ptr) = 0;
+
+protected:
+  DeviceVoxelizationHelperInterface() = default;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

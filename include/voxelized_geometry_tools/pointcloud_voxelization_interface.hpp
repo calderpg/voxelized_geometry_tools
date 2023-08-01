@@ -92,6 +92,11 @@ private:
 class PointCloudWrapper
 {
 public:
+  explicit PointCloudWrapper(const PointCloudWrapper&) = delete;
+  explicit PointCloudWrapper(PointCloudWrapper&&) = delete;
+  PointCloudWrapper& operator=(const PointCloudWrapper&) = delete;
+  PointCloudWrapper& operator=(PointCloudWrapper&&) = delete;
+
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   virtual ~PointCloudWrapper() {}
@@ -188,6 +193,8 @@ protected:
 
   virtual void CopyPointLocationIntoFloatPtrImpl(
       const int64_t point_index, float* destination) const = 0;
+
+  PointCloudWrapper() = default;
 };
 
 using PointCloudWrapperSharedPtr = std::shared_ptr<PointCloudWrapper>;
@@ -220,6 +227,16 @@ private:
 class PointCloudVoxelizationInterface
 {
 public:
+  // Delete copy and move constructors and assignment operators.
+  explicit PointCloudVoxelizationInterface(
+      const PointCloudVoxelizationInterface&) = delete;
+  explicit PointCloudVoxelizationInterface(
+      PointCloudVoxelizationInterface&&) = delete;
+  PointCloudVoxelizationInterface& operator=(
+      const PointCloudVoxelizationInterface&) = delete;
+  PointCloudVoxelizationInterface& operator=(
+      PointCloudVoxelizationInterface&&) = delete;
+
   virtual ~PointCloudVoxelizationInterface() {}
 
   CollisionMap VoxelizePointClouds(
@@ -282,6 +299,8 @@ protected:
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const = 0;
+
+  PointCloudVoxelizationInterface() = default;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

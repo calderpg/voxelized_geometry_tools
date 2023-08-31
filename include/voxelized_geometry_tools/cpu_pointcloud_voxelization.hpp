@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
@@ -26,10 +26,10 @@ private:
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       CollisionMap& output_environment) const override;
 
-  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+  const common_robotics_utilities::parallelism::DegreeOfParallelism&
   Parallelism() const { return parallelism_; }
 
-  common_robotics_utilities::openmp_helpers::DegreeOfParallelism parallelism_;
+  common_robotics_utilities::parallelism::DegreeOfParallelism parallelism_;
 };
 }  // namespace pointcloud_voxelization
 }  // namespace voxelized_geometry_tools

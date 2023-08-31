@@ -3,7 +3,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
 
@@ -32,7 +32,7 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
     const bool enforce_collision_map_contains_mesh,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism);
 
 /// This sets all voxels intersected by the provided mesh to filled. Note
@@ -43,7 +43,7 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     const double resolution,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism);
 }  // namespace voxelized_geometry_tools
 

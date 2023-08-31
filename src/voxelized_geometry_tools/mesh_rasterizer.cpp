@@ -7,9 +7,14 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/math.hpp>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
+
+using common_robotics_utilities::parallelism::DegreeOfParallelism;
+using common_robotics_utilities::parallelism::ParallelForBackend;
+using common_robotics_utilities::parallelism::StaticParallelForLoop;
+using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
@@ -196,29 +201,39 @@ void RasterizeMesh(
     const std::vector<Eigen::Vector3i>& triangles,
     voxelized_geometry_tools::CollisionMap& collision_map,
     const bool enforce_collision_map_contains_mesh,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
-        parallelism)
+    const DegreeOfParallelism& parallelism)
 {
   if (!collision_map.IsInitialized())
   {
     throw std::invalid_argument("collision_map must be initialized");
   }
 
-  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
-  for (size_t idx = 0; idx < triangles.size(); idx++)
+
+  // Helper lambda for each thread's work
+  const auto per_thread_work = [&](const ThreadWorkRange& work_range)
   {
-    RasterizeTriangle(
-        vertices, triangles, idx, collision_map,
+    for (int64_t triangle_index = work_range.GetRangeStart();
+         triangle_index < work_range.GetRangeEnd();
+         triangle_index++)
+    {
+      RasterizeTriangle(
+        vertices, triangles, static_cast<size_t>(triangle_index), collision_map,
         enforce_collision_map_contains_mesh);
-  }
+    }
+  };
+
+  // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
+  // back to manual dispatch via std::async.
+  StaticParallelForLoop(
+      parallelism, 0, static_cast<int64_t>(triangles.size()), per_thread_work,
+      ParallelForBackend::BEST_AVAILABLE);
 }
 
 voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     const double resolution,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
-        parallelism)
+    const DegreeOfParallelism& parallelism)
 {
   if (resolution <= 0.0)
   {

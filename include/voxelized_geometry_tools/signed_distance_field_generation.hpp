@@ -9,7 +9,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 
@@ -41,7 +41,7 @@ DistanceField BuildDistanceField(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism);
 
 template<typename SDFScalarType>

@@ -296,7 +296,7 @@ DistanceField BuildDistanceFieldParallel(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism)
 {
   // Make the DistanceField container
@@ -436,7 +436,7 @@ DistanceField BuildDistanceField(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism)
 {
   if (!grid_sizes.UniformCellSize())

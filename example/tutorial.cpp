@@ -188,7 +188,7 @@ int main(int argc, char** argv)
   const float oob_value = std::numeric_limits<float>::infinity();
   // Disable parallelism in SDF generation
   const auto parallelism =
-      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
+      common_robotics_utilities::parallelism::DegreeOfParallelism::None();
   // Treat cells with unknown occupancy as if they were filled
   const bool unknown_is_filled = true;
   // Don't add a virtual border

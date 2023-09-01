@@ -9,9 +9,14 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
+
+using common_robotics_utilities::parallelism::DegreeOfParallelism;
+using common_robotics_utilities::parallelism::ParallelForBackend;
+using common_robotics_utilities::parallelism::StaticParallelForLoop;
+using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
@@ -147,11 +152,10 @@ public:
     return total_size;
   }
 
-  void Enqueue(const int32_t distance_squared, const GridIndex& index)
+  void Enqueue(const int32_t thread_num, const int32_t distance_squared,
+               const GridIndex& index)
   {
-    const size_t thread_num = static_cast<size_t>(
-        common_robotics_utilities::openmp_helpers::GetContextOmpThreadNum());
-    per_thread_queues_.at(thread_num).at(
+    per_thread_queues_.at(static_cast<size_t>(thread_num)).at(
         static_cast<size_t>(distance_squared)).push_back(index);
   }
 
@@ -178,17 +182,21 @@ DistanceField BuildDistanceFieldSerial(
   BucketCell default_cell;
   default_cell.distance_square = std::numeric_limits<double>::infinity();
   DistanceField distance_field(grid_origin_transform, grid_sizes, default_cell);
+
   // Compute maximum distance square
   const int64_t max_distance_square =
       (distance_field.GetNumXCells() * distance_field.GetNumXCells())
       + (distance_field.GetNumYCells() * distance_field.GetNumYCells())
       + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
+
   // Make bucket queue
   std::vector<std::vector<BucketCell>> bucket_queue(
       static_cast<size_t>(max_distance_square + 1));
   bucket_queue[0].reserve(points.size());
+
   // Set initial update direction
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
+
   // Mark all provided points with distance zero and add to the bucket queue
   for (size_t index = 0; index < points.size(); index++)
   {
@@ -212,6 +220,7 @@ DistanceField BuildDistanceFieldSerial(
       throw std::runtime_error("Point for BuildDistanceField out of bounds");
     }
   }
+
   // HERE BE DRAGONS
   // Process the bucket queue
   const std::vector<std::vector<std::vector<std::vector<int>>>> neighborhoods =
@@ -296,18 +305,19 @@ DistanceField BuildDistanceFieldParallel(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const common_robotics_utilities::parallelism::DegreeOfParallelism&
-        parallelism)
+    const DegreeOfParallelism& parallelism)
 {
   // Make the DistanceField container
   BucketCell default_cell;
   default_cell.distance_square = std::numeric_limits<double>::infinity();
   DistanceField distance_field(grid_origin_transform, grid_sizes, default_cell);
+
   // Compute maximum distance square
   const int64_t max_distance_square =
       (distance_field.GetNumXCells() * distance_field.GetNumXCells())
       + (distance_field.GetNumYCells() * distance_field.GetNumYCells())
       + (distance_field.GetNumZCells() * distance_field.GetNumZCells());
+
   // Make bucket queue
   std::vector<std::vector<BucketCell>> bucket_queue(
       static_cast<size_t>(max_distance_square + 1));
@@ -315,33 +325,47 @@ DistanceField BuildDistanceFieldParallel(
   MultipleThreadIndexQueueWrapper bucket_queues(
       static_cast<size_t>(parallelism.GetNumThreads()),
       static_cast<size_t>(max_distance_square + 1));
+
   // Set initial update direction
   int32_t initial_update_direction = GetDirectionNumber(0, 0, 0);
+
   // Mark all provided points with distance zero and add to the bucket queues
   // points MUST NOT CONTAIN DUPLICATE ENTRIES!
-  CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
-  for (size_t index = 0; index < points.size(); index++)
+  const auto mark_thread_work = [&](const ThreadWorkRange& work_range)
   {
-    const GridIndex& current_index = points[index];
-    auto query = distance_field.GetIndexMutable(current_index);
-    if (query)
+    for (size_t index = static_cast<size_t>(work_range.GetRangeStart());
+         index < static_cast<size_t>(work_range.GetRangeEnd());
+         index++)
     {
-      query.Value().location[0] = static_cast<uint32_t>(current_index.X());
-      query.Value().location[1] = static_cast<uint32_t>(current_index.Y());
-      query.Value().location[2] = static_cast<uint32_t>(current_index.Z());
-      query.Value().closest_point[0] = static_cast<uint32_t>(current_index.X());
-      query.Value().closest_point[1] = static_cast<uint32_t>(current_index.Y());
-      query.Value().closest_point[2] = static_cast<uint32_t>(current_index.Z());
-      query.Value().distance_square = 0.0;
-      query.Value().update_direction = initial_update_direction;
-      bucket_queues.Enqueue(0, current_index);
+      const GridIndex& current_index = points[index];
+      auto query = distance_field.GetIndexMutable(current_index);
+      if (query)
+      {
+        query.Value().location[0] = static_cast<uint32_t>(current_index.X());
+        query.Value().location[1] = static_cast<uint32_t>(current_index.Y());
+        query.Value().location[2] = static_cast<uint32_t>(current_index.Z());
+        query.Value().closest_point[0] =
+            static_cast<uint32_t>(current_index.X());
+        query.Value().closest_point[1] =
+            static_cast<uint32_t>(current_index.Y());
+        query.Value().closest_point[2] =
+            static_cast<uint32_t>(current_index.Z());
+        query.Value().distance_square = 0.0;
+        query.Value().update_direction = initial_update_direction;
+        bucket_queues.Enqueue(work_range.GetThreadNum(), 0, current_index);
+      }
+      // If the point is outside the bounds of the SDF, skip
+      else
+      {
+        throw std::runtime_error("Point for BuildDistanceField out of bounds");
+      }
     }
-    // If the point is outside the bounds of the SDF, skip
-    else
-    {
-      throw std::runtime_error("Point for BuildDistanceField out of bounds");
-    }
-  }
+  };
+
+  StaticParallelForLoop(
+      parallelism, 0, static_cast<int64_t>(points.size()), mark_thread_work,
+      ParallelForBackend::BEST_AVAILABLE);
+
   // HERE BE DRAGONS
   // Process the bucket queue
   const std::vector<std::vector<std::vector<std::vector<int>>>> neighborhoods =
@@ -351,80 +375,90 @@ DistanceField BuildDistanceFieldParallel(
            < static_cast<int32_t>(bucket_queues.NumQueues());
        current_distance_square++)
   {
-    CRU_OMP_PARALLEL_FOR_DEGREE(parallelism)
-    for (size_t idx = 0; idx < bucket_queues.Size(current_distance_square);
-         idx++)
+    const auto process_thread_work = [&](const ThreadWorkRange& work_range)
     {
-      const GridIndex& current_index =
-          bucket_queues.Query(current_distance_square, idx);
-      // Get the current location
-      const BucketCell& cur_cell =
-          distance_field.GetIndexImmutable(current_index).Value();
-      const double x = cur_cell.location[0];
-      const double y = cur_cell.location[1];
-      const double z = cur_cell.location[2];
-      // Pick the update direction
-      // Only the first bucket queue gets the larger set of neighborhoods?
-      // Don't really userstand why.
-      const size_t direction_switch = (current_distance_square > 0) ? 1 : 0;
-      // Make sure the update direction is valid
-      if (cur_cell.update_direction < 0 || cur_cell.update_direction > 26)
+      for (size_t idx = static_cast<size_t>(work_range.GetRangeStart());
+           idx < static_cast<size_t>(work_range.GetRangeEnd());
+           idx++)
       {
-        continue;
-      }
-      // Get the current neighborhood list
-      const size_t update_direction =
-          static_cast<size_t>(cur_cell.update_direction);
-      const std::vector<std::vector<int32_t>>& neighborhood =
-          neighborhoods[direction_switch][update_direction];
-      // Update the distance from the neighboring cells
-      for (size_t nh_idx = 0; nh_idx < neighborhood.size(); nh_idx++)
-      {
-        // Get the direction to check
-        const int32_t dx = neighborhood[nh_idx][0];
-        const int32_t dy = neighborhood[nh_idx][1];
-        const int32_t dz = neighborhood[nh_idx][2];
-        const int32_t nx = static_cast<int32_t>(x + dx);
-        const int32_t ny = static_cast<int32_t>(y + dy);
-        const int32_t nz = static_cast<int32_t>(z + dz);
-        const GridIndex neighbor_index(static_cast<int64_t>(nx),
-                                       static_cast<int64_t>(ny),
-                                       static_cast<int64_t>(nz));
-        auto neighbor_query = distance_field.GetIndexMutable(neighbor_index);
-        if (!neighbor_query)
+        const GridIndex& current_index =
+            bucket_queues.Query(current_distance_square, idx);
+        // Get the current location
+        const BucketCell& cur_cell =
+            distance_field.GetIndexImmutable(current_index).Value();
+        const double x = cur_cell.location[0];
+        const double y = cur_cell.location[1];
+        const double z = cur_cell.location[2];
+        // Pick the update direction
+        // Only the first bucket queue gets the larger set of neighborhoods?
+        // Don't really userstand why.
+        const size_t direction_switch = (current_distance_square > 0) ? 1 : 0;
+        // Make sure the update direction is valid
+        if (cur_cell.update_direction < 0 || cur_cell.update_direction > 26)
         {
-          // "Neighbor" is outside the bounds of the SDF
           continue;
         }
-        // Update the neighbor's distance based on the current
-        const int32_t new_distance_square =
-            static_cast<int32_t>(ComputeDistanceSquared(
-                nx, ny, nz,
-                static_cast<int32_t>(cur_cell.closest_point[0]),
-                static_cast<int32_t>(cur_cell.closest_point[1]),
-                static_cast<int32_t>(cur_cell.closest_point[2])));
-        if (new_distance_square > max_distance_square)
+        // Get the current neighborhood list
+        const size_t update_direction =
+            static_cast<size_t>(cur_cell.update_direction);
+        const std::vector<std::vector<int32_t>>& neighborhood =
+            neighborhoods[direction_switch][update_direction];
+        // Update the distance from the neighboring cells
+        for (size_t nh_idx = 0; nh_idx < neighborhood.size(); nh_idx++)
         {
-          // Skip these cases
-          continue;
-        }
-        if (new_distance_square < neighbor_query.Value().distance_square)
-        {
-          // If the distance is better, time to update the neighbor
-          neighbor_query.Value().distance_square = new_distance_square;
-          neighbor_query.Value().closest_point[0] = cur_cell.closest_point[0];
-          neighbor_query.Value().closest_point[1] = cur_cell.closest_point[1];
-          neighbor_query.Value().closest_point[2] = cur_cell.closest_point[2];
-          neighbor_query.Value().location[0] = static_cast<uint32_t>(nx);
-          neighbor_query.Value().location[1] = static_cast<uint32_t>(ny);
-          neighbor_query.Value().location[2] = static_cast<uint32_t>(nz);
-          neighbor_query.Value().update_direction =
-              GetDirectionNumber(dx, dy, dz);
-          // Add the neighbor into the bucket queue
-          bucket_queues.Enqueue(new_distance_square, neighbor_index);
+          // Get the direction to check
+          const int32_t dx = neighborhood[nh_idx][0];
+          const int32_t dy = neighborhood[nh_idx][1];
+          const int32_t dz = neighborhood[nh_idx][2];
+          const int32_t nx = static_cast<int32_t>(x + dx);
+          const int32_t ny = static_cast<int32_t>(y + dy);
+          const int32_t nz = static_cast<int32_t>(z + dz);
+          const GridIndex neighbor_index(static_cast<int64_t>(nx),
+                                         static_cast<int64_t>(ny),
+                                         static_cast<int64_t>(nz));
+          auto neighbor_query = distance_field.GetIndexMutable(neighbor_index);
+          if (!neighbor_query)
+          {
+            // "Neighbor" is outside the bounds of the SDF
+            continue;
+          }
+          // Update the neighbor's distance based on the current
+          const int32_t new_distance_square =
+              static_cast<int32_t>(ComputeDistanceSquared(
+                  nx, ny, nz,
+                  static_cast<int32_t>(cur_cell.closest_point[0]),
+                  static_cast<int32_t>(cur_cell.closest_point[1]),
+                  static_cast<int32_t>(cur_cell.closest_point[2])));
+          if (new_distance_square > max_distance_square)
+          {
+            // Skip these cases
+            continue;
+          }
+          if (new_distance_square < neighbor_query.Value().distance_square)
+          {
+            // If the distance is better, time to update the neighbor
+            neighbor_query.Value().distance_square = new_distance_square;
+            neighbor_query.Value().closest_point[0] = cur_cell.closest_point[0];
+            neighbor_query.Value().closest_point[1] = cur_cell.closest_point[1];
+            neighbor_query.Value().closest_point[2] = cur_cell.closest_point[2];
+            neighbor_query.Value().location[0] = static_cast<uint32_t>(nx);
+            neighbor_query.Value().location[1] = static_cast<uint32_t>(ny);
+            neighbor_query.Value().location[2] = static_cast<uint32_t>(nz);
+            neighbor_query.Value().update_direction =
+                GetDirectionNumber(dx, dy, dz);
+            // Add the neighbor into the bucket queue
+            bucket_queues.Enqueue(
+                work_range.GetThreadNum(), new_distance_square, neighbor_index);
+          }
         }
       }
-    }
+    };
+
+    StaticParallelForLoop(
+        parallelism, 0,
+        static_cast<int64_t>(bucket_queues.Size(current_distance_square)),
+        process_thread_work, ParallelForBackend::BEST_AVAILABLE);
+
     // Clear the current queues now that we're done with it
     bucket_queues.ClearCompletedQueues(current_distance_square);
   }
@@ -436,8 +470,7 @@ DistanceField BuildDistanceField(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
-    const common_robotics_utilities::parallelism::DegreeOfParallelism&
-        parallelism)
+    const DegreeOfParallelism& parallelism)
 {
   if (!grid_sizes.UniformCellSize())
   {

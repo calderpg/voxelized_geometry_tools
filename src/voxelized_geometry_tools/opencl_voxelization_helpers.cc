@@ -59,7 +59,7 @@ void kernel RaycastPoint(
     int previous_y_cell = -1;
     int previous_z_cell = -1;
     bool ray_crossed_grid = false;
-    for (float step = 0.0; step < num_steps; step += 1.0)
+    for (float step = 0.0f; step < num_steps; step += 1.0f)
     {
       const float elapsed_ratio = step / num_steps;
       if ((elapsed_ratio * current_ray_length) > max_range)
@@ -123,7 +123,7 @@ void kernel FilterGrids(
   const int voxel_index = get_global_id(0);
   const int filter_grid_index = voxel_index * 2;
   const float current_occupancy = filter_grid[filter_grid_index];
-  if (current_occupancy <= 0.5)
+  if (current_occupancy <= 0.5f)
   {
     int cameras_seen_filled = 0;
     int cameras_seen_free = 0;
@@ -160,15 +160,15 @@ void kernel FilterGrids(
     }
     if (cameras_seen_filled > 0)
     {
-      filter_grid[filter_grid_index] = 1.0;
+      filter_grid[filter_grid_index] = 1.0f;
     }
     else if (cameras_seen_free >= num_cameras_seen_free)
     {
-      filter_grid[filter_grid_index] = 0.0;
+      filter_grid[filter_grid_index] = 0.0f;
     }
     else
     {
-      filter_grid[filter_grid_index] = 0.5;
+      filter_grid[filter_grid_index] = 0.5f;
     }
   }
 }
@@ -296,7 +296,8 @@ public:
         queue_ = std::unique_ptr<cl::CommandQueue>(
             new cl::CommandQueue(*context_, opencl_device));
         // Make kernel programs
-        const std::string build_options = "-Werror -cl-fast-relaxed-math";
+        const std::string build_options =
+            "-Werror -cl-unsafe-math-optimizations";
         cl::Program::Sources raycasting_sources;
         const std::string raycasting_kernel_source = GetRaycastingKernelCode();
         raycasting_sources.push_back({raycasting_kernel_source.c_str(),
@@ -432,7 +433,7 @@ public:
     cl_int err = 0;
 
     cl::Buffer device_points_buffer(
-        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        *context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * raw_points.size(),
         const_cast<void*>(static_cast<const void*>(raw_points.data())),
         &err);
@@ -443,7 +444,7 @@ public:
     }
 
     cl::Buffer device_grid_pointcloud_transform_buffer(
-        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
+        *context_, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
         sizeof(float) * 16,
         const_cast<void*>(static_cast<const void*>(grid_pointcloud_transform)),
         &err);

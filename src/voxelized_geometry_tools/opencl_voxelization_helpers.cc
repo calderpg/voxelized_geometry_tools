@@ -380,9 +380,24 @@ public:
   std::unique_ptr<TrackingGridsHandle> PrepareTrackingGrids(
       const int64_t num_cells, const int32_t num_grids) override
   {
-    const size_t buffer_size =
-        sizeof(int32_t) * 2 * static_cast<size_t>(num_cells * num_grids);
+    const size_t buffer_elements =
+        static_cast<size_t>(num_cells * num_grids) * 2;
+    const size_t buffer_size = sizeof(int32_t) * buffer_elements;
     cl_int err = 0;
+
+    // enqueueFillBuffer behavior appears to be broken on macOS. Instead of the
+    // allocate + fill approach taken on Linux, use an allocate + copy approach.
+#if defined(__APPLE__)
+    std::vector<int32_t> fill_data(buffer_elements, 0);
+    std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
+        *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR, buffer_size,
+        const_cast<void*>(static_cast<const void*>(fill_data.data())), &err));
+    if (err != CL_SUCCESS)
+    {
+      throw std::runtime_error(
+          "Failed to allocate tracking grid buffer: " + LogOpenCLError(err));
+    }
+#else      
     std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
     if (err != CL_SUCCESS)
@@ -406,6 +421,7 @@ public:
       throw std::runtime_error(
           "Failed to complete enqueueFillBuffer: " + LogOpenCLError(err));
     }
+#endif
 
     // Calculate offsets into the buffer
     std::vector<int64_t> tracking_grid_offsets(

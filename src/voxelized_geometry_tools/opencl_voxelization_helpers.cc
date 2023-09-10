@@ -397,7 +397,7 @@ public:
       throw std::runtime_error(
           "Failed to allocate tracking grid buffer: " + LogOpenCLError(err));
     }
-#else      
+#else
     std::unique_ptr<cl::Buffer> tracking_grids_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE, buffer_size, nullptr, &err));
     if (err != CL_SUCCESS)

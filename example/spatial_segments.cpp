@@ -94,14 +94,17 @@ void test_spatial_segments(
   const float oob_value = std::numeric_limits<float>::infinity();
   const auto parallelism =
       common_robotics_utilities::parallelism::DegreeOfParallelism::None();
+  const auto strategy =
+      voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+          ::GenerationStrategy::BUCKET_QUEUE;
   const bool unknown_is_filled = true;
 
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
       no_border_sdf_parameters(
-          oob_value, parallelism, unknown_is_filled, false);
+          oob_value, parallelism, strategy, unknown_is_filled, false);
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
       virtual_border_sdf_parameters(
-          oob_value, parallelism, unknown_is_filled, true);
+          oob_value, parallelism, strategy, unknown_is_filled, true);
 
   const double connected_threshold = 1.75;
   const uint32_t number_of_spatial_segments_manual_border =

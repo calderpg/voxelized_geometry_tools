@@ -1223,9 +1223,13 @@ public:
 template<typename ScalarType>
 class SignedDistanceFieldGenerationParameters
 {
+public:
+  enum class GenerationStrategy : uint8_t { BUCKET_QUEUE, EDT };
+
 private:
   ScalarType oob_value_;
   common_robotics_utilities::parallelism::DegreeOfParallelism parallelism_;
+  GenerationStrategy strategy_ = GenerationStrategy::BUCKET_QUEUE;
   bool unknown_is_filled_ = true;
   bool add_virtual_border_ = false;
 
@@ -1237,8 +1241,9 @@ public:
       const ScalarType& oob_value,
       const common_robotics_utilities::parallelism::DegreeOfParallelism&
           parallelism,
-      const bool unknown_is_filled, const bool add_virtual_border)
-      : oob_value_(oob_value), parallelism_(parallelism),
+      const GenerationStrategy strategy, const bool unknown_is_filled,
+      const bool add_virtual_border)
+      : oob_value_(oob_value), parallelism_(parallelism), strategy_(strategy),
         unknown_is_filled_(unknown_is_filled),
         add_virtual_border_(add_virtual_border) {}
 
@@ -1246,6 +1251,8 @@ public:
 
   const common_robotics_utilities::parallelism::DegreeOfParallelism&
   Parallelism() const { return parallelism_; }
+
+  GenerationStrategy Strategy() const { return strategy_; }
 
   bool UnknownIsFilled() const { return unknown_is_filled_; }
 

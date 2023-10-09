@@ -92,11 +92,14 @@ void test_estimate_distance(
   const float oob_value = 1e6;
   const auto parallelism =
       common_robotics_utilities::parallelism::DegreeOfParallelism::None();
+  const auto strategy =
+      voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+          ::GenerationStrategy::BUCKET_QUEUE;
   const bool unknown_is_filled = true;
   const bool add_virtual_border = false;
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
-      sdf_parameters(
-          oob_value, parallelism, unknown_is_filled, add_virtual_border);
+      sdf_parameters(oob_value, parallelism, strategy, unknown_is_filled,
+                     add_virtual_border);
   const auto sdf = map.ExtractSignedDistanceFieldFloat(sdf_parameters);
   const auto sdf_marker =
       voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.05f);

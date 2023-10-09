@@ -53,7 +53,7 @@ int main(int argc, char** argv)
 #endif
 
   // In preparation, we want to set a couple common paramters
-  const double resolution = 0.25;
+  const double resolution = 0.25; //2.5; //0.25;
   const double x_size = 10.0;
   const double y_size = 10.0;
   const double z_size = 10.0;
@@ -188,14 +188,18 @@ int main(int argc, char** argv)
   const float oob_value = std::numeric_limits<float>::infinity();
   // Disable parallelism in SDF generation
   const auto parallelism =
-      common_robotics_utilities::parallelism::DegreeOfParallelism::None();
+      common_robotics_utilities::parallelism::DegreeOfParallelism(4); //::None();
+  // Use the "bucket queue" strategy
+  const auto strategy =
+      voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
+          ::GenerationStrategy::EDT;
   // Treat cells with unknown occupancy as if they were filled
   const bool unknown_is_filled = true;
   // Don't add a virtual border
   const bool add_virtual_border = false;
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
-      sdf_parameters(
-          oob_value, parallelism, unknown_is_filled, add_virtual_border);
+      sdf_parameters(oob_value, parallelism, strategy, unknown_is_filled,
+                     add_virtual_border);
   // We start by extracting the SDF from the CollisionMap
   const auto sdf =
       collision_map.ExtractSignedDistanceFieldFloat(sdf_parameters);

@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+#include <iostream>
+
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
@@ -174,7 +176,7 @@ private:
 
 };
 
-DistanceField BuildDistanceFieldSerial(
+DistanceField BuildDistanceFieldBucketQueueSerial(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes, const std::vector<GridIndex>& points)
 {
@@ -301,7 +303,7 @@ DistanceField BuildDistanceFieldSerial(
   return distance_field;
 }
 
-DistanceField BuildDistanceFieldParallel(
+DistanceField BuildDistanceFieldBucketQueueParallel(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
@@ -466,7 +468,7 @@ DistanceField BuildDistanceFieldParallel(
 }
 }  // namespace
 
-DistanceField BuildDistanceField(
+DistanceField BuildDistanceFieldBucketQueue(
     const Eigen::Isometry3d& grid_origin_transform,
     const GridSizes& grid_sizes,
     const std::vector<GridIndex>& points,
@@ -479,12 +481,330 @@ DistanceField BuildDistanceField(
   }
   if (parallelism.IsParallel())
   {
-    return BuildDistanceFieldParallel(
+    return BuildDistanceFieldBucketQueueParallel(
         grid_origin_transform, grid_sizes, points, parallelism);
   }
   else
   {
-    return BuildDistanceFieldSerial(grid_origin_transform, grid_sizes, points);
+    return BuildDistanceFieldBucketQueueSerial(
+        grid_origin_transform, grid_sizes, points);
+  }
+}
+
+namespace
+{
+class XIndexer
+{
+public:
+  XIndexer(const int64_t y_index, const int64_t z_index)
+      : y_index_(y_index), z_index_(z_index) {}
+
+  GridIndex operator()(const int64_t x_index) const
+  {
+    return GridIndex(x_index, y_index_, z_index_);
+  }
+
+private:
+  const int64_t y_index_;
+  const int64_t z_index_;
+};
+
+class YIndexer
+{
+public:
+  YIndexer(const int64_t x_index, const int64_t z_index)
+      : x_index_(x_index), z_index_(z_index) {}
+
+  GridIndex operator()(const int64_t y_index) const
+  {
+    return GridIndex(x_index_, y_index, z_index_);
+  }
+
+private:
+  const int64_t x_index_;
+  const int64_t z_index_;
+};
+
+class ZIndexer
+{
+public:
+  ZIndexer(const int64_t x_index, const int64_t y_index)
+      : x_index_(x_index), y_index_(y_index) {}
+
+  GridIndex operator()(const int64_t z_index) const
+  {
+    return GridIndex(x_index_, y_index_, z_index);
+  }
+
+private:
+  const int64_t x_index_;
+  const int64_t y_index_;
+};
+
+template<typename Indexer>
+void ComputeOneDimensionDistanceTransformInPlaceBruteForce(
+    const int64_t num_elements, const Indexer& indexer,
+    EDTDistanceField& distance_field)
+{
+  const auto f = [&](const int64_t element)
+  {
+    return distance_field.GetIndexImmutable(indexer(element)).Value();
+  };
+
+  const auto set_f = [&](const int64_t element, const double value)
+  {
+    return distance_field.SetIndex(indexer(element), value);
+  };
+
+  const auto square =
+      [](const int64_t value) { return static_cast<double>(value * value); };
+
+  std::vector<double> d(
+      num_elements, std::numeric_limits<double>::infinity());
+
+  for (int64_t q = 0; q < num_elements; q++)
+  {
+    for (int64_t other = 0; other < num_elements; other++)
+    {
+      const double dist = square(q - other) + f(other);
+      if (dist < d[q])
+      {
+        d[q] = dist;
+      }
+    }
+  }
+
+  for (int64_t q = 0; q < num_elements; q++)
+  {
+    set_f(q, d[q]);
+  }
+}
+
+template<typename Indexer>
+void ComputeOneDimensionDistanceTransformInPlaceLinear(
+    const int64_t num_elements, const Indexer& indexer,
+    EDTDistanceField& distance_field)
+{
+  const auto f = [&](const int64_t element)
+  {
+    return distance_field.GetIndexImmutable(indexer(element)).Value();
+  };
+
+  const auto set_f = [&](const int64_t element, const double value)
+  {
+    return distance_field.SetIndex(indexer(element), value);
+  };
+
+  const auto square =
+      [](const int64_t value) { return static_cast<double>(value * value); };
+
+  // Scratch space
+  std::vector<double> z(num_elements + 1, 0.0);
+  std::vector<int64_t> v(num_elements, 0);
+
+  // Initialize
+  v.at(0) = 0;
+  z.at(0) = -std::numeric_limits<double>::infinity();
+  z.at(1) = std::numeric_limits<double>::infinity();
+
+  const auto sub = [](const double a, const double b)
+  {
+    constexpr double infinity = std::numeric_limits<double>::infinity();
+    if (a == infinity && b == infinity)
+    {
+      return 0.0;
+    }
+    else if (a == infinity)
+    {
+      return infinity;
+    }
+    else if (b == infinity)
+    {
+      return -infinity;
+    }
+    else
+    {
+      return a - b;
+    }
+  };
+
+  // Helper for computing intermediate value s
+  const auto compute_s = [&](const int64_t q, const int64_t k)
+  {
+    const int64_t v_k = v.at(k);
+    const double fq = f(q);
+    const double fv_k = f(v_k);
+    const double top = sub( (fq + square(q)), (fv_k + square(v_k)) );
+    const double bottom = static_cast<double>((2 * q) - (2 * v_k));
+    const double s = top / bottom;
+    //std::cout << "v[k] = " << v_k << " f(q) = " << fq << " f(v[k]) = " << fv_k << std::endl;
+    //std::cout << "top = " << top << " bottom = " << bottom << " s = " << s << std::endl;
+    return s;
+  };
+
+  // Phase 1
+  {
+    int64_t k = 0;
+
+    for (int64_t q = 1; q < num_elements; q++)
+    {
+      //std::cout << "++++++++++\nq = " << q << std::endl;
+      //std::cout << "k (initial) = " << k << std::endl;
+      double s = compute_s(q, k);
+      //std::cout << "s (initial) = " << s << std::endl;
+      //std::cout << "z[k] (initial) = " << z.at(k) << std::endl;
+      while (k > 0 && s <= z.at(k))
+      {
+        k--;
+        s = compute_s(q, k);
+        //std::cout << "k (decrement) = " << k << std::endl;
+        //std::cout << "s (update) = " << s << std::endl;
+        //std::cout << "z[k] (update) = " << z.at(k) << std::endl;
+      }
+
+      k++;
+      //std::cout << "k (final) = " << k << std::endl;
+      //std::cout << "s (final) = " << s << std::endl;
+      v.at(k) = q;
+      z.at(k) = s;
+      z.at(k + 1) = std::numeric_limits<double>::infinity();
+    }
+  }
+
+  // Phase 2
+  {
+    std::vector<double> d(num_elements, 0.0);
+    int64_t k = 0;
+
+    for (int q = 0; q < num_elements; q++)
+    {
+      while(z.at(k + 1) < q)
+      {
+        k++;
+      }
+
+      const int64_t v_k = v.at(k);
+      d.at(q) = square(q - v_k) + f(v_k);
+    }
+
+    for (int q = 0; q < num_elements; q++)
+    {
+      set_f(q, d.at(q));
+    }
+  }
+}
+
+template<typename Indexer>
+void ComputeOneDimensionDistanceTransformInPlace(
+    const int64_t num_elements, const Indexer& indexer,
+    EDTDistanceField& distance_field)
+{
+  // We expect the brute force O(num_elements^2) strategy to be faster for small
+  // numbers of elements than the more complex O(num_elements) strategy.
+  constexpr int64_t kStrategyThreshold = 8;
+
+  if (num_elements > kStrategyThreshold)
+  {
+    ComputeOneDimensionDistanceTransformInPlaceLinear(
+        num_elements, indexer, distance_field);
+  }
+  else
+  {
+    ComputeOneDimensionDistanceTransformInPlaceBruteForce(
+        num_elements, indexer, distance_field);
+  }
+}
+}  // namespace
+
+
+void ComputeDistanceFieldTransformInPlace(
+    const DegreeOfParallelism& parallelism, EDTDistanceField& distance_field)
+{
+  const int64_t num_x_cells = distance_field.GetNumXCells();
+  const int64_t num_y_cells = distance_field.GetNumYCells();
+  const int64_t num_z_cells = distance_field.GetNumZCells();
+
+  const auto get_indicies_from_iteration = [&](
+      const int64_t step, const int64_t iteration)
+  {
+    const int64_t first_index = iteration / step;
+    const int64_t second_index = iteration % step;
+    return std::make_pair(first_index, second_index);
+  };
+
+  // Transform along X axis
+  if (num_x_cells > 1)
+  {
+    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    {
+      for (int64_t iteration = work_range.GetRangeStart();
+           iteration < work_range.GetRangeEnd();
+           iteration++)
+      {
+        const auto indices =
+            get_indicies_from_iteration(num_y_cells, iteration);
+        const int64_t y_index = indices.first;
+        const int64_t z_index = indices.second;
+
+        ComputeOneDimensionDistanceTransformInPlace(
+            num_x_cells, XIndexer(y_index, z_index), distance_field);
+      }
+    };
+
+    const int64_t iterations = num_y_cells * num_z_cells;
+    StaticParallelForLoop(
+        parallelism, 0, iterations, thread_work,
+        ParallelForBackend::BEST_AVAILABLE);
+  }
+
+  // Transform along Y axis
+  if (num_y_cells > 1)
+  {
+    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    {
+      for (int64_t iteration = work_range.GetRangeStart();
+           iteration < work_range.GetRangeEnd();
+           iteration++)
+      {
+        const auto indices =
+            get_indicies_from_iteration(num_x_cells, iteration);
+        const int64_t x_index = indices.first;
+        const int64_t z_index = indices.second;
+
+        ComputeOneDimensionDistanceTransformInPlace(
+            num_y_cells, YIndexer(x_index, z_index), distance_field);
+      }
+    };
+
+    const int64_t iterations = num_x_cells * num_z_cells;
+    StaticParallelForLoop(
+        parallelism, 0, iterations, thread_work,
+        ParallelForBackend::BEST_AVAILABLE);
+  }
+
+  // Transform along Z axis
+  if (num_z_cells > 1)
+  {
+    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    {
+      for (int64_t iteration = work_range.GetRangeStart();
+           iteration < work_range.GetRangeEnd();
+           iteration++)
+      {
+        const auto indices =
+            get_indicies_from_iteration(num_x_cells, iteration);
+        const int64_t x_index = indices.first;
+        const int64_t y_index = indices.second;
+
+        ComputeOneDimensionDistanceTransformInPlace(
+            num_z_cells, ZIndexer(x_index, y_index), distance_field);
+      }
+    };
+
+    const int64_t iterations = num_x_cells * num_y_cells;
+    StaticParallelForLoop(
+        parallelism, 0, iterations, thread_work,
+        ParallelForBackend::BEST_AVAILABLE);
   }
 }
 }  // namespace internal

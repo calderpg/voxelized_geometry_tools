@@ -228,6 +228,9 @@ if(BUILD_TESTING)
 
     ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
     target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
+
+    ament_add_gtest(sdf_generation_test test/sdf_generation_test.cpp)
+    target_link_libraries(sdf_generation_test ${PROJECT_NAME})
 endif()
 
 #############

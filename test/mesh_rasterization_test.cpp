@@ -69,9 +69,22 @@ INSTANTIATE_TEST_SUITE_P(
     SerialMeshRasterizationTest, MeshRasterizationTestSuite,
     testing::Values(DegreeOfParallelism::None()));
 
+// For fallback testing on platforms with no OpenMP support, specify 2 threads.
+int32_t GetNumThreads()
+{
+  if (common_robotics_utilities::openmp_helpers::IsOmpEnabledInBuild())
+  {
+    return common_robotics_utilities::openmp_helpers::GetNumOmpThreads();
+  }
+  else
+  {
+    return 2;
+  }
+}
+
 INSTANTIATE_TEST_SUITE_P(
     ParallelMeshRasterizationTest, MeshRasterizationTestSuite,
-    testing::Values(DegreeOfParallelism::FromOmp()));
+    testing::Values(DegreeOfParallelism(GetNumThreads())));
 }  // namespace
 }  // namespace voxelized_geometry_tools
 

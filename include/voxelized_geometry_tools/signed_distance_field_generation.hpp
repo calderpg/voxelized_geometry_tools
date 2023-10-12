@@ -1,8 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <chrono>
-
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -29,24 +26,6 @@ namespace internal
 using common_robotics_utilities::voxel_grid::GridIndex;
 using common_robotics_utilities::voxel_grid::GridSizes;
 
-struct BucketCell
-{
-  double distance_square = 0.0;
-  int32_t update_direction = 0;
-  uint32_t location[3] = {0u, 0u, 0u};
-  uint32_t closest_point[3] = {0u, 0u, 0u};
-};
-
-using DistanceField =
-    common_robotics_utilities::voxel_grid::VoxelGrid<BucketCell>;
-
-DistanceField BuildDistanceFieldBucketQueue(
-    const Eigen::Isometry3d& grid_origin_transform,
-    const GridSizes& grid_sizes,
-    const std::vector<GridIndex>& points,
-    const common_robotics_utilities::parallelism::DegreeOfParallelism&
-        parallelism);
-
 using EDTDistanceField =
     common_robotics_utilities::voxel_grid::VoxelGrid<double>;
 
@@ -56,77 +35,7 @@ void ComputeDistanceFieldTransformInPlace(
     EDTDistanceField& distance_field);
 
 template<typename SDFScalarType>
-inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceFieldBucketQueue(
-    const Eigen::Isometry3d& grid_origin_transform, const GridSizes& grid_sizes,
-    const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const std::string& frame,
-    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
-{
-  std::vector<GridIndex> filled;
-  std::vector<GridIndex> free;
-  for (int64_t x_index = 0; x_index < grid_sizes.NumXCells(); x_index++)
-  {
-    for (int64_t y_index = 0; y_index < grid_sizes.NumYCells(); y_index++)
-    {
-      for (int64_t z_index = 0; z_index < grid_sizes.NumZCells(); z_index++)
-      {
-        const GridIndex current_index(x_index, y_index, z_index);
-        if (is_filled_fn(current_index))
-        {
-          // Mark as filled
-          filled.push_back(current_index);
-        }
-        else
-        {
-          // Mark as free space
-          free.push_back(current_index);
-        }
-      }
-    }
-  }
-
-  // Make two distance fields, one for distance to filled voxels, one for
-  // distance to free voxels.
-  const DistanceField filled_distance_field = BuildDistanceFieldBucketQueue(
-      grid_origin_transform, grid_sizes, filled, parameters.Parallelism());
-  const DistanceField free_distance_field = BuildDistanceFieldBucketQueue(
-      grid_origin_transform, grid_sizes, free, parameters.Parallelism());
-
-  // Generate the SDF
-  SignedDistanceField<SDFScalarType> new_sdf(
-      grid_origin_transform, frame, grid_sizes, parameters.OOBValue());
-  for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
-  {
-    for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
-    {
-      for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
-      {
-        const double filled_distance_squared =
-            filled_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value().distance_square;
-        const double free_distance_squared =
-            free_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value().distance_square;
-
-        const double distance1 =
-            std::sqrt(filled_distance_squared) * new_sdf.GetResolution();
-        const double distance2 =
-            std::sqrt(free_distance_squared) * new_sdf.GetResolution();
-        const double distance = distance1 - distance2;
-
-        new_sdf.SetIndex(
-            x_index, y_index, z_index, static_cast<SDFScalarType>(distance));
-      }
-    }
-  }
-
-  // Lock & update min/max values.
-  new_sdf.Lock();
-  return new_sdf;
-}
-
-template<typename SDFScalarType>
-inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceFieldEDT(
+inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const Eigen::Isometry3d& grid_origin_transform, const GridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
     const std::string& frame,
@@ -198,44 +107,6 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceFieldEDT(
   // Lock & update min/max values.
   new_sdf.Lock();
   return new_sdf;
-}
-
-template<typename SDFScalarType>
-inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
-    const Eigen::Isometry3d& grid_origin_transform, const GridSizes& grid_sizes,
-    const std::function<bool(const GridIndex&)>& is_filled_fn,
-    const std::string& frame,
-    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
-{
-  if (parameters.Strategy() ==
-      SignedDistanceFieldGenerationParameters<SDFScalarType>
-          ::GenerationStrategy::BUCKET_QUEUE)
-  {
-    const auto start = std::chrono::steady_clock::now();
-    auto sdf = ExtractSignedDistanceFieldBucketQueue<SDFScalarType>(
-        grid_origin_transform, grid_sizes, is_filled_fn, frame, parameters);
-    const auto end = std::chrono::steady_clock::now();
-    const double elapsed = std::chrono::duration<double>(end - start).count();
-    std::cout << "Bucket queue SDF generation took " << elapsed << " seconds" << std::endl;
-    return sdf;
-  }
-  else if (parameters.Strategy() ==
-           SignedDistanceFieldGenerationParameters<SDFScalarType>
-               ::GenerationStrategy::EDT)
-  {
-    const auto start = std::chrono::steady_clock::now();
-    auto sdf = ExtractSignedDistanceFieldEDT<SDFScalarType>(
-        grid_origin_transform, grid_sizes, is_filled_fn, frame, parameters);
-    const auto end = std::chrono::steady_clock::now();
-    const double elapsed = std::chrono::duration<double>(end - start).count();
-    std::cout << "EDT SDF generation took " << elapsed << " seconds" << std::endl;
-    return sdf;
-  }
-  else
-  {
-    throw std::invalid_argument(
-        "Invalid signed distance field generation strategy");
-  }
 }
 
 template<typename T, typename BackingStore, typename SDFScalarType>

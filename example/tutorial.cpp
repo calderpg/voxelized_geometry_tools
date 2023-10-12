@@ -13,6 +13,7 @@
 #else
 #error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
 #endif
+#include <chrono>
 #include <functional>
 #include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
@@ -53,7 +54,7 @@ int main(int argc, char** argv)
 #endif
 
   // In preparation, we want to set a couple common paramters
-  const double resolution = 0.25; //2.5; //0.25;
+  const double resolution = 0.25;
   const double x_size = 10.0;
   const double y_size = 10.0;
   const double z_size = 10.0;
@@ -136,29 +137,36 @@ int main(int argc, char** argv)
   }
 
   // Let's compute connected components
+  const auto cc_start_time = std::chrono::steady_clock::now();
   const uint32_t num_connected_components =
       collision_map.UpdateConnectedComponents();
-  std::cout << " There are " << num_connected_components
+  const auto cc_end_time = std::chrono::steady_clock::now();
+  const double cc_elapsed =
+      std::chrono::duration<double>(cc_end_time - cc_start_time).count();
+  std::cout << "Connected components took " << cc_elapsed << " seconds"
+            << std::endl;
+  std::cout << "There are " << num_connected_components
             << " connected components in the grid" << std::endl;
 
   // Let's display the results to Rviz
   // First, the CollisionMap itself
   // We need to provide colors to use
+  const float display_alpha = 1.0;
   ColorRGBA collision_color;
   collision_color.r = 1.0;
   collision_color.g = 0.0;
   collision_color.b = 0.0;
-  collision_color.a = 0.5;
+  collision_color.a = display_alpha;
   ColorRGBA free_color;
   free_color.r = 0.0;
   free_color.g = 1.0;
   free_color.b = 0.0;
-  free_color.a = 0.5;
+  free_color.a = display_alpha;
   ColorRGBA unknown_color;
   unknown_color.r = 1.0;
   unknown_color.g = 1.0;
   unknown_color.b = 0.0;
-  unknown_color.a = 0.5;
+  unknown_color.a = display_alpha;
   Marker collision_map_marker =
       voxelized_geometry_tools::ros_interface::ExportForDisplay(
           collision_map, collision_color, free_color, unknown_color);
@@ -186,23 +194,24 @@ int main(int argc, char** argv)
 
   // We pick a reasonable out-of-bounds value
   const float oob_value = std::numeric_limits<float>::infinity();
-  // Disable parallelism in SDF generation
+  // Enable parallelism in SDF generation
   const auto parallelism =
-      common_robotics_utilities::parallelism::DegreeOfParallelism(4); //::None();
-  // Use the "bucket queue" strategy
-  const auto strategy =
-      voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
-          ::GenerationStrategy::EDT;
+      common_robotics_utilities::parallelism::DegreeOfParallelism::FromOmp();
   // Treat cells with unknown occupancy as if they were filled
   const bool unknown_is_filled = true;
   // Don't add a virtual border
   const bool add_virtual_border = false;
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
-      sdf_parameters(oob_value, parallelism, strategy, unknown_is_filled,
-                     add_virtual_border);
+      sdf_parameters(
+          oob_value, parallelism, unknown_is_filled, add_virtual_border);
   // We start by extracting the SDF from the CollisionMap
+  const auto sdf_start_time = std::chrono::steady_clock::now();
   const auto sdf =
       collision_map.ExtractSignedDistanceFieldFloat(sdf_parameters);
+  const auto sdf_end_time = std::chrono::steady_clock::now();
+  const double sdf_elapsed =
+      std::chrono::duration<double>(sdf_end_time - sdf_start_time).count();
+  std::cout << "SDF generation took " << sdf_elapsed << " seconds" << std::endl;
   const auto sdf_extrema = sdf.GetMinimumMaximum();
   std::cout << "Maximum distance in the SDF: " << sdf_extrema.Maximum()
             << ", minimum distance in the SDF: " << sdf_extrema.Minimum()
@@ -248,7 +257,8 @@ int main(int argc, char** argv)
 
   // Let's display the results to Rviz
   Marker sdf_marker =
-      voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(sdf, 0.5);
+      voxelized_geometry_tools::ros_interface::ExportSDFForDisplay(
+          sdf, display_alpha);
   sdf_marker.ns = "sdf";
   sdf_marker.id = 1;
   display_fn(sdf_marker);

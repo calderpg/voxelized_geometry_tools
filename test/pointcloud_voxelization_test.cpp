@@ -13,7 +13,7 @@
 #include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 
-using common_robotics_utilities::openmp_helpers::DegreeOfParallelism;
+using common_robotics_utilities::parallelism::DegreeOfParallelism;
 
 namespace voxelized_geometry_tools
 {

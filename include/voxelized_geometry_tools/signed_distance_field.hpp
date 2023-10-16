@@ -14,7 +14,7 @@
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/maybe.hpp>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
@@ -1225,7 +1225,7 @@ class SignedDistanceFieldGenerationParameters
 {
 private:
   ScalarType oob_value_;
-  common_robotics_utilities::openmp_helpers::DegreeOfParallelism parallelism_;
+  common_robotics_utilities::parallelism::DegreeOfParallelism parallelism_;
   bool unknown_is_filled_ = true;
   bool add_virtual_border_ = false;
 
@@ -1235,7 +1235,7 @@ public:
 
   SignedDistanceFieldGenerationParameters(
       const ScalarType& oob_value,
-      const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+      const common_robotics_utilities::parallelism::DegreeOfParallelism&
           parallelism,
       const bool unknown_is_filled, const bool add_virtual_border)
       : oob_value_(oob_value), parallelism_(parallelism),
@@ -1244,7 +1244,7 @@ public:
 
   const ScalarType& OOBValue() const { return oob_value_; }
 
-  const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
+  const common_robotics_utilities::parallelism::DegreeOfParallelism&
   Parallelism() const { return parallelism_; }
 
   bool UnknownIsFilled() const { return unknown_is_filled_; }

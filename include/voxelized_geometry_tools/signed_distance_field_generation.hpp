@@ -9,7 +9,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <common_robotics_utilities/openmp_helpers.hpp>
+#include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 
@@ -26,33 +26,31 @@ namespace internal
 using common_robotics_utilities::voxel_grid::GridIndex;
 using common_robotics_utilities::voxel_grid::GridSizes;
 
-struct BucketCell
-{
-  double distance_square = 0.0;
-  int32_t update_direction = 0;
-  uint32_t location[3] = {0u, 0u, 0u};
-  uint32_t closest_point[3] = {0u, 0u, 0u};
-};
+using EDTDistanceField =
+    common_robotics_utilities::voxel_grid::VoxelGrid<double>;
 
-using DistanceField =
-    common_robotics_utilities::voxel_grid::VoxelGrid<BucketCell>;
-
-DistanceField BuildDistanceField(
-    const Eigen::Isometry3d& grid_origin_transform,
-    const GridSizes& grid_sizes,
-    const std::vector<GridIndex>& points,
-    const common_robotics_utilities::openmp_helpers::DegreeOfParallelism&
-        parallelism);
+void ComputeDistanceFieldTransformInPlace(
+    const common_robotics_utilities::parallelism::DegreeOfParallelism&
+        parallelism,
+    EDTDistanceField& distance_field);
 
 template<typename SDFScalarType>
 inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
-    const Eigen::Isometry3d& grid_origin_tranform, const GridSizes& grid_sizes,
+    const Eigen::Isometry3d& grid_origin_transform, const GridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
     const std::string& frame,
     const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
 {
-  std::vector<GridIndex> filled;
-  std::vector<GridIndex> free;
+  const double marked_cell = 0.0;
+  const double unmarked_cell = std::numeric_limits<double>::infinity();
+
+  // Make two distance fields, one for distance to filled voxels, one for
+  // distance to free voxels.
+  EDTDistanceField filled_distance_field(
+      grid_origin_transform, grid_sizes, unmarked_cell);
+  EDTDistanceField free_distance_field(
+      grid_origin_transform, grid_sizes, unmarked_cell);
+
   for (int64_t x_index = 0; x_index < grid_sizes.NumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < grid_sizes.NumYCells(); y_index++)
@@ -62,28 +60,25 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
         const GridIndex current_index(x_index, y_index, z_index);
         if (is_filled_fn(current_index))
         {
-          // Mark as filled
-          filled.push_back(current_index);
+          filled_distance_field.SetIndex(current_index, marked_cell);
         }
         else
         {
-          // Mark as free space
-          free.push_back(current_index);
+          free_distance_field.SetIndex(current_index, marked_cell);
         }
       }
     }
   }
 
-  // Make two distance fields, one for distance to filled voxels, one for
-  // distance to free voxels.
-  const DistanceField filled_distance_field = BuildDistanceField(
-      grid_origin_tranform, grid_sizes, filled, parameters.Parallelism());
-  const DistanceField free_distance_field = BuildDistanceField(
-      grid_origin_tranform, grid_sizes, free, parameters.Parallelism());
+  // Compute the distance transforms in place
+  ComputeDistanceFieldTransformInPlace(
+      parameters.Parallelism(), filled_distance_field);
+  ComputeDistanceFieldTransformInPlace(
+      parameters.Parallelism(), free_distance_field);
 
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
-      grid_origin_tranform, frame, grid_sizes, parameters.OOBValue());
+      grid_origin_transform, frame, grid_sizes, parameters.OOBValue());
   for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
   {
     for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
@@ -92,10 +87,10 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
       {
         const double filled_distance_squared =
             filled_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value().distance_square;
+                x_index, y_index, z_index).Value();
         const double free_distance_squared =
             free_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value().distance_square;
+                x_index, y_index, z_index).Value();
 
         const double distance1 =
             std::sqrt(filled_distance_squared) * new_sdf.GetResolution();

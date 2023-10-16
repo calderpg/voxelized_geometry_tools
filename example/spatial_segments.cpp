@@ -93,7 +93,7 @@ void test_spatial_segments(
 
   const float oob_value = std::numeric_limits<float>::infinity();
   const auto parallelism =
-      common_robotics_utilities::openmp_helpers::DegreeOfParallelism::None();
+      common_robotics_utilities::parallelism::DegreeOfParallelism::None();
   const bool unknown_is_filled = true;
 
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>

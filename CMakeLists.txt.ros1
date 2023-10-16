@@ -243,6 +243,10 @@ if(CATKIN_ENABLE_TESTING)
     catkin_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
     add_dependencies(mesh_rasterization_test ${PROJECT_NAME})
     target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
+
+    catkin_add_gtest(sdf_generation_test test/sdf_generation_test.cpp)
+    add_dependencies(sdf_generation_test ${PROJECT_NAME})
+    target_link_libraries(sdf_generation_test ${PROJECT_NAME})
 endif()
 
 #############

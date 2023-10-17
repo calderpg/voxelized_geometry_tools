@@ -25,6 +25,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace ros_interface
 {
 Marker ExportForDisplay(
@@ -714,4 +715,5 @@ TaggedObjectCollisionMap LoadFromMessageRepresentation(
   }
 }
 }  // namespace ros_interface
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

@@ -25,6 +25,7 @@ using MatrixXi64 = Eigen::Matrix<int64_t, Eigen::Dynamic, Eigen::Dynamic>;
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace signed_distance_field_generation
 {
 namespace internal
@@ -390,4 +391,5 @@ void ComputeDistanceFieldTransformInPlace(
 }
 }  // namespace internal
 }  // namespace signed_distance_field_generation
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

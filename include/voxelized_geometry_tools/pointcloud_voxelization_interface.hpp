@@ -8,9 +8,11 @@
 
 #include <Eigen/Geometry>
 #include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 enum class SeenAs : uint8_t {UNKNOWN = 0x00, FILLED = 0x01, FREE = 0x02};
@@ -303,4 +305,5 @@ protected:
   PointCloudVoxelizationInterface() = default;
 };
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

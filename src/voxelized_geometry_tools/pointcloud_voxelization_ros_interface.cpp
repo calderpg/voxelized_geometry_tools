@@ -17,6 +17,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 
@@ -77,4 +78,5 @@ PointCloud2Wrapper::PointCloud2Wrapper(
   }
 }
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

@@ -18,9 +18,11 @@
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 /// This is similar to std::optional<double>, but kept separate here so as to
 /// not require C++17 support with a working std::optional<T>.
 class EstimateDistanceQuery
@@ -1251,6 +1253,7 @@ public:
 
   bool AddVirtualBorder() const { return add_virtual_border_; }
 };
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools
 
 extern template class voxelized_geometry_tools::SignedDistanceField<double>;

@@ -33,6 +33,7 @@
 #include <voxelized_geometry_tools/dynamic_spatial_hashed_collision_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <voxelized_geometry_tools/msg/collision_map_message.hpp>
@@ -48,6 +49,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace ros_interface
 {
 
@@ -606,4 +608,5 @@ TaggedObjectCollisionMapMessage GetMessageRepresentation(
 TaggedObjectCollisionMap LoadFromMessageRepresentation(
     const TaggedObjectCollisionMapMessage& message);
 }  // namespace ros_interface
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

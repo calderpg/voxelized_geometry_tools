@@ -7,6 +7,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 namespace cuda_helpers
@@ -21,4 +22,5 @@ MakeCudaVoxelizationHelper(
 }
 }  // namespace cuda_helpers
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

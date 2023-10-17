@@ -16,9 +16,11 @@
 #error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
 #endif
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 
@@ -120,4 +122,5 @@ private:
   PointCloud2ConstSharedPtr owned_cloud_ptr_;
 };
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

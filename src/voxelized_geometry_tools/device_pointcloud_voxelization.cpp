@@ -22,6 +22,7 @@ using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 DevicePointCloudVoxelizer::DevicePointCloudVoxelizer(
@@ -209,4 +210,5 @@ OpenCLPointCloudVoxelizer::OpenCLPointCloudVoxelizer(
   EnforceAvailable();
 }
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

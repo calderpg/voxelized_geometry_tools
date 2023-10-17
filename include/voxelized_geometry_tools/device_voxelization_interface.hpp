@@ -7,8 +7,11 @@
 #include <string>
 #include <vector>
 
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
+
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 // Signature of basic text logging function. This is the same as CRU's logging
@@ -170,4 +173,5 @@ protected:
   DeviceVoxelizationHelperInterface() = default;
 };
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

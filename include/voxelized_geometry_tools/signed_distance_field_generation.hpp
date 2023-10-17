@@ -12,9 +12,11 @@
 #include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace signed_distance_field_generation
 {
 // To allow for faster development/improvements, the SignedDistanceField
@@ -282,4 +284,5 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
 }
 }  // namespace internal
 }  // namespace signed_distance_field_generation
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

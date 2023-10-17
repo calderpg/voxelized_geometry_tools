@@ -20,6 +20,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
     ::VoxelGridBase<TaggedObjectCollisionCell,
@@ -806,4 +807,5 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   spatial_segments_valid_ = true;
   return number_of_spatial_segments_;
 }
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

@@ -22,9 +22,11 @@
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/signed_distance_field_generation.hpp>
 #include <voxelized_geometry_tools/topology_computation.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 class TaggedObjectCollisionCell
 {
 private:
@@ -521,4 +523,5 @@ public:
   ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
       const SignedDistanceFieldGenerationParameters<float>& parameters) const;
 };
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

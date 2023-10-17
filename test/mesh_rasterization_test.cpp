@@ -26,7 +26,7 @@ TEST_P(MeshRasterizationTestSuite, Test)
 
   const double resolution = 0.125;
 
-  const auto collision_map = RasterizeMeshIntoCollisionMap(
+  const auto collision_map = mesh_rasterizer::RasterizeMeshIntoCollisionMap(
       vertices, triangles, resolution, parallelism);
 
   const auto get_cell_occupancy =

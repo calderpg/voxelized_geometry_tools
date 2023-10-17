@@ -12,6 +12,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 namespace opencl_helpers
@@ -667,4 +668,5 @@ MakeOpenCLVoxelizationHelper(
 }
 }  // namespace opencl_helpers
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

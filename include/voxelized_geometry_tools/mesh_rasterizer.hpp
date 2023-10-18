@@ -6,9 +6,13 @@
 #include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 // TODO(calderpg) Factor this out to support different voxel grid types.
 namespace voxelized_geometry_tools
+{
+VGT_NAMESPACE_BEGIN
+namespace mesh_rasterizer
 {
 /// This sets all voxels intersected by the provided triangle to filled. Note
 /// that it sets voxels filled regardless of whether or not the voxel cell
@@ -45,5 +49,7 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
     const double resolution,
     const common_robotics_utilities::parallelism::DegreeOfParallelism&
         parallelism);
+}  // namespace mesh_rasterizer
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools
 

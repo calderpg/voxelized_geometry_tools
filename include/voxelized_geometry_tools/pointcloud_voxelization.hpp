@@ -8,9 +8,11 @@
 
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 enum class BackendOptions : uint8_t { BEST_AVAILABLE = 0x00,
@@ -65,4 +67,5 @@ MakeBestAvailablePointCloudVoxelizer(
     const std::map<std::string, int32_t>& device_options,
     const LoggingFunction& logging_fn = {});
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

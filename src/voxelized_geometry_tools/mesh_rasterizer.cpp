@@ -18,6 +18,9 @@ using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
+namespace mesh_rasterizer
+{
 namespace
 {
 bool PointProjectsInsideTriangle(
@@ -272,5 +275,7 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
 
   return collision_map;
 }
+}  // namespace mesh_rasterizer
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools
 

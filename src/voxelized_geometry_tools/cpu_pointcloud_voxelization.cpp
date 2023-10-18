@@ -24,6 +24,7 @@ using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 namespace
@@ -319,4 +320,5 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
       std::chrono::duration<double>(done_time - raycasted_time).count());
 }
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

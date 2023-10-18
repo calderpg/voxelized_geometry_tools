@@ -20,6 +20,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
     ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>>
@@ -618,4 +619,5 @@ SignedDistanceField<float> CollisionMap::ExtractSignedDistanceFieldFloat(
 {
   return ExtractSignedDistanceField<float>(parameters);
 }
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

@@ -10,9 +10,11 @@
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
 #include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 class DynamicSpatialHashedCollisionMap final
     : public common_robotics_utilities::voxel_grid
         ::DynamicSpatialHashedVoxelGridBase<
@@ -104,4 +106,5 @@ public:
 
   void SetFrame(const std::string& frame) { frame_ = frame; }
 };
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

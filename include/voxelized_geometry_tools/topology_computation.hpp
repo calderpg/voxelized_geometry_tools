@@ -13,9 +13,11 @@
 
 #include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
+#include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace topology_computation
 {
 class NumberOfHolesAndVoids
@@ -710,4 +712,5 @@ inline std::unordered_map<GridIndex, size_t> BuildSurfaceIndexMap(
   return dynamic_surface;
 }
 }  // namespace topology_computation
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

@@ -12,6 +12,7 @@
 
 namespace voxelized_geometry_tools
 {
+VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 std::vector<AvailableBackend> GetAvailableBackends()
@@ -145,4 +146,5 @@ MakeBestAvailablePointCloudVoxelizer(
   }
 }
 }  // namespace pointcloud_voxelization
+VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

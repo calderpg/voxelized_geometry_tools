@@ -108,6 +108,7 @@ int64_t MarkConnectedComponent(
     working_queue.pop_front();
     // Mark the connected component
     mark_component_fn(current_index, connected_component);
+    marked_cells++;
     // Go through the possible neighbors and enqueue as needed
     // Since there are only six cases
     // (voxels must share a face to be considered connected),

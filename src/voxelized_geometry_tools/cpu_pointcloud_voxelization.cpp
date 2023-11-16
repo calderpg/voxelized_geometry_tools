@@ -19,8 +19,7 @@
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::parallelism::ParallelForBackend;
-using common_robotics_utilities::parallelism::StaticParallelForLoop;
-using common_robotics_utilities::parallelism::ThreadWorkRange;
+using common_robotics_utilities::parallelism::StaticParallelForIndexLoop;
 
 namespace voxelized_geometry_tools
 {
@@ -96,7 +95,7 @@ void RaycastPointCloud(
   const double max_range = cloud.MaxRange();
 
   // Helper lambda for raycasting a single point
-  const auto raycast_point = [&](const int64_t point_index)
+  const auto per_item_work = [&](const int32_t, const int64_t point_index)
   {
     // Location of point P in frame of camera C
     const Eigen::Vector4d p_CP = cloud.GetPointLocationVector4d(point_index);
@@ -159,21 +158,10 @@ void RaycastPointCloud(
     }
   };
 
-  // Helper lambda for each thread's work
-  const auto per_thread_work = [&](const ThreadWorkRange& work_range)
-  {
-    for (int64_t point_index = work_range.GetRangeStart();
-         point_index < work_range.GetRangeEnd();
-         point_index++)
-    {
-      raycast_point(point_index);
-    }
-  };
-
   // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
   // back to manual dispatch via std::async.
-  StaticParallelForLoop(
-      parallelism, 0, cloud.Size(), per_thread_work,
+  StaticParallelForIndexLoop(
+      parallelism, 0, cloud.Size(), per_item_work,
       ParallelForBackend::BEST_AVAILABLE);
 }
 
@@ -187,60 +175,55 @@ void CombineAndFilterGrids(
   // grid we are, we can take advantage of the dense backing vector to iterate
   // through the grid data, rather than the grid cells.
 
-  // Helper lambda for each thread's work
-  const auto per_thread_work = [&](const ThreadWorkRange& work_range)
+  // Helper lambda for each item's work
+  const auto per_item_work = [&](const int32_t, const int64_t voxel_index)
   {
-    for (int64_t voxel = work_range.GetRangeStart();
-         voxel < work_range.GetRangeEnd();
-         voxel++)
+    auto& current_cell = filtered_grid.GetDataIndexMutable(voxel_index);
+    // Filled cells stay filled, we don't work with them.
+    // We only change cells that are unknown or empty.
+    if (current_cell.Occupancy() <= 0.5)
     {
-      auto& current_cell = filtered_grid.GetDataIndexMutable(voxel);
-      // Filled cells stay filled, we don't work with them.
-      // We only change cells that are unknown or empty.
-      if (current_cell.Occupancy() <= 0.5)
+      int32_t seen_filled = 0;
+      int32_t seen_free = 0;
+      for (size_t idx = 0; idx < tracking_grids.size(); idx++)
       {
-        int32_t seen_filled = 0;
-        int32_t seen_free = 0;
-        for (size_t idx = 0; idx < tracking_grids.size(); idx++)
+        const CpuVoxelizationTrackingCell& grid_cell =
+            tracking_grids.at(idx).GetDataIndexImmutable(voxel_index);
+        const int32_t free_count = grid_cell.seen_free_count.load();
+        const int32_t filled_count = grid_cell.seen_filled_count.load();
+        const SeenAs seen_as =
+            filter_options.CountsSeenAs(free_count, filled_count);
+        if (seen_as == SeenAs::FREE)
         {
-          const CpuVoxelizationTrackingCell& grid_cell =
-              tracking_grids.at(idx).GetDataIndexImmutable(voxel);
-          const int32_t free_count = grid_cell.seen_free_count.load();
-          const int32_t filled_count = grid_cell.seen_filled_count.load();
-          const SeenAs seen_as =
-              filter_options.CountsSeenAs(free_count, filled_count);
-          if (seen_as == SeenAs::FREE)
-          {
-            seen_free += 1;
-          }
-          else if (seen_as == SeenAs::FILLED)
-          {
-            seen_filled += 1;
-          }
+          seen_free += 1;
         }
-        if (seen_filled > 0)
+        else if (seen_as == SeenAs::FILLED)
         {
-          // If any camera saw something here, it is filled.
-          current_cell.Occupancy() = 1.0;
+          seen_filled += 1;
         }
-        else if (seen_free >= filter_options.NumCamerasSeenFree())
-        {
-          // Did enough cameras see this empty?
-          current_cell.Occupancy() = 0.0;
-        }
-        else
-        {
-          // Otherwise, it is unknown.
-          current_cell.Occupancy() = 0.5;
-        }
+      }
+      if (seen_filled > 0)
+      {
+        // If any camera saw something here, it is filled.
+        current_cell.Occupancy() = 1.0;
+      }
+      else if (seen_free >= filter_options.NumCamerasSeenFree())
+      {
+        // Did enough cameras see this empty?
+        current_cell.Occupancy() = 0.0;
+      }
+      else
+      {
+        // Otherwise, it is unknown.
+        current_cell.Occupancy() = 0.5;
       }
     }
   };
 
   // Use OpenMP if available, if not fall back to manual dispatch via
   // std::async.
-  StaticParallelForLoop(
-      parallelism, 0, filtered_grid.GetTotalCells(), per_thread_work,
+  StaticParallelForIndexLoop(
+      parallelism, 0, filtered_grid.GetTotalCells(), per_item_work,
       ParallelForBackend::BEST_AVAILABLE);
 }
 }  // namespace

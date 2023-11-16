@@ -16,9 +16,8 @@
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
-using common_robotics_utilities::parallelism::DynamicParallelForLoop;
+using common_robotics_utilities::parallelism::DynamicParallelForIndexLoop;
 using common_robotics_utilities::parallelism::ParallelForBackend;
-using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 namespace voxelized_geometry_tools
 {
@@ -107,10 +106,10 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
       static_cast<int32_t>(static_environment.GetNumZCells());
 
   // Lambda for the raycasting of a single pointcloud.
-  const auto raycast_cloud = [&](const size_t pointcloud_index)
+  const auto per_item_work = [&](const int32_t, const int64_t pointcloud_index)
   {
     const PointCloudWrapperSharedPtr& pointcloud =
-        pointclouds.at(pointcloud_index);
+        pointclouds.at(static_cast<size_t>(pointcloud_index));
 
     // Only do work if the pointcloud is non-empty, to avoid passing empty
     // arrays into the device interface.
@@ -138,23 +137,13 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
       helper_interface_->RaycastPoints(
           raw_points, max_range, grid_pointcloud_transform_float.data(),
           inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
-          num_z_cells, *tracking_grids, pointcloud_index);
+          num_z_cells, *tracking_grids, static_cast<size_t>(pointcloud_index));
     }
   };
 
-  const auto per_thread_work = [&](const ThreadWorkRange& work_range)
-  {
-    for (int64_t pointcloud_index = work_range.GetRangeStart();
-         pointcloud_index < work_range.GetRangeEnd();
-         pointcloud_index++)
-    {
-      raycast_cloud(static_cast<size_t>(pointcloud_index));
-    }
-  };
-
-  DynamicParallelForLoop(
+  DynamicParallelForIndexLoop(
       DispatchParallelism(), 0, static_cast<int64_t>(pointclouds.size()),
-      per_thread_work, ParallelForBackend::BEST_AVAILABLE);
+      per_item_work, ParallelForBackend::BEST_AVAILABLE);
 
   const std::chrono::time_point<std::chrono::steady_clock> raycasted_time =
       std::chrono::steady_clock::now();

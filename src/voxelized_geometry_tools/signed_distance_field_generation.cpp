@@ -15,7 +15,7 @@
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::parallelism::ParallelForBackend;
-using common_robotics_utilities::parallelism::StaticParallelForLoop;
+using common_robotics_utilities::parallelism::StaticParallelForRangeLoop;
 using common_robotics_utilities::parallelism::ThreadWorkRange;
 
 using Eigen::VectorXd;
@@ -283,7 +283,7 @@ void ComputeDistanceFieldTransformInPlace(
     MatrixXi64 full_scratch_v(num_x_cells, num_threads);
     MatrixXd full_scratch_d(num_x_cells, num_threads);
 
-    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    const auto per_range_work = [&](const ThreadWorkRange& work_range)
     {
       const int32_t thread_num = work_range.GetThreadNum();
       Eigen::Ref<VectorXd> scratch_z = full_scratch_z.col(thread_num);
@@ -306,8 +306,8 @@ void ComputeDistanceFieldTransformInPlace(
     };
 
     const int64_t iterations = num_y_cells * num_z_cells;
-    StaticParallelForLoop(
-        parallelism, 0, iterations, thread_work,
+    StaticParallelForRangeLoop(
+        parallelism, 0, iterations, per_range_work,
         ParallelForBackend::BEST_AVAILABLE);
   }
 
@@ -322,7 +322,7 @@ void ComputeDistanceFieldTransformInPlace(
     MatrixXi64 full_scratch_v(num_y_cells, num_threads);
     MatrixXd full_scratch_d(num_y_cells, num_threads);
 
-    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    const auto per_range_work = [&](const ThreadWorkRange& work_range)
     {
       const int32_t thread_num = work_range.GetThreadNum();
       Eigen::Ref<VectorXd> scratch_z = full_scratch_z.col(thread_num);
@@ -345,8 +345,8 @@ void ComputeDistanceFieldTransformInPlace(
     };
 
     const int64_t iterations = num_x_cells * num_z_cells;
-    StaticParallelForLoop(
-        parallelism, 0, iterations, thread_work,
+    StaticParallelForRangeLoop(
+        parallelism, 0, iterations, per_range_work,
         ParallelForBackend::BEST_AVAILABLE);
   }
 
@@ -361,7 +361,7 @@ void ComputeDistanceFieldTransformInPlace(
     MatrixXi64 full_scratch_v(num_z_cells, num_threads);
     MatrixXd full_scratch_d(num_z_cells, num_threads);
 
-    const auto thread_work = [&](const ThreadWorkRange& work_range)
+    const auto per_range_work = [&](const ThreadWorkRange& work_range)
     {
       const int32_t thread_num = work_range.GetThreadNum();
       Eigen::Ref<VectorXd> scratch_z = full_scratch_z.col(thread_num);
@@ -384,8 +384,8 @@ void ComputeDistanceFieldTransformInPlace(
     };
 
     const int64_t iterations = num_x_cells * num_y_cells;
-    StaticParallelForLoop(
-        parallelism, 0, iterations, thread_work,
+    StaticParallelForRangeLoop(
+        parallelism, 0, iterations, per_range_work,
         ParallelForBackend::BEST_AVAILABLE);
   }
 }

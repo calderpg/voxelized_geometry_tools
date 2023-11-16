@@ -13,8 +13,7 @@
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::parallelism::ParallelForBackend;
-using common_robotics_utilities::parallelism::StaticParallelForLoop;
-using common_robotics_utilities::parallelism::ThreadWorkRange;
+using common_robotics_utilities::parallelism::StaticParallelForIndexLoop;
 
 namespace voxelized_geometry_tools
 {
@@ -212,23 +211,18 @@ void RasterizeMesh(
   }
 
 
-  // Helper lambda for each thread's work
-  const auto per_thread_work = [&](const ThreadWorkRange& work_range)
+  // Helper lambda for each item's work
+  const auto per_item_work = [&](const int32_t, const int64_t triangle_index)
   {
-    for (int64_t triangle_index = work_range.GetRangeStart();
-         triangle_index < work_range.GetRangeEnd();
-         triangle_index++)
-    {
-      RasterizeTriangle(
+    RasterizeTriangle(
         vertices, triangles, static_cast<size_t>(triangle_index), collision_map,
         enforce_collision_map_contains_mesh);
-    }
   };
 
   // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
   // back to manual dispatch via std::async.
-  StaticParallelForLoop(
-      parallelism, 0, static_cast<int64_t>(triangles.size()), per_thread_work,
+  StaticParallelForIndexLoop(
+      parallelism, 0, static_cast<int64_t>(triangles.size()), per_item_work,
       ParallelForBackend::BEST_AVAILABLE);
 }
 

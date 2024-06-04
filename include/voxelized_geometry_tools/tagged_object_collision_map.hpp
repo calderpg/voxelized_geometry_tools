@@ -387,8 +387,8 @@ public:
       {
         for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
         {
-          const TaggedObjectCollisionCell& cell
-              = GetIndexImmutable(x_index, y_index, z_index).Value();
+          const auto query = GetIndexImmutable(x_index, y_index, z_index);
+          const TaggedObjectCollisionCell& cell = query.Value();
           const uint32_t cell_object_id = cell.ObjectId();
           if (cell_object_id > 0)
           {

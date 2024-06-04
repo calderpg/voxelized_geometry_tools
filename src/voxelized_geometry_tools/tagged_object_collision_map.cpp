@@ -446,8 +446,8 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
   const std::function<bool(const GridIndex&)> is_surface_index_fn
       = [&] (const GridIndex& index)
   {
-    const TaggedObjectCollisionCell& current_cell
-        = GetIndexImmutable(index).Value();
+    const auto query = GetIndexImmutable(index);
+    const TaggedObjectCollisionCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
@@ -529,8 +529,8 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
   const std::function<bool(const GridIndex&)> is_surface_index_fn
       = [&] (const GridIndex& index)
   {
-    const TaggedObjectCollisionCell& current_cell
-        = GetIndexImmutable(index).Value();
+    const auto query = GetIndexImmutable(index);
+    const TaggedObjectCollisionCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_use & FILLED_COMPONENTS) > 0x00)

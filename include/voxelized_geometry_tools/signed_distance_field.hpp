@@ -386,8 +386,9 @@ private:
   {
     // First, check if we've already found the local extrema for the current
     // cell
-    const Eigen::Vector3d& stored
-        = watershed_map.GetIndexImmutable(x_index, y_index, z_index).Value();
+    const auto starting_index_query
+        = watershed_map.GetIndexImmutable(x_index, y_index, z_index);
+    const Eigen::Vector3d& stored = starting_index_query.Value();
     if (stored.x() != -std::numeric_limits<double>::infinity()
         && stored.y() != -std::numeric_limits<double>::infinity()
         && stored.z() != -std::numeric_limits<double>::infinity())
@@ -442,8 +443,9 @@ private:
         }
         path[current_index] = 1;
         // Check if the new index has already been checked
-        const Eigen::Vector3d& new_stored
-            = watershed_map.GetIndexImmutable(current_index).Value();
+        const auto current_index_query
+            = watershed_map.GetIndexImmutable(current_index);
+        const Eigen::Vector3d& new_stored = current_index_query.Value();
         if (new_stored.x() != -std::numeric_limits<double>::infinity()
             && new_stored.y() != -std::numeric_limits<double>::infinity()
             && new_stored.z() != -std::numeric_limits<double>::infinity())

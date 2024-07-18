@@ -461,7 +461,7 @@ public:
     const int32_t stride1 = num_y_cells * num_z_cells;
     const int32_t stride2 = num_z_cells;
     // Call the CUDA kernel
-    const int32_t num_threads = 256;
+    const int32_t num_threads = CudaThreadsPerBlock();
     const int32_t num_blocks = (num_points + (num_threads - 1)) / num_threads;
     const size_t starting_index =
         real_tracking_grids.GetTrackingGridStartingOffset(tracking_grid_index);

@@ -85,6 +85,7 @@ add_compile_options(-Werror=non-virtual-dtor)
 add_compile_options(-Wold-style-cast)
 add_compile_options(-Wpessimizing-move)
 add_compile_options(-Wuninitialized)
+add_compile_options(-Wmissing-declarations)
 
 if(drake_FOUND)
     message(STATUS "Drake found, disabling -march=native")

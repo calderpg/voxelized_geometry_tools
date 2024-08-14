@@ -17,6 +17,8 @@ namespace pointcloud_voxelization
 {
 namespace opencl_helpers
 {
+namespace
+{
 const char* kRaycastPointKernelCode = R"(
 void kernel RaycastPoint(
     global const float* points, const float max_range,
@@ -617,6 +619,7 @@ private:
   std::unique_ptr<cl::Program> raycasting_program_;
   std::unique_ptr<cl::Program> filter_program_;
 };
+}  // namespace
 
 std::vector<AvailableDevice> GetAvailableDevices()
 {

@@ -38,6 +38,8 @@ using MarkerArray = visualization_msgs::MarkerArray;
 using Duration = ros::Duration;
 #endif
 
+namespace
+{
 void test_estimate_distance(
     const std::function<void(const MarkerArray&)>& display_fn)
 {
@@ -273,6 +275,7 @@ void test_estimate_distance(
 
   display_fn(markers);
 }
+}  // namespace
 
 int main(int argc, char** argv)
 {

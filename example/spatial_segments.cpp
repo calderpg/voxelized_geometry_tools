@@ -34,6 +34,8 @@ using MarkerArray = visualization_msgs::MarkerArray;
 using Duration = ros::Duration;
 #endif
 
+namespace
+{
 void test_spatial_segments(
     const std::function<void(const MarkerArray&)>& display_fn)
 {
@@ -266,6 +268,7 @@ void test_spatial_segments(
 
   display_fn(display_markers);
 }
+}  // namespace
 
 int main(int argc, char** argv)
 {

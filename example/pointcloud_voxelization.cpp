@@ -49,6 +49,8 @@ using ColorRGBA = std_msgs::ColorRGBA;
 using MarkerArray = visualization_msgs::MarkerArray;
 #endif
 
+namespace
+{
 class VectorVector3dPointCloudWrapper : public PointCloudWrapper
 {
 public:
@@ -320,6 +322,7 @@ void test_pointcloud_voxelization(
   // Draw the results
   display_fn(display_markers);
 }
+}  // namespace
 
 int main(int argc, char** argv)
 {

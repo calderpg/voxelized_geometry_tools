@@ -18,6 +18,8 @@ namespace pointcloud_voxelization
 {
 namespace cuda_helpers
 {
+namespace
+{
 constexpr int32_t kDefaultThreadsPerBlock = 256;
 
 void CudaCheckErrors(const cudaError_t error, const std::string& msg)
@@ -568,6 +570,7 @@ private:
   int32_t cuda_threads_per_block_ = 0;
   int32_t cuda_device_num_ = -1;
 };
+}  // namespace
 
 std::vector<AvailableDevice> GetAvailableDevices()
 {

@@ -44,9 +44,9 @@ uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
       number_of_spatial_segments_, buffer);
   common_robotics_utilities::serialization::SerializeString(frame_, buffer);
   common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
-      static_cast<uint8_t>(components_valid_), buffer);
+      static_cast<uint8_t>(components_valid_.load()), buffer);
   common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
-      static_cast<uint8_t>(spatial_segments_valid_), buffer);
+      static_cast<uint8_t>(spatial_segments_valid_.load()), buffer);
   const uint64_t bytes_written = buffer.size() - start_size;
   return bytes_written;
 }
@@ -76,13 +76,14 @@ uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
   const auto components_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  components_valid_ = static_cast<bool>(components_valid_deserialized.Value());
+  components_valid_.store(
+      static_cast<bool>(components_valid_deserialized.Value()));
   current_position += components_valid_deserialized.BytesRead();
   const auto spatial_segments_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  spatial_segments_valid_
-      = static_cast<bool>(spatial_segments_valid_deserialized.Value());
+  spatial_segments_valid_.store(
+      static_cast<bool>(spatial_segments_valid_deserialized.Value()));
   current_position += spatial_segments_valid_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
@@ -96,7 +97,8 @@ bool TaggedObjectCollisionMap::OnMutableAccess(
   CRU_UNUSED(x_index);
   CRU_UNUSED(y_index);
   CRU_UNUSED(z_index);
-  components_valid_ = false;
+  components_valid_.store(false);
+  spatial_segments_valid_.store(false);
   return true;
 }
 
@@ -632,11 +634,11 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
-  if (components_valid_)
+  if (components_valid_.load())
   {
     return number_of_components_;
   }
-  components_valid_ = false;
+  components_valid_.store(false);
   // Make the helper functions
   const std::function<bool(const GridIndex&, const GridIndex&)>
     are_connected_fn = [&] (const GridIndex& index1, const GridIndex& index2)
@@ -709,7 +711,7 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
   number_of_components_
       = topology_computation::ComputeConnectedComponents(
           *this, are_connected_fn, get_component_fn, mark_component_fn);
-  components_valid_ = true;
+  components_valid_.store(true);
   return number_of_components_;
 }
 
@@ -719,11 +721,11 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
-  if (spatial_segments_valid_)
+  if (spatial_segments_valid_.load())
   {
     return number_of_spatial_segments_;
   }
-  spatial_segments_valid_ = false;
+  spatial_segments_valid_.store(false);
   const auto sdf
       = (sdf_parameters.AddVirtualBorder())
         ? ExtractSignedDistanceFieldFloat({}, sdf_parameters)
@@ -804,7 +806,7 @@ uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
   number_of_spatial_segments_
       = topology_computation::ComputeConnectedComponents(
           *this, are_connected_fn, get_component_fn, mark_component_fn);
-  spatial_segments_valid_ = true;
+  spatial_segments_valid_.store(true);
   return number_of_spatial_segments_;
 }
 VGT_NAMESPACE_END

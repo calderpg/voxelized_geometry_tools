@@ -65,7 +65,8 @@ private:
 
   uint32_t number_of_components_ = 0u;
   std::string frame_;
-  bool components_valid_ = false;
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      components_valid_{false};
 
   /// Implement the VoxelGridBase interface.
 
@@ -122,7 +123,7 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>(
               origin_transform, sizes, default_value, oob_value),
-        number_of_components_(0u), frame_(frame), components_valid_(false)
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -137,8 +138,8 @@ public:
       const CollisionCell& default_value, const CollisionCell& oob_value)
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>(
-              sizes, default_value, oob_value), number_of_components_(0u),
-        frame_(frame), components_valid_(false)
+              sizes, default_value, oob_value),
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -151,13 +152,13 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>() {}
 
-  bool AreComponentsValid() const { return components_valid_; }
+  bool AreComponentsValid() const { return components_valid_.load(); }
 
   /// Use this with great care if you know the components are still/now valid.
-  void ForceComponentsToBeValid() { components_valid_ = true; }
+  void ForceComponentsToBeValid() { components_valid_.store(true); }
 
   /// Use this to invalidate the current components.
-  void ForceComponentsToBeInvalid() { components_valid_ = false; }
+  void ForceComponentsToBeInvalid() { components_valid_.store(false); }
 
   double GetResolution() const { return GetCellSizes().x(); }
 
@@ -170,7 +171,7 @@ public:
   common_robotics_utilities::OwningMaybe<uint32_t>
   GetNumConnectedComponents() const
   {
-    if (components_valid_)
+    if (components_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
           number_of_components_);

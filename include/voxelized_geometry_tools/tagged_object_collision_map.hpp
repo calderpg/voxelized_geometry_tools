@@ -90,8 +90,10 @@ private:
   uint32_t number_of_components_ = 0u;
   uint32_t number_of_spatial_segments_ = 0u;
   std::string frame_;
-  bool components_valid_ = false;
-  bool spatial_segments_valid_ = 0u;
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      components_valid_{false};
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      spatial_segments_valid_{false};
 
   /// Implement the VoxelGridBase interface.
 
@@ -153,7 +155,7 @@ public:
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>(
               origin_transform, sizes, default_value, oob_value),
-        number_of_components_(0u), frame_(frame), components_valid_(false)
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -170,8 +172,8 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>(
-              sizes, default_value, oob_value), number_of_components_(0u),
-        frame_(frame), components_valid_(false)
+              sizes, default_value, oob_value),
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -185,22 +187,28 @@ public:
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>() {}
 
-  bool AreComponentsValid() const { return components_valid_; }
+  bool AreComponentsValid() const { return components_valid_.load(); }
 
   /// Use this with great care if you know the components are still/now valid.
-  void ForceComponentsToBeValid() { components_valid_ = true; }
+  void ForceComponentsToBeValid() { components_valid_.store(true); }
 
   /// Use this to invalidate the current components.
-  void ForceComponentsToBeInvalid() { components_valid_ = false; }
+  void ForceComponentsToBeInvalid() { components_valid_.store(false); }
 
-  bool AreSpatialSegmentsValid() const { return spatial_segments_valid_; }
+  bool AreSpatialSegmentsValid() const
+  {
+    return spatial_segments_valid_.load();
+  }
 
   /// Use this with great care if you know the spatial segments are still/now
   /// valid.
-  void ForceSpatialSegmentsToBeValid() { spatial_segments_valid_ = true; }
+  void ForceSpatialSegmentsToBeValid() { spatial_segments_valid_.store(true); }
 
   /// Use this to invalidate the current spatial segments.
-  void ForceSpatialSegmentsToBeInvalid() { spatial_segments_valid_ = false; }
+  void ForceSpatialSegmentsToBeInvalid()
+  {
+    spatial_segments_valid_.store(false);
+  }
 
   double GetResolution() const { return GetCellSizes().x(); }
 
@@ -213,7 +221,7 @@ public:
   common_robotics_utilities::OwningMaybe<uint32_t>
   GetNumConnectedComponents() const
   {
-    if (components_valid_)
+    if (components_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
           number_of_components_);
@@ -272,10 +280,10 @@ public:
 
   common_robotics_utilities::OwningMaybe<uint32_t> GetNumSpatialSegments() const
   {
-    if (spatial_segments_valid_)
+    if (spatial_segments_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
-          spatial_segments_valid_);
+          number_of_spatial_segments_);
     }
     else
     {

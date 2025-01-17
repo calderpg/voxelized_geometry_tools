@@ -40,7 +40,7 @@ uint64_t CollisionMap::DerivedSerializeSelf(
       number_of_components_, buffer);
   common_robotics_utilities::serialization::SerializeString(frame_, buffer);
   common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
-      static_cast<uint8_t>(components_valid_), buffer);
+      static_cast<uint8_t>(components_valid_.load()), buffer);
   const uint64_t bytes_written = buffer.size() - start_size;
   return bytes_written;
 }
@@ -65,7 +65,8 @@ uint64_t CollisionMap::DerivedDeserializeSelf(
   const auto components_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  components_valid_ = static_cast<bool>(components_valid_deserialized.Value());
+  components_valid_.store(
+      static_cast<bool>(components_valid_deserialized.Value()));
   current_position += components_valid_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
@@ -80,7 +81,7 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
   CRU_UNUSED(x_index);
   CRU_UNUSED(y_index);
   CRU_UNUSED(z_index);
-  components_valid_ = false;
+  components_valid_.store(false);
   return true;
 }
 
@@ -406,11 +407,11 @@ uint32_t CollisionMap::UpdateConnectedComponents()
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
-  if (components_valid_)
+  if (components_valid_.load())
   {
     return number_of_components_;
   }
-  components_valid_ = false;
+  components_valid_.store(false);
   // Make the helper functions
   const std::function<bool(const GridIndex&, const GridIndex&)>
     are_connected_fn = [&] (const GridIndex& index1, const GridIndex& index2)
@@ -462,7 +463,7 @@ uint32_t CollisionMap::UpdateConnectedComponents()
   number_of_components_
       = topology_computation::ComputeConnectedComponents(
           *this, are_connected_fn, get_component_fn, mark_component_fn);
-  components_valid_ = true;
+  components_valid_.store(true);
   return number_of_components_;
 }
 

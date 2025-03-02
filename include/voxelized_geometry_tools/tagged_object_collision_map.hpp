@@ -36,7 +36,7 @@ private:
 
   common_robotics_utilities::utility
       ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
-          occupancy_{0.0};
+          occupancy_{0.0f};
   common_robotics_utilities::utility
       ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
           object_id_{0u};
@@ -55,15 +55,16 @@ public:
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
   TaggedObjectCollisionCell()
-      : occupancy_(0.0), object_id_(0u), component_(0), spatial_segment_(0u) {}
+      : occupancy_(0.0f), object_id_(0u), component_(0u), spatial_segment_(0u)
+  {}
 
   TaggedObjectCollisionCell(const float occupancy)
       : occupancy_(occupancy), object_id_(0u),
-        component_(0), spatial_segment_(0u) {}
+        component_(0u), spatial_segment_(0u) {}
 
   TaggedObjectCollisionCell(const float occupancy, const uint32_t object_id)
       : occupancy_(occupancy), object_id_(object_id),
-        component_(0), spatial_segment_(0u) {}
+        component_(0u), spatial_segment_(0u) {}
 
   TaggedObjectCollisionCell(
       const float occupancy, const uint32_t object_id,

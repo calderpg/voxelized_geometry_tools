@@ -34,7 +34,7 @@ private:
 
   common_robotics_utilities::utility
       ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
-          occupancy_{0.0};
+          occupancy_{0.0f};
   common_robotics_utilities::utility
       ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
           component_{0u};
@@ -46,7 +46,7 @@ public:
   static DeserializedCollisionCell Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
-  CollisionCell() : occupancy_(0.0), component_(0u) {}
+  CollisionCell() : occupancy_(0.0f), component_(0u) {}
 
   CollisionCell(const float occupancy)
       : occupancy_(occupancy), component_(0u) {}

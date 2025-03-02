@@ -175,17 +175,17 @@ void CombineAndFilterGrids(
       if (seen_filled > 0)
       {
         // If any camera saw something here, it is filled.
-        current_cell.Occupancy() = 1.0;
+        current_cell.SetOccupancy(1.0);
       }
       else if (seen_free >= filter_options.NumCamerasSeenFree())
       {
         // Did enough cameras see this empty?
-        current_cell.Occupancy() = 0.0;
+        current_cell.SetOccupancy(0.0);
       }
       else
       {
         // Otherwise, it is unknown.
-        current_cell.Occupancy() = 0.5;
+        current_cell.SetOccupancy(0.5);
       }
     }
   };

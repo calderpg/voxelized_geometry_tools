@@ -29,10 +29,23 @@ VGT_NAMESPACE_BEGIN
 class CollisionCell
 {
 private:
-  float occupancy_ = 0.0;
-  uint32_t component_ = 0u;
+  using DeserializedCollisionCell
+      = common_robotics_utilities::serialization::Deserialized<CollisionCell>;
+
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
+          occupancy_{0.0};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          component_{0u};
 
 public:
+  static uint64_t Serialize(
+      const CollisionCell& cell, std::vector<uint8_t>& buffer);
+
+  static DeserializedCollisionCell Deserialize(
+      const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
+
   CollisionCell() : occupancy_(0.0), component_(0u) {}
 
   CollisionCell(const float occupancy)
@@ -41,13 +54,13 @@ public:
   CollisionCell(const float occupancy, const uint32_t component)
       : occupancy_(occupancy), component_(component) {}
 
-  const float& Occupancy() const { return occupancy_; }
+  float Occupancy() const { return occupancy_.load(); }
 
-  float& Occupancy() { return occupancy_; }
+  uint32_t Component() const { return component_.load(); }
 
-  const uint32_t& Component() const { return component_; }
+  void SetOccupancy(const float occupancy) { occupancy_.store(occupancy); }
 
-  uint32_t& Component() { return component_; }
+  void SetComponent(const uint32_t component) { component_.store(component); }
 };
 
 using CollisionCellSerializer

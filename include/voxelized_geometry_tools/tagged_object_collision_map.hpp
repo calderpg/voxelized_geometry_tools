@@ -30,12 +30,30 @@ VGT_NAMESPACE_BEGIN
 class TaggedObjectCollisionCell
 {
 private:
-  float occupancy_ = 0.0;
-  uint32_t object_id_ = 0u;
-  uint32_t component_ = 0u;
-  uint32_t spatial_segment_ = 0u;
+  using DeserializedTaggedObjectCollisionCell
+      = common_robotics_utilities::serialization
+          ::Deserialized<TaggedObjectCollisionCell>;
+
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
+          occupancy_{0.0};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          object_id_{0u};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          component_{0u};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          spatial_segment_{0u};
 
 public:
+  static uint64_t Serialize(
+      const TaggedObjectCollisionCell& cell, std::vector<uint8_t>& buffer);
+
+  static DeserializedTaggedObjectCollisionCell Deserialize(
+      const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
+
   TaggedObjectCollisionCell()
       : occupancy_(0.0), object_id_(0u), component_(0), spatial_segment_(0u) {}
 
@@ -53,21 +71,24 @@ public:
       : occupancy_(occupancy), object_id_(object_id),
         component_(component), spatial_segment_(spatial_segment) {}
 
-  const float& Occupancy() const { return occupancy_; }
+  float Occupancy() const { return occupancy_.load(); }
 
-  float& Occupancy() { return occupancy_; }
+  uint32_t ObjectId() const { return object_id_.load(); }
 
-  const uint32_t& ObjectId() const { return object_id_; }
+  uint32_t Component() const { return component_.load(); }
 
-  uint32_t& ObjectId() { return object_id_; }
+  uint32_t SpatialSegment() const { return spatial_segment_.load(); }
 
-  const uint32_t& Component() const { return component_; }
+  void SetOccupancy(const float occupancy) { occupancy_.store(occupancy); }
 
-  uint32_t& Component() { return component_; }
+  void SetObjectId(const uint32_t object_id) { object_id_.store(object_id); }
 
-  const uint32_t& SpatialSegment() const { return spatial_segment_; }
+  void SetComponent(const uint32_t component) { component_.store(component); }
 
-  uint32_t& SpatialSegment() { return spatial_segment_; }
+  void SetSpatialSegment(const uint32_t spatial_segment)
+  {
+    spatial_segment_.store(spatial_segment);
+  }
 };
 
 using TaggedObjectCollisionCellSerializer

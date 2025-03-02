@@ -185,7 +185,7 @@ void RasterizeTriangle(
           auto query = collision_map.GetIndexMutable(current_index);
           if (query)
           {
-            query.Value().Occupancy() = 1.0f;
+            query.Value().SetOccupancy(1.0f);
           }
           else if (enforce_collision_map_contains_triangle)
           {

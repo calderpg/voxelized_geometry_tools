@@ -67,8 +67,7 @@ bool DynamicSpatialHashedCollisionMap::OnMutableAccess(
 uint64_t DynamicSpatialHashedCollisionMap::Serialize(
     const DynamicSpatialHashedCollisionMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, common_robotics_utilities::serialization
-                                       ::SerializeMemcpyable<CollisionCell>);
+  return map.SerializeSelf(buffer, CollisionCell::Serialize);
 }
 
 DynamicSpatialHashedCollisionMap::DeserializedDynamicSpatialHashedCollisionMap
@@ -78,9 +77,7 @@ DynamicSpatialHashedCollisionMap::Deserialize(
   DynamicSpatialHashedCollisionMap temp_map;
   const uint64_t bytes_read
       = temp_map.DeserializeSelf(
-          buffer, starting_offset,
-          common_robotics_utilities::serialization
-              ::DeserializeMemcpyable<CollisionCell>);
+          buffer, starting_offset, CollisionCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }

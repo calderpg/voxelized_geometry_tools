@@ -21,6 +21,38 @@
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
+uint64_t CollisionCell::Serialize(
+    const CollisionCell& cell, std::vector<uint8_t>& buffer)
+{
+  const uint64_t start_size = buffer.size();
+  common_robotics_utilities::serialization::SerializeMemcpyable<float>(
+      cell.Occupancy(), buffer);
+  common_robotics_utilities::serialization::SerializeMemcpyable<uint32_t>(
+      cell.Component(), buffer);
+  const uint64_t bytes_written = buffer.size() - start_size;
+  return bytes_written;
+}
+
+CollisionCell::DeserializedCollisionCell CollisionCell::Deserialize(
+    const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
+{
+  uint64_t current_position = starting_offset;
+  const auto occupancy_deserialized
+      = common_robotics_utilities::serialization
+          ::DeserializeMemcpyable<float>(buffer, current_position);
+  current_position += occupancy_deserialized.BytesRead();
+  const auto component_deserialized
+      = common_robotics_utilities::serialization
+          ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
+  current_position += component_deserialized.BytesRead();
+  const CollisionCell cell(
+      occupancy_deserialized.Value(), component_deserialized.Value());
+  // Figure out how many bytes were read
+  const uint64_t bytes_read = current_position - starting_offset;
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      cell, bytes_read);
+}
+
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
     ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>>
@@ -88,8 +120,7 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
 uint64_t CollisionMap::Serialize(
     const CollisionMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, common_robotics_utilities::serialization
-                                       ::SerializeMemcpyable<CollisionCell>);
+  return map.SerializeSelf(buffer, CollisionCell::Serialize);
 }
 
 CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
@@ -98,9 +129,7 @@ CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
   CollisionMap temp_map;
   const uint64_t bytes_read
       = temp_map.DeserializeSelf(
-          buffer, starting_offset,
-          common_robotics_utilities::serialization
-              ::DeserializeMemcpyable<CollisionCell>);
+          buffer, starting_offset, CollisionCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }
@@ -457,7 +486,7 @@ uint32_t CollisionMap::UpdateConnectedComponents()
     auto query = GetIndexMutable(index);
     if (query)
     {
-      query.Value().Component() = component;
+      query.Value().SetComponent(component);
     }
   };
   number_of_components_

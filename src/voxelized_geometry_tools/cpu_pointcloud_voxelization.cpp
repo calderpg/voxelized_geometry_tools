@@ -1,6 +1,5 @@
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 
-#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
@@ -34,10 +33,12 @@ namespace
 /// stored values.
 struct CpuVoxelizationTrackingCell
 {
-  common_robotics_utilities::utility::CopyableMoveableAtomic<int32_t>
-      seen_free_count{0};
-  common_robotics_utilities::utility::CopyableMoveableAtomic<int32_t>
-      seen_filled_count{0};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<int32_t, std::memory_order_relaxed>
+          seen_free_count{0};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<int32_t, std::memory_order_relaxed>
+          seen_filled_count{0};
 };
 
 using CpuVoxelizationTrackingGrid = common_robotics_utilities::voxel_grid

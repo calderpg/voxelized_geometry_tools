@@ -30,22 +30,41 @@ VGT_NAMESPACE_BEGIN
 class TaggedObjectCollisionCell
 {
 private:
-  float occupancy_ = 0.0;
-  uint32_t object_id_ = 0u;
-  uint32_t component_ = 0u;
-  uint32_t spatial_segment_ = 0u;
+  using DeserializedTaggedObjectCollisionCell
+      = common_robotics_utilities::serialization
+          ::Deserialized<TaggedObjectCollisionCell>;
+
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
+          occupancy_{0.0f};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          object_id_{0u};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          component_{0u};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          spatial_segment_{0u};
 
 public:
+  static uint64_t Serialize(
+      const TaggedObjectCollisionCell& cell, std::vector<uint8_t>& buffer);
+
+  static DeserializedTaggedObjectCollisionCell Deserialize(
+      const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
+
   TaggedObjectCollisionCell()
-      : occupancy_(0.0), object_id_(0u), component_(0), spatial_segment_(0u) {}
+      : occupancy_(0.0f), object_id_(0u), component_(0u), spatial_segment_(0u)
+  {}
 
   TaggedObjectCollisionCell(const float occupancy)
       : occupancy_(occupancy), object_id_(0u),
-        component_(0), spatial_segment_(0u) {}
+        component_(0u), spatial_segment_(0u) {}
 
   TaggedObjectCollisionCell(const float occupancy, const uint32_t object_id)
       : occupancy_(occupancy), object_id_(object_id),
-        component_(0), spatial_segment_(0u) {}
+        component_(0u), spatial_segment_(0u) {}
 
   TaggedObjectCollisionCell(
       const float occupancy, const uint32_t object_id,
@@ -53,21 +72,24 @@ public:
       : occupancy_(occupancy), object_id_(object_id),
         component_(component), spatial_segment_(spatial_segment) {}
 
-  const float& Occupancy() const { return occupancy_; }
+  float Occupancy() const { return occupancy_.load(); }
 
-  float& Occupancy() { return occupancy_; }
+  uint32_t ObjectId() const { return object_id_.load(); }
 
-  const uint32_t& ObjectId() const { return object_id_; }
+  uint32_t Component() const { return component_.load(); }
 
-  uint32_t& ObjectId() { return object_id_; }
+  uint32_t SpatialSegment() const { return spatial_segment_.load(); }
 
-  const uint32_t& Component() const { return component_; }
+  void SetOccupancy(const float occupancy) { occupancy_.store(occupancy); }
 
-  uint32_t& Component() { return component_; }
+  void SetObjectId(const uint32_t object_id) { object_id_.store(object_id); }
 
-  const uint32_t& SpatialSegment() const { return spatial_segment_; }
+  void SetComponent(const uint32_t component) { component_.store(component); }
 
-  uint32_t& SpatialSegment() { return spatial_segment_; }
+  void SetSpatialSegment(const uint32_t spatial_segment)
+  {
+    spatial_segment_.store(spatial_segment);
+  }
 };
 
 using TaggedObjectCollisionCellSerializer
@@ -90,8 +112,10 @@ private:
   uint32_t number_of_components_ = 0u;
   uint32_t number_of_spatial_segments_ = 0u;
   std::string frame_;
-  bool components_valid_ = false;
-  bool spatial_segments_valid_ = 0u;
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      components_valid_{false};
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      spatial_segments_valid_{false};
 
   /// Implement the VoxelGridBase interface.
 
@@ -153,7 +177,7 @@ public:
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>(
               origin_transform, sizes, default_value, oob_value),
-        number_of_components_(0u), frame_(frame), components_valid_(false)
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -170,8 +194,8 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>(
-              sizes, default_value, oob_value), number_of_components_(0u),
-        frame_(frame), components_valid_(false)
+              sizes, default_value, oob_value),
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -185,22 +209,28 @@ public:
           ::VoxelGridBase<TaggedObjectCollisionCell,
                           std::vector<TaggedObjectCollisionCell>>() {}
 
-  bool AreComponentsValid() const { return components_valid_; }
+  bool AreComponentsValid() const { return components_valid_.load(); }
 
   /// Use this with great care if you know the components are still/now valid.
-  void ForceComponentsToBeValid() { components_valid_ = true; }
+  void ForceComponentsToBeValid() { components_valid_.store(true); }
 
   /// Use this to invalidate the current components.
-  void ForceComponentsToBeInvalid() { components_valid_ = false; }
+  void ForceComponentsToBeInvalid() { components_valid_.store(false); }
 
-  bool AreSpatialSegmentsValid() const { return spatial_segments_valid_; }
+  bool AreSpatialSegmentsValid() const
+  {
+    return spatial_segments_valid_.load();
+  }
 
   /// Use this with great care if you know the spatial segments are still/now
   /// valid.
-  void ForceSpatialSegmentsToBeValid() { spatial_segments_valid_ = true; }
+  void ForceSpatialSegmentsToBeValid() { spatial_segments_valid_.store(true); }
 
   /// Use this to invalidate the current spatial segments.
-  void ForceSpatialSegmentsToBeInvalid() { spatial_segments_valid_ = false; }
+  void ForceSpatialSegmentsToBeInvalid()
+  {
+    spatial_segments_valid_.store(false);
+  }
 
   double GetResolution() const { return GetCellSizes().x(); }
 
@@ -213,7 +243,7 @@ public:
   common_robotics_utilities::OwningMaybe<uint32_t>
   GetNumConnectedComponents() const
   {
-    if (components_valid_)
+    if (components_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
           number_of_components_);
@@ -272,10 +302,10 @@ public:
 
   common_robotics_utilities::OwningMaybe<uint32_t> GetNumSpatialSegments() const
   {
-    if (spatial_segments_valid_)
+    if (spatial_segments_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
-          spatial_segments_valid_);
+          number_of_spatial_segments_);
     }
     else
     {

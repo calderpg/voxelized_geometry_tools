@@ -21,6 +21,38 @@
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
+uint64_t CollisionCell::Serialize(
+    const CollisionCell& cell, std::vector<uint8_t>& buffer)
+{
+  const uint64_t start_size = buffer.size();
+  common_robotics_utilities::serialization::SerializeMemcpyable<float>(
+      cell.Occupancy(), buffer);
+  common_robotics_utilities::serialization::SerializeMemcpyable<uint32_t>(
+      cell.Component(), buffer);
+  const uint64_t bytes_written = buffer.size() - start_size;
+  return bytes_written;
+}
+
+CollisionCell::DeserializedCollisionCell CollisionCell::Deserialize(
+    const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
+{
+  uint64_t current_position = starting_offset;
+  const auto occupancy_deserialized
+      = common_robotics_utilities::serialization
+          ::DeserializeMemcpyable<float>(buffer, current_position);
+  current_position += occupancy_deserialized.BytesRead();
+  const auto component_deserialized
+      = common_robotics_utilities::serialization
+          ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
+  current_position += component_deserialized.BytesRead();
+  const CollisionCell cell(
+      occupancy_deserialized.Value(), component_deserialized.Value());
+  // Figure out how many bytes were read
+  const uint64_t bytes_read = current_position - starting_offset;
+  return common_robotics_utilities::serialization::MakeDeserialized(
+      cell, bytes_read);
+}
+
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
     ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>>
@@ -40,7 +72,7 @@ uint64_t CollisionMap::DerivedSerializeSelf(
       number_of_components_, buffer);
   common_robotics_utilities::serialization::SerializeString(frame_, buffer);
   common_robotics_utilities::serialization::SerializeMemcpyable<uint8_t>(
-      static_cast<uint8_t>(components_valid_), buffer);
+      static_cast<uint8_t>(components_valid_.load()), buffer);
   const uint64_t bytes_written = buffer.size() - start_size;
   return bytes_written;
 }
@@ -65,7 +97,8 @@ uint64_t CollisionMap::DerivedDeserializeSelf(
   const auto components_valid_deserialized
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint8_t>(buffer, current_position);
-  components_valid_ = static_cast<bool>(components_valid_deserialized.Value());
+  components_valid_.store(
+      static_cast<bool>(components_valid_deserialized.Value()));
   current_position += components_valid_deserialized.BytesRead();
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
@@ -80,15 +113,14 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
   CRU_UNUSED(x_index);
   CRU_UNUSED(y_index);
   CRU_UNUSED(z_index);
-  components_valid_ = false;
+  components_valid_.store(false);
   return true;
 }
 
 uint64_t CollisionMap::Serialize(
     const CollisionMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, common_robotics_utilities::serialization
-                                       ::SerializeMemcpyable<CollisionCell>);
+  return map.SerializeSelf(buffer, CollisionCell::Serialize);
 }
 
 CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
@@ -97,9 +129,7 @@ CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
   CollisionMap temp_map;
   const uint64_t bytes_read
       = temp_map.DeserializeSelf(
-          buffer, starting_offset,
-          common_robotics_utilities::serialization
-              ::DeserializeMemcpyable<CollisionCell>);
+          buffer, starting_offset, CollisionCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }
@@ -406,11 +436,11 @@ uint32_t CollisionMap::UpdateConnectedComponents()
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
-  if (components_valid_)
+  if (components_valid_.load())
   {
     return number_of_components_;
   }
-  components_valid_ = false;
+  components_valid_.store(false);
   // Make the helper functions
   const std::function<bool(const GridIndex&, const GridIndex&)>
     are_connected_fn = [&] (const GridIndex& index1, const GridIndex& index2)
@@ -456,13 +486,13 @@ uint32_t CollisionMap::UpdateConnectedComponents()
     auto query = GetIndexMutable(index);
     if (query)
     {
-      query.Value().Component() = component;
+      query.Value().SetComponent(component);
     }
   };
   number_of_components_
       = topology_computation::ComputeConnectedComponents(
           *this, are_connected_fn, get_component_fn, mark_component_fn);
-  components_valid_ = true;
+  components_valid_.store(true);
   return number_of_components_;
 }
 

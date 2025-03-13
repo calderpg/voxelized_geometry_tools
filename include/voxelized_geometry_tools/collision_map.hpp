@@ -29,11 +29,24 @@ VGT_NAMESPACE_BEGIN
 class CollisionCell
 {
 private:
-  float occupancy_ = 0.0;
-  uint32_t component_ = 0u;
+  using DeserializedCollisionCell
+      = common_robotics_utilities::serialization::Deserialized<CollisionCell>;
+
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
+          occupancy_{0.0f};
+  common_robotics_utilities::utility
+      ::CopyableMoveableAtomic<uint32_t, std::memory_order_relaxed>
+          component_{0u};
 
 public:
-  CollisionCell() : occupancy_(0.0), component_(0u) {}
+  static uint64_t Serialize(
+      const CollisionCell& cell, std::vector<uint8_t>& buffer);
+
+  static DeserializedCollisionCell Deserialize(
+      const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
+
+  CollisionCell() : occupancy_(0.0f), component_(0u) {}
 
   CollisionCell(const float occupancy)
       : occupancy_(occupancy), component_(0u) {}
@@ -41,13 +54,13 @@ public:
   CollisionCell(const float occupancy, const uint32_t component)
       : occupancy_(occupancy), component_(component) {}
 
-  const float& Occupancy() const { return occupancy_; }
+  float Occupancy() const { return occupancy_.load(); }
 
-  float& Occupancy() { return occupancy_; }
+  uint32_t Component() const { return component_.load(); }
 
-  const uint32_t& Component() const { return component_; }
+  void SetOccupancy(const float occupancy) { occupancy_.store(occupancy); }
 
-  uint32_t& Component() { return component_; }
+  void SetComponent(const uint32_t component) { component_.store(component); }
 };
 
 using CollisionCellSerializer
@@ -65,7 +78,8 @@ private:
 
   uint32_t number_of_components_ = 0u;
   std::string frame_;
-  bool components_valid_ = false;
+  common_robotics_utilities::utility::CopyableMoveableAtomic<bool>
+      components_valid_{false};
 
   /// Implement the VoxelGridBase interface.
 
@@ -122,7 +136,7 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>(
               origin_transform, sizes, default_value, oob_value),
-        number_of_components_(0u), frame_(frame), components_valid_(false)
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -137,8 +151,8 @@ public:
       const CollisionCell& default_value, const CollisionCell& oob_value)
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>(
-              sizes, default_value, oob_value), number_of_components_(0u),
-        frame_(frame), components_valid_(false)
+              sizes, default_value, oob_value),
+        frame_(frame)
   {
     if (!HasUniformCellSize())
     {
@@ -151,13 +165,13 @@ public:
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>() {}
 
-  bool AreComponentsValid() const { return components_valid_; }
+  bool AreComponentsValid() const { return components_valid_.load(); }
 
   /// Use this with great care if you know the components are still/now valid.
-  void ForceComponentsToBeValid() { components_valid_ = true; }
+  void ForceComponentsToBeValid() { components_valid_.store(true); }
 
   /// Use this to invalidate the current components.
-  void ForceComponentsToBeInvalid() { components_valid_ = false; }
+  void ForceComponentsToBeInvalid() { components_valid_.store(false); }
 
   double GetResolution() const { return GetCellSizes().x(); }
 
@@ -170,7 +184,7 @@ public:
   common_robotics_utilities::OwningMaybe<uint32_t>
   GetNumConnectedComponents() const
   {
-    if (components_valid_)
+    if (components_valid_.load())
     {
       return common_robotics_utilities::OwningMaybe<uint32_t>(
           number_of_components_);

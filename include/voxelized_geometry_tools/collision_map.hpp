@@ -63,6 +63,12 @@ public:
   void SetComponent(const uint32_t component) { component_.store(component); }
 };
 
+// Enforce that despite its members being std::atomics, CollisionCell has the
+// same size as before.
+static_assert(
+    sizeof(CollisionCell) == (sizeof(float) * 2),
+    "CollisionCell is larger than expected.");
+
 using CollisionCellSerializer
     = common_robotics_utilities::serialization::Serializer<CollisionCell>;
 using CollisionCellDeserializer

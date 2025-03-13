@@ -92,6 +92,12 @@ public:
   }
 };
 
+// Enforce that despite its members being std::atomics,
+// TaggedObjectCollisionCell has the same size as before.
+static_assert(
+    sizeof(TaggedObjectCollisionCell) == (sizeof(float) * 4),
+    "TaggedObjectCollisionCell is larger than expected.");
+
 using TaggedObjectCollisionCellSerializer
     = common_robotics_utilities::serialization
         ::Serializer<TaggedObjectCollisionCell>;

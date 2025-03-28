@@ -109,6 +109,9 @@ private:
                        const int64_t y_index,
                        const int64_t z_index) override;
 
+  /// Invalidate connected components on mutable raw access.
+  bool OnMutableRawAccess() override;
+
 public:
   static uint64_t Serialize(
       const CollisionMap& map, std::vector<uint8_t>& buffer);

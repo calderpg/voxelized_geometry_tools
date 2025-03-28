@@ -64,6 +64,11 @@ bool DynamicSpatialHashedCollisionMap::OnMutableAccess(
   return true;
 }
 
+bool DynamicSpatialHashedCollisionMap::OnMutableRawAccess()
+{
+  return true;
+}
+
 uint64_t DynamicSpatialHashedCollisionMap::Serialize(
     const DynamicSpatialHashedCollisionMap& map, std::vector<uint8_t>& buffer)
 {

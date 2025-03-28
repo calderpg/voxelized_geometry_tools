@@ -117,6 +117,13 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
   return true;
 }
 
+/// Invalidate connected components on mutable raw access.
+bool CollisionMap::OnMutableRawAccess()
+{
+  components_valid_.store(false);
+  return true;
+}
+
 uint64_t CollisionMap::Serialize(
     const CollisionMap& map, std::vector<uint8_t>& buffer)
 {

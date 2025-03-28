@@ -136,13 +136,21 @@ uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
   return bytes_read;
 }
 
-/// Invalidate connected components on mutable access.
+/// Invalidate connected components and spatial segments on mutable access.
 bool TaggedObjectCollisionMap::OnMutableAccess(
     const int64_t x_index, const int64_t y_index, const int64_t z_index)
 {
   CRU_UNUSED(x_index);
   CRU_UNUSED(y_index);
   CRU_UNUSED(z_index);
+  components_valid_.store(false);
+  spatial_segments_valid_.store(false);
+  return true;
+}
+
+/// Invalidate connected components and spatial segments on mutable raw access.
+bool TaggedObjectCollisionMap::OnMutableRawAccess()
+{
   components_valid_.store(false);
   spatial_segments_valid_.store(false);
   return true;

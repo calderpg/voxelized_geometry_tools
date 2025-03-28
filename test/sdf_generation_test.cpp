@@ -385,6 +385,315 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
   }
 }
 
+TEST_P(SDFGenerationTestSuite, LinearExactTest)
+{
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
+
+  const double resolution = 1.0;
+  const double x_size = 1.0;
+  const double y_size = 1.0;
+  const double z_size = 4.0;
+  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+
+  const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
+  const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
+  const Eigen::Isometry3d origin_transform =
+      origin_translation * origin_rotation;
+  const std::string frame = "test_frame";
+
+  CollisionMap collision_map(
+      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+
+  TaggedObjectCollisionMap tagged_object_collision_map(
+      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+
+  // Fill an obstacle in a corner of the grid
+  for (int64_t x_index = 0; x_index < 1; x_index++)
+  {
+    for (int64_t y_index = 0; y_index < 1; y_index++)
+    {
+      for (int64_t z_index = 0; z_index < 2; z_index++)
+      {
+        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
+        tagged_object_collision_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+      }
+    }
+  }
+
+  // Make SDFs
+  const auto cmap_sdf =
+      collision_map.ExtractSignedDistanceField<float>(
+          SDFGenerationParams<float>(parallelism));
+  const auto tocmap_sdf =
+      tagged_object_collision_map.ExtractSignedDistanceField<float>(
+          {}, SDFGenerationParams<float>(parallelism));
+
+  // Enforce sizes match
+  const int64_t num_x_cells = collision_map.GetNumXCells();
+  const int64_t num_y_cells = collision_map.GetNumYCells();
+  const int64_t num_z_cells = collision_map.GetNumZCells();
+
+  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
+
+  const auto get_cmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  const auto get_tocmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 2), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 3), 2.0f);
+}
+
+TEST_P(SDFGenerationTestSuite, PlanarExactTest)
+{
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
+
+  const double resolution = 1.0;
+  const double x_size = 1.0;
+  const double y_size = 4.0;
+  const double z_size = 4.0;
+  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+
+  const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
+  const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
+  const Eigen::Isometry3d origin_transform =
+      origin_translation * origin_rotation;
+  const std::string frame = "test_frame";
+
+  CollisionMap collision_map(
+      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+
+  TaggedObjectCollisionMap tagged_object_collision_map(
+      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+
+  // Fill an obstacle in a corner of the grid
+  for (int64_t x_index = 0; x_index < 1; x_index++)
+  {
+    for (int64_t y_index = 0; y_index < 2; y_index++)
+    {
+      for (int64_t z_index = 0; z_index < 2; z_index++)
+      {
+        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
+        tagged_object_collision_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+      }
+    }
+  }
+
+  // Make SDFs
+  const auto cmap_sdf =
+      collision_map.ExtractSignedDistanceField<float>(
+          SDFGenerationParams<float>(parallelism));
+  const auto tocmap_sdf =
+      tagged_object_collision_map.ExtractSignedDistanceField<float>(
+          {}, SDFGenerationParams<float>(parallelism));
+
+  // Enforce sizes match
+  const int64_t num_x_cells = collision_map.GetNumXCells();
+  const int64_t num_y_cells = collision_map.GetNumYCells();
+  const int64_t num_z_cells = collision_map.GetNumZCells();
+
+  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
+
+  const auto get_cmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  const auto get_tocmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 2), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 3), 2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 0), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 1), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 2), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 3), 2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 0), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 1), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 0), 2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 0), 2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 1), 2.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 1), 2.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+}
+
+TEST_P(SDFGenerationTestSuite, CubeExactTest)
+{
+  const DegreeOfParallelism parallelism = GetParam();
+  std::cout << "# of threads = " << parallelism.GetNumThreads() << std::endl;
+
+  const double resolution = 1.0;
+  const double x_size = 2.0;
+  const double y_size = 2.0;
+  const double z_size = 2.0;
+  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+
+  const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
+  const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
+  const Eigen::Isometry3d origin_transform =
+      origin_translation * origin_rotation;
+  const std::string frame = "test_frame";
+
+  CollisionMap collision_map(
+      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+
+  TaggedObjectCollisionMap tagged_object_collision_map(
+      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+
+  // Fill an obstacle in a corner of the grid
+  for (int64_t x_index = 0; x_index < 1; x_index++)
+  {
+    for (int64_t y_index = 0; y_index < 1; y_index++)
+    {
+      for (int64_t z_index = 0; z_index < 1; z_index++)
+      {
+        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
+        tagged_object_collision_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+      }
+    }
+  }
+
+  // Make SDFs
+  const auto cmap_sdf =
+      collision_map.ExtractSignedDistanceField<float>(
+          SDFGenerationParams<float>(parallelism));
+  const auto tocmap_sdf =
+      tagged_object_collision_map.ExtractSignedDistanceField<float>(
+          {}, SDFGenerationParams<float>(parallelism));
+
+  // Enforce sizes match
+  const int64_t num_x_cells = collision_map.GetNumXCells();
+  const int64_t num_y_cells = collision_map.GetNumYCells();
+  const int64_t num_z_cells = collision_map.GetNumZCells();
+
+  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
+
+  const auto get_cmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  const auto get_tocmap_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+  };
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 0), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 0, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 0, 0), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+}
+
 INSTANTIATE_TEST_SUITE_P(
     SerialSDFGenerationTest, SDFGenerationTestSuite,
     testing::Values(DegreeOfParallelism::None()));

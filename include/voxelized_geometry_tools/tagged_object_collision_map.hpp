@@ -143,10 +143,14 @@ private:
       const TaggedObjectCollisionCellDeserializer& value_deserializer)
       override;
 
-  /// Invalidate connected components on mutable access.
+  /// Invalidate connected components and spatial segments on mutable access.
   bool OnMutableAccess(const int64_t x_index,
                        const int64_t y_index,
                        const int64_t z_index) override;
+
+  /// Invalidate connected components and spatial segments on mutable raw
+  /// access.
+  bool OnMutableRawAccess() override;
 
 public:
   static uint64_t Serialize(

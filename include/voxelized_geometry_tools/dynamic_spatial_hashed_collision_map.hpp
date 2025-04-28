@@ -47,6 +47,8 @@ private:
 
   bool OnMutableAccess(const Eigen::Vector4d& location) override;
 
+  bool OnMutableRawAccess() override;
+
 public:
   static uint64_t Serialize(
       const DynamicSpatialHashedCollisionMap& grid,

@@ -605,6 +605,9 @@ private:
     return !IsLocked();
   }
 
+  /// We do not allow mutable raw access if the SDF is locked.
+  bool OnMutableRawAccess() override { return !IsLocked(); }
+
 public:
   static uint64_t Serialize(
       const SignedDistanceField<ScalarType>& sdf, std::vector<uint8_t>& buffer)

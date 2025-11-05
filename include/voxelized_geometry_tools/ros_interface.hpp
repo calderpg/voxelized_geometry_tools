@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -453,6 +454,21 @@ inline SignedDistanceFieldMessage GetMessageRepresentation(
   SignedDistanceField<ScalarType>::Serialize(sdf, buffer);
   sdf_message.serialized_sdf
       = common_robotics_utilities::zlib_helpers::CompressBytes(buffer);
+  if (std::is_same<ScalarType, float>::value)
+  {
+    sdf_message.scalar_type = SignedDistanceFieldMessage::SCALAR_TYPE_FLOAT;
+  }
+  else if (std::is_same<ScalarType, double>::value)
+  {
+    sdf_message.scalar_type = SignedDistanceFieldMessage::SCALAR_TYPE_DOUBLE;
+  }
+  else
+  {
+    static_assert(
+        std::is_same<ScalarType, float>::value
+        || std::is_same<ScalarType, double>::value,
+        "SignedDistanceField with unsupported scalar type is not allowed");
+  }
   sdf_message.is_compressed = true;
   return sdf_message;
 }
@@ -463,6 +479,30 @@ inline SignedDistanceField<ScalarType> LoadFromMessageRepresentation(
 {
   if (message.is_compressed)
   {
+    if (std::is_same<ScalarType, float>::value)
+    {
+      if (message.scalar_type != SignedDistanceFieldMessage::SCALAR_TYPE_FLOAT)
+      {
+        throw std::runtime_error(
+            "Received SignedDistanceFieldMessage scalar type is not float");
+      }
+    }
+    else if (std::is_same<ScalarType, double>::value)
+    {
+      if (message.scalar_type != SignedDistanceFieldMessage::SCALAR_TYPE_DOUBLE)
+      {
+        throw std::runtime_error(
+            "Received SignedDistanceFieldMessage scalar type is not double");
+      }
+    }
+    else
+    {
+      static_assert(
+          std::is_same<ScalarType, float>::value
+          || std::is_same<ScalarType, double>::value,
+          "SignedDistanceField with unsupported scalar type is not allowed");
+    }
+
     const std::vector<uint8_t> decompressed_sdf
         = common_robotics_utilities::zlib_helpers::DecompressBytes(
             message.serialized_sdf);

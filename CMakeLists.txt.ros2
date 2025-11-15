@@ -87,6 +87,7 @@ add_library(${PROJECT_NAME}
             include/${PROJECT_NAME}/mesh_rasterizer.hpp
             include/${PROJECT_NAME}/occupancy_component_map.hpp
             include/${PROJECT_NAME}/occupancy_map.hpp
+            include/${PROJECT_NAME}/occupancy_map_conversions.hpp
             include/${PROJECT_NAME}/signed_distance_field.hpp
             include/${PROJECT_NAME}/signed_distance_field_generation.hpp
             include/${PROJECT_NAME}/tagged_object_occupancy_component_map.hpp
@@ -96,6 +97,7 @@ add_library(${PROJECT_NAME}
             src/${PROJECT_NAME}/mesh_rasterizer.cpp
             src/${PROJECT_NAME}/occupancy_component_map.cpp
             src/${PROJECT_NAME}/occupancy_map.cpp
+            src/${PROJECT_NAME}/occupancy_map_conversions.cpp
             src/${PROJECT_NAME}/signed_distance_field.cpp
             src/${PROJECT_NAME}/signed_distance_field_generation.cpp
             src/${PROJECT_NAME}/tagged_object_occupancy_component_map.cpp
@@ -228,13 +230,17 @@ if(BUILD_TESTING)
     # Tests
     find_package(ament_cmake_gtest REQUIRED)
 
+    ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
+    target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
+
+    ament_add_gtest(occupancy_map_conversions_test
+        test/occupancy_map_conversions_test.cpp)
+    target_link_libraries(occupancy_map_conversions_test ${PROJECT_NAME})
+
     ament_add_gtest(pointcloud_voxelization_test
         test/pointcloud_voxelization_test.cpp)
     target_link_libraries(pointcloud_voxelization_test
         ${PROJECT_NAME}_pointcloud_voxelization)
-
-    ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
-    target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
 
     ament_add_gtest(sdf_generation_test test/sdf_generation_test.cpp)
     target_link_libraries(sdf_generation_test ${PROJECT_NAME})

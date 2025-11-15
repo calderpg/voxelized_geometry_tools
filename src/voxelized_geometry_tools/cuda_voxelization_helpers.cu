@@ -157,11 +157,13 @@ void FilterGrids(
       int32_t cameras_seen_free = 0;
       for (int32_t idx = 0; idx < num_grids; idx++)
       {
-        const int32_t* const device_tracking_grid_ptr =
-            device_tracking_grids_ptr + (idx * num_cells * 2);
-        const int32_t free_count = device_tracking_grid_ptr[voxel_index * 2];
+        const int32_t tracking_grid_offset = num_cells * 2 * idx;
+        const int32_t tracking_grid_index =
+            tracking_grid_offset + (voxel_index * 2);
+        const int32_t free_count =
+            device_tracking_grids_ptr[tracking_grid_index];
         const int32_t filled_count =
-            device_tracking_grid_ptr[(voxel_index * 2) + 1];
+            device_tracking_grids_ptr[tracking_grid_index + 1];
         const int32_t filtered_filled_count =
             (filled_count >= outlier_points_threshold) ? filled_count : 0;
         if (free_count > 0 && filtered_filled_count > 0)

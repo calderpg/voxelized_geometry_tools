@@ -72,6 +72,31 @@ void RaycastPoint(
       const float ry = gy - oy;
       const float rz = gz - oz;
       const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
+
+      // Get the index of the current point
+      const int32_t point_x_cell =
+          static_cast<int32_t>(std::floor(gx * inverse_cell_size));
+      const int32_t point_y_cell =
+          static_cast<int32_t>(std::floor(gy * inverse_cell_size));
+      const int32_t point_z_cell =
+          static_cast<int32_t>(std::floor(gz * inverse_cell_size));
+
+      // Set the point itself as filled, if it is in range
+      if (current_ray_length <= max_range)
+      {
+        if (point_x_cell >= 0 && point_x_cell < num_x_cells &&
+            point_y_cell >= 0 && point_y_cell < num_y_cells &&
+            point_z_cell >= 0 && point_z_cell < num_z_cells)
+        {
+          const int32_t point_cell_index =
+              (point_x_cell * stride1) +
+              (point_y_cell * stride2) +
+              point_z_cell;
+          // Increase filled count
+          atomicAdd(&(device_tracking_grid_ptr[(point_cell_index * 2) + 1]), 1);
+        }
+      }
+
       const float num_steps = floor(current_ray_length * inverse_step_size);
       int32_t previous_x_cell = -1;
       int32_t previous_y_cell = -1;
@@ -85,6 +110,7 @@ void RaycastPoint(
           // We've gone beyond max range of the sensor
           break;
         }
+
         const float qx = (rx * elapsed_ratio) + ox;
         const float qy = (ry * elapsed_ratio) + oy;
         const float qz = (rz * elapsed_ratio) + oz;
@@ -94,11 +120,24 @@ void RaycastPoint(
             static_cast<int32_t>(std::floor(qy * inverse_cell_size));
         const int32_t z_cell =
             static_cast<int32_t>(std::floor(qz * inverse_cell_size));
-        if (x_cell != previous_x_cell || y_cell != previous_y_cell
-            || z_cell != previous_z_cell)
+
+        // We don't want to double count in the same cell multiple times, so
+        // we check that the new cell has a different index *and* that it is not
+        // the cell containing the current point P.
+        const bool equals_previous_cell =
+            (x_cell == previous_x_cell) &&
+            (y_cell == previous_y_cell) &&
+            (z_cell == previous_z_cell);
+        const bool equals_point_cell =
+            (x_cell == point_x_cell) &&
+            (y_cell == point_y_cell) &&
+            (z_cell == point_z_cell);
+
+        if (!equals_previous_cell && !equals_point_cell)
         {
-          if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-              && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
+          if (x_cell >= 0 && x_cell < num_x_cells &&
+              y_cell >= 0 && y_cell < num_y_cells &&
+              z_cell >= 0 && z_cell < num_z_cells)
           {
             ray_crossed_grid = true;
             const int32_t cell_index =
@@ -115,24 +154,6 @@ void RaycastPoint(
         previous_x_cell = x_cell;
         previous_y_cell = y_cell;
         previous_z_cell = z_cell;
-      }
-      // Set the point itself as filled, if it is in range
-      if (current_ray_length <= max_range)
-      {
-        const int32_t x_cell =
-            static_cast<int32_t>(std::floor(gx * inverse_cell_size));
-        const int32_t y_cell =
-            static_cast<int32_t>(std::floor(gy * inverse_cell_size));
-        const int32_t z_cell =
-            static_cast<int32_t>(std::floor(gz * inverse_cell_size));
-        if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-            && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-        {
-          const int32_t cell_index =
-              (x_cell * stride1) + (y_cell * stride2) + z_cell;
-          // Increase filled count
-          atomicAdd(&(device_tracking_grid_ptr[(cell_index * 2) + 1]), 1);
-        }
       }
     }
   }

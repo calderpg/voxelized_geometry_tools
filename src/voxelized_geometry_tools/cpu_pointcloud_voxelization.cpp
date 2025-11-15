@@ -79,6 +79,21 @@ void RaycastPointCloud(
       // Ray from camera to point
       const Eigen::Vector4d ray = p_GP - p_GCo;
       const double ray_length = ray.norm();
+
+      // Get the index corresponding to point P
+      const common_robotics_utilities::voxel_grid::GridIndex point_cell_index =
+           tracking_grid.LocationInGridFrameToGridIndex4d(p_GP);
+      // Set the point itself as filled, if it is in range
+      if (ray_length <= max_range)
+      {
+        auto point_query = tracking_grid.GetIndexMutable(point_cell_index);
+        // We must check to see if the query is within bounds
+        if (point_query)
+        {
+          point_query.Value().seen_filled_count.fetch_add(1);
+        }
+      }
+
       // Step along ray
       const int32_t num_steps =
           std::max(1, static_cast<int32_t>(std::floor(ray_length / step_size)));
@@ -93,11 +108,15 @@ void RaycastPointCloud(
           // We've gone beyond max range of the sensor
           break;
         }
+
         const Eigen::Vector4d p_GQ = p_GCo + (ray * ratio);
         const common_robotics_utilities::voxel_grid::GridIndex index =
             tracking_grid.LocationInGridFrameToGridIndex4d(p_GQ);
-        // We don't want to double count in the same cell multiple times
-        if (!(index == last_index))
+
+        // We don't want to double count in the same cell multiple times, so
+        // we check that the new cell has a different index *and* that it is not
+        // the cell containing the current point P.
+        if ((index != last_index) && (index != point_cell_index))
         {
           auto query = tracking_grid.GetIndexMutable(index);
           // We must check to see if the query is within bounds.
@@ -113,18 +132,6 @@ void RaycastPointCloud(
           }
         }
         last_index = index;
-      }
-      // Set the point itself as filled, if it is in range
-      if (ray_length <= max_range)
-      {
-        const common_robotics_utilities::voxel_grid::GridIndex index =
-              tracking_grid.LocationInGridFrameToGridIndex4d(p_GP);
-        auto query = tracking_grid.GetIndexMutable(index);
-        // We must check to see if the query is within bounds.
-        if (query)
-        {
-          query.Value().seen_filled_count.fetch_add(1);
-        }
       }
     }
   };

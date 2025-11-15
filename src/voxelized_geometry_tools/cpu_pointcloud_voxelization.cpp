@@ -12,8 +12,8 @@
 #include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/device_voxelization_interface.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
@@ -140,7 +140,7 @@ void CombineAndFilterGrids(
     const PointCloudVoxelizationFilterOptions& filter_options,
     const VectorCpuVoxelizationTrackingGrid& tracking_grids,
     const DegreeOfParallelism& parallelism,
-    CollisionMap& filtered_grid)
+    OccupancyMap& filtered_grid)
 {
   // Because we want to improve performance and don't need to know where in the
   // grid we are, we can take advantage of the dense backing vector to iterate
@@ -238,10 +238,10 @@ CpuPointCloudVoxelizer::CpuPointCloudVoxelizer(
 }
 
 VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
-    const CollisionMap& static_environment, const double step_size_multiplier,
+    const OccupancyMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
     const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-    CollisionMap& output_environment) const
+    OccupancyMap& output_environment) const
 {
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();

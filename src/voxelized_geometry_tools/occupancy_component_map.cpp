@@ -1,4 +1,4 @@
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_component_map.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -21,8 +21,8 @@
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
-uint64_t CollisionCell::Serialize(
-    const CollisionCell& cell, std::vector<uint8_t>& buffer)
+uint64_t OccupancyComponentCell::Serialize(
+    const OccupancyComponentCell& cell, std::vector<uint8_t>& buffer)
 {
   const uint64_t start_size = buffer.size();
   common_robotics_utilities::serialization::SerializeMemcpyable<float>(
@@ -33,7 +33,8 @@ uint64_t CollisionCell::Serialize(
   return bytes_written;
 }
 
-CollisionCell::DeserializedCollisionCell CollisionCell::Deserialize(
+OccupancyComponentCell::DeserializedOccupancyComponentCell
+OccupancyComponentCell::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
   uint64_t current_position = starting_offset;
@@ -45,7 +46,7 @@ CollisionCell::DeserializedCollisionCell CollisionCell::Deserialize(
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
   current_position += component_deserialized.BytesRead();
-  const CollisionCell cell(
+  const OccupancyComponentCell cell(
       occupancy_deserialized.Value(), component_deserialized.Value());
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
@@ -54,17 +55,18 @@ CollisionCell::DeserializedCollisionCell CollisionCell::Deserialize(
 }
 
 /// We need to implement cloning.
-std::unique_ptr<common_robotics_utilities::voxel_grid
-    ::VoxelGridBase<CollisionCell, std::vector<CollisionCell>>>
-CollisionMap::DoClone() const
+std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridBase
+    <OccupancyComponentCell, std::vector<OccupancyComponentCell>>>
+OccupancyComponentMap::DoClone() const
 {
-  return std::unique_ptr<CollisionMap>(new CollisionMap(*this));
+  return std::unique_ptr<OccupancyComponentMap>(
+      new OccupancyComponentMap(*this));
 }
 
 /// We need to serialize the frame and locked flag.
-uint64_t CollisionMap::DerivedSerializeSelf(
+uint64_t OccupancyComponentMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const CollisionCellSerializer& value_serializer) const
+    const OccupancyComponentCellSerializer& value_serializer) const
 {
   CRU_UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -78,9 +80,9 @@ uint64_t CollisionMap::DerivedSerializeSelf(
 }
 
 /// We need to deserialize the frame and locked flag.
-uint64_t CollisionMap::DerivedDeserializeSelf(
+uint64_t OccupancyComponentMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const CollisionCellDeserializer& value_deserializer)
+    const OccupancyComponentCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -106,9 +108,8 @@ uint64_t CollisionMap::DerivedDeserializeSelf(
 }
 
 /// Invalidate connected components on mutable access.
-bool CollisionMap::OnMutableAccess(const int64_t x_index,
-                                       const int64_t y_index,
-                                       const int64_t z_index)
+bool OccupancyComponentMap::OnMutableAccess(
+    const int64_t x_index, const int64_t y_index, const int64_t z_index)
 {
   CRU_UNUSED(x_index);
   CRU_UNUSED(y_index);
@@ -118,36 +119,36 @@ bool CollisionMap::OnMutableAccess(const int64_t x_index,
 }
 
 /// Invalidate connected components on mutable raw access.
-bool CollisionMap::OnMutableRawAccess()
+bool OccupancyComponentMap::OnMutableRawAccess()
 {
   components_valid_.store(false);
   return true;
 }
 
-uint64_t CollisionMap::Serialize(
-    const CollisionMap& map, std::vector<uint8_t>& buffer)
+uint64_t OccupancyComponentMap::Serialize(
+    const OccupancyComponentMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, CollisionCell::Serialize);
+  return map.SerializeSelf(buffer, OccupancyComponentCell::Serialize);
 }
 
-CollisionMap::DeserializedCollisionMap CollisionMap::Deserialize(
+OccupancyComponentMap::DeserializedOccupancyComponentMap
+OccupancyComponentMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
-  CollisionMap temp_map;
-  const uint64_t bytes_read
-      = temp_map.DeserializeSelf(
-          buffer, starting_offset, CollisionCell::Deserialize);
+  OccupancyComponentMap temp_map;
+  const uint64_t bytes_read = temp_map.DeserializeSelf(
+      buffer, starting_offset, OccupancyComponentCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }
 
-void CollisionMap::SaveToFile(
-    const CollisionMap& map,
+void OccupancyComponentMap::SaveToFile(
+    const OccupancyComponentMap& map,
     const std::string& filepath,
     const bool compress)
 {
   std::vector<uint8_t> buffer;
-  CollisionMap::Serialize(map, buffer);
+  OccupancyComponentMap::Serialize(map, buffer);
   std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
   if (compress)
   {
@@ -170,7 +171,8 @@ void CollisionMap::SaveToFile(
   output_file.close();
 }
 
-CollisionMap CollisionMap::LoadFromFile(const std::string& filepath)
+OccupancyComponentMap OccupancyComponentMap::LoadFromFile(
+    const std::string& filepath)
 {
   std::ifstream input_file(
       filepath, std::ios::in | std::ios::binary | std::ios::ate);
@@ -202,11 +204,11 @@ CollisionMap CollisionMap::LoadFromFile(const std::string& filepath)
       const std::vector<uint8_t> decompressed
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
-      return CollisionMap::Deserialize(decompressed, 0).Value();
+      return OccupancyComponentMap::Deserialize(decompressed, 0).Value();
     }
     else if (header_string == "CMGR")
     {
-      return CollisionMap::Deserialize(file_buffer, 0).Value();
+      return OccupancyComponentMap::Deserialize(file_buffer, 0).Value();
     }
     else
     {
@@ -220,13 +222,15 @@ CollisionMap CollisionMap::LoadFromFile(const std::string& filepath)
   }
 }
 
-common_robotics_utilities::OwningMaybe<bool> CollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool>
+OccupancyComponentMap::IsSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
-common_robotics_utilities::OwningMaybe<bool> CollisionMap::IsSurfaceIndex(
+common_robotics_utilities::OwningMaybe<bool>
+OccupancyComponentMap::IsSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -276,14 +280,14 @@ common_robotics_utilities::OwningMaybe<bool> CollisionMap::IsSurfaceIndex(
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::IsConnectedComponentSurfaceIndex(
+OccupancyComponentMap::IsConnectedComponentSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsConnectedComponentSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::IsConnectedComponentSurfaceIndex(
+OccupancyComponentMap::IsConnectedComponentSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -345,35 +349,35 @@ CollisionMap::IsConnectedComponentSurfaceIndex(
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::CheckIfCandidateCorner(
+OccupancyComponentMap::CheckIfCandidateCorner(
     const double x, const double y, const double z) const
 {
   return CheckIfCandidateCorner4d(Eigen::Vector4d(x, y, z, 1.0));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::CheckIfCandidateCorner3d(
+OccupancyComponentMap::CheckIfCandidateCorner3d(
     const Eigen::Vector3d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex3d(location));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::CheckIfCandidateCorner4d(
+OccupancyComponentMap::CheckIfCandidateCorner4d(
     const Eigen::Vector4d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex4d(location));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::CheckIfCandidateCorner(
+OccupancyComponentMap::CheckIfCandidateCorner(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return CheckIfCandidateCorner(index.X(), index.Y(), index.Z());
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-CollisionMap::CheckIfCandidateCorner(
+OccupancyComponentMap::CheckIfCandidateCorner(
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
   const auto current_cell = GetIndexImmutable(x_index, y_index, z_index);
@@ -439,7 +443,7 @@ CollisionMap::CheckIfCandidateCorner(
   }
 }
 
-uint32_t CollisionMap::UpdateConnectedComponents()
+uint32_t OccupancyComponentMap::UpdateConnectedComponents()
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
   // If the connected components are already valid, skip computing them again
@@ -505,7 +509,7 @@ uint32_t CollisionMap::UpdateConnectedComponents()
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-CollisionMap::ExtractComponentSurfaces(
+OccupancyComponentMap::ExtractComponentSurfaces(
     const COMPONENT_TYPES component_types_to_extract) const
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
@@ -527,7 +531,7 @@ CollisionMap::ExtractComponentSurfaces(
       = [&] (const GridIndex& index)
   {
     const auto query = GetIndexImmutable(index);
-    const CollisionCell& current_cell = query.Value();
+    const OccupancyComponentCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
@@ -567,27 +571,27 @@ CollisionMap::ExtractComponentSurfaces(
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-CollisionMap::ExtractFilledComponentSurfaces() const
+OccupancyComponentMap::ExtractFilledComponentSurfaces() const
 {
   return ExtractComponentSurfaces(FILLED_COMPONENTS);
 }
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-CollisionMap::ExtractUnknownComponentSurfaces() const
+OccupancyComponentMap::ExtractUnknownComponentSurfaces() const
 {
   return ExtractComponentSurfaces(UNKNOWN_COMPONENTS);
 }
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-CollisionMap::ExtractEmptyComponentSurfaces() const
+OccupancyComponentMap::ExtractEmptyComponentSurfaces() const
 {
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
 topology_computation::TopologicalInvariants
-CollisionMap::ComputeComponentTopology(
+OccupancyComponentMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use,
     const common_robotics_utilities::utility::LoggingFunction& logging_fn)
 {
@@ -610,7 +614,7 @@ CollisionMap::ComputeComponentTopology(
       = [&] (const GridIndex& index)
   {
     const auto query = GetIndexImmutable(index);
-    const CollisionCell& current_cell = query.Value();
+    const OccupancyComponentCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_use & FILLED_COMPONENTS) > 0x00)
@@ -647,13 +651,15 @@ CollisionMap::ComputeComponentTopology(
       *this, get_component_fn, is_surface_index_fn, logging_fn);
 }
 
-SignedDistanceField<double> CollisionMap::ExtractSignedDistanceFieldDouble(
+SignedDistanceField<double>
+OccupancyComponentMap::ExtractSignedDistanceFieldDouble(
     const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
   return ExtractSignedDistanceField<double>(parameters);
 }
 
-SignedDistanceField<float> CollisionMap::ExtractSignedDistanceFieldFloat(
+SignedDistanceField<float>
+OccupancyComponentMap::ExtractSignedDistanceFieldFloat(
     const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
   return ExtractSignedDistanceField<float>(parameters);

@@ -1,5 +1,5 @@
 #include <common_robotics_utilities/print.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
@@ -50,9 +50,9 @@ void test_estimate_distance(
           Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ()));
   const common_robotics_utilities::voxel_grid::GridSizes map_sizes(
       res, size, size, 1.0);
-  const voxelized_geometry_tools::CollisionCell empty_cell(0.0f);
-  const voxelized_geometry_tools::CollisionCell filled_cell(1.0f);
-  auto map = voxelized_geometry_tools::CollisionMap(
+  const voxelized_geometry_tools::OccupancyCell empty_cell(0.0f);
+  const voxelized_geometry_tools::OccupancyCell filled_cell(1.0f);
+  auto map = voxelized_geometry_tools::OccupancyMap(
       origin_transform, "world", map_sizes, empty_cell);
 
   map.SetLocation4d(

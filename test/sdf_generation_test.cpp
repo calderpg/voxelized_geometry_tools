@@ -1,11 +1,14 @@
 #include <iomanip>
 #include <iostream>
+#include <tuple>
 #include <vector>
 
 #include <Eigen/Geometry>
 #include <gtest/gtest.h>
-#include <voxelized_geometry_tools/collision_map.hpp>
-#include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_component_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
@@ -24,6 +27,82 @@ SignedDistanceFieldGenerationParameters<ScalarType> SDFGenerationParams(
 {
   return SignedDistanceFieldGenerationParameters<ScalarType>(
       std::numeric_limits<ScalarType>::infinity(), parallelism, true, false);
+}
+
+template<typename ScalarType>
+struct GeneratedSignedDistanceFields
+{
+  SignedDistanceField<ScalarType> occupancy_map_sdf;
+  SignedDistanceField<ScalarType> occupancy_component_map_sdf;
+  SignedDistanceField<ScalarType> tagged_object_occupancy_map_sdf;
+  SignedDistanceField<ScalarType> tagged_object_occupancy_component_map_sdf;
+};
+
+template<typename ScalarType>
+GeneratedSignedDistanceFields<ScalarType> GenerateSignedDistanceFields(
+    const OccupancyMap& occupancy_map,
+    const OccupancyComponentMap& occupancy_component_map,
+    const TaggedObjectOccupancyMap& tagged_object_occupancy_map,
+    const TaggedObjectOccupancyComponentMap&
+        tagged_object_occupancy_component_map,
+    const DegreeOfParallelism& parallelism)
+{
+  // Enforce occupancy map sizes match
+  const int64_t num_x_cells = occupancy_map.GetNumXCells();
+  const int64_t num_y_cells = occupancy_map.GetNumYCells();
+  const int64_t num_z_cells = occupancy_map.GetNumZCells();
+
+  EXPECT_EQ(num_x_cells, occupancy_component_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, occupancy_component_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, occupancy_component_map.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_component_map.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_component_map.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_component_map.GetNumZCells());
+
+  // Make SDFs
+  const auto occupancy_map_sdf =
+      occupancy_map.ExtractSignedDistanceField<ScalarType>(
+          SDFGenerationParams<ScalarType>(parallelism));
+  const auto occupancy_component_map_sdf =
+      occupancy_component_map.ExtractSignedDistanceField<ScalarType>(
+          SDFGenerationParams<ScalarType>(parallelism));
+  const auto tagged_object_occupancy_map_sdf =
+      tagged_object_occupancy_map.ExtractSignedDistanceField<ScalarType>(
+          {}, SDFGenerationParams<ScalarType>(parallelism));
+  const auto tagged_object_occupancy_component_map_sdf =
+      tagged_object_occupancy_component_map
+          .ExtractSignedDistanceField<ScalarType>(
+              {}, SDFGenerationParams<ScalarType>(parallelism));
+
+  // Enforce SDF sizes match
+  EXPECT_EQ(num_x_cells, occupancy_map_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, occupancy_map_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, occupancy_map_sdf.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, occupancy_component_map_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, occupancy_component_map_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, occupancy_component_map_sdf.GetNumZCells());
+
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map_sdf.GetNumXCells());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map_sdf.GetNumYCells());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map_sdf.GetNumZCells());
+
+  EXPECT_EQ(
+      num_x_cells, tagged_object_occupancy_component_map_sdf.GetNumXCells());
+  EXPECT_EQ(
+      num_y_cells, tagged_object_occupancy_component_map_sdf.GetNumYCells());
+  EXPECT_EQ(
+      num_z_cells, tagged_object_occupancy_component_map_sdf.GetNumZCells());
+
+  return GeneratedSignedDistanceFields<ScalarType>{
+      occupancy_map_sdf, occupancy_component_map_sdf,
+      tagged_object_occupancy_map_sdf,
+      tagged_object_occupancy_component_map_sdf};
 }
 
 template<typename ScalarType>
@@ -61,50 +140,66 @@ class SDFGenerationTestSuite
 
 template<typename ScalarType>
 void TestSDFGeneration(
-    const CollisionMap& collision_map,
-    const TaggedObjectCollisionMap& tagged_object_collision_map,
+    const OccupancyMap& occupancy_map,
+    const OccupancyComponentMap& occupancy_component_map,
+    const TaggedObjectOccupancyMap& tagged_object_occupancy_map,
+    const TaggedObjectOccupancyComponentMap&
+        tagged_object_occupancy_component_map,
     const DegreeOfParallelism& parallelism,
     const ScalarType expected_sdf_minimum,
     const ScalarType expected_sdf_maximum)
 {
-  // Make SDFs
-  const auto cmap_sdf =
-      collision_map.ExtractSignedDistanceField<ScalarType>(
-          SDFGenerationParams<ScalarType>(parallelism));
-  const auto tocmap_sdf =
-      tagged_object_collision_map.ExtractSignedDistanceField<ScalarType>(
-          {}, SDFGenerationParams<ScalarType>(parallelism));
+  const auto generated_sdfs = GenerateSignedDistanceFields<ScalarType>(
+      occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+      tagged_object_occupancy_component_map, parallelism);
 
-  // Enforce sizes match
-  const int64_t num_x_cells = collision_map.GetNumXCells();
-  const int64_t num_y_cells = collision_map.GetNumYCells();
-  const int64_t num_z_cells = collision_map.GetNumZCells();
-
-  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
+  const auto& occupancy_map_sdf = generated_sdfs.occupancy_map_sdf;
+  const auto& occupancy_component_map_sdf =
+      generated_sdfs.occupancy_component_map_sdf;
+  const auto& tagged_object_occupancy_map_sdf =
+      generated_sdfs.tagged_object_occupancy_map_sdf;
+  const auto& tagged_object_occupancy_component_map_sdf =
+      generated_sdfs.tagged_object_occupancy_component_map_sdf;
 
   // Check expected extrema
   EXPECT_TRUE(CloseEnough(
-      cmap_sdf.GetMinimumMaximum().Minimum(), expected_sdf_minimum));
+      occupancy_map_sdf.GetMinimumMaximum().Minimum(), expected_sdf_minimum));
   EXPECT_TRUE(CloseEnough(
-      cmap_sdf.GetMinimumMaximum().Maximum(), expected_sdf_maximum));
+      occupancy_map_sdf.GetMinimumMaximum().Maximum(), expected_sdf_maximum));
 
   EXPECT_TRUE(CloseEnough(
-      tocmap_sdf.GetMinimumMaximum().Minimum(), expected_sdf_minimum));
+      occupancy_component_map_sdf.GetMinimumMaximum().Minimum(),
+      expected_sdf_minimum));
   EXPECT_TRUE(CloseEnough(
-      tocmap_sdf.GetMinimumMaximum().Maximum(), expected_sdf_maximum));
+      occupancy_component_map_sdf.GetMinimumMaximum().Maximum(),
+      expected_sdf_maximum));
+
+  EXPECT_TRUE(CloseEnough(
+      tagged_object_occupancy_map_sdf.GetMinimumMaximum().Minimum(),
+      expected_sdf_minimum));
+  EXPECT_TRUE(CloseEnough(
+      tagged_object_occupancy_map_sdf.GetMinimumMaximum().Maximum(),
+      expected_sdf_maximum));
+
+  EXPECT_TRUE(CloseEnough(
+      tagged_object_occupancy_component_map_sdf.GetMinimumMaximum().Minimum(),
+      expected_sdf_minimum));
+  EXPECT_TRUE(CloseEnough(
+      tagged_object_occupancy_component_map_sdf.GetMinimumMaximum().Maximum(),
+      expected_sdf_maximum));
 
   // Check elements
   const ScalarType zero = static_cast<ScalarType>(0);
+
+  const auto get_sdf_index_value = [](
+      const SignedDistanceField<ScalarType>& sdf, const GridIndex& index)
+      -> ScalarType {
+    return sdf.GetIndexImmutable(index).Value();
+  };
+
+  const int64_t num_x_cells = occupancy_map.GetNumXCells();
+  const int64_t num_y_cells = occupancy_map.GetNumYCells();
+  const int64_t num_z_cells = occupancy_map.GetNumZCells();
 
   for (int64_t x_index = 0; x_index < num_x_cells; x_index++)
   {
@@ -114,22 +209,50 @@ void TestSDFGeneration(
       {
         const GridIndex index(x_index, y_index, z_index);
 
-        const float cmap_occupancy =
-            collision_map.GetIndexImmutable(index).Value().Occupancy();
-        const float tocmap_occupancy =
-            tagged_object_collision_map.GetIndexImmutable(index).Value()
-                .Occupancy();
-        EXPECT_EQ(cmap_occupancy, tocmap_occupancy);
+        const float occupancy_map_occupancy =
+            occupancy_map.GetIndexImmutable(index).Value().Occupancy();
+        const float occupancy_component_map_occupancy =
+            occupancy_component_map.GetIndexImmutable(
+                index).Value().Occupancy();
+        const float tagged_object_occupancy_map_occupancy =
+            tagged_object_occupancy_map.GetIndexImmutable(
+                index).Value().Occupancy();
+        const float tagged_object_occupancy_component_map_occupancy =
+            tagged_object_occupancy_component_map.GetIndexImmutable(
+                index).Value().Occupancy();
 
-        if (cmap_occupancy >= 0.5f)
+        EXPECT_EQ(occupancy_map_occupancy, occupancy_component_map_occupancy);
+        EXPECT_EQ(
+            occupancy_map_occupancy, tagged_object_occupancy_map_occupancy);
+        EXPECT_EQ(
+            occupancy_map_occupancy,
+            tagged_object_occupancy_component_map_occupancy);
+
+        if (occupancy_map_occupancy >= 0.5f)
         {
-          EXPECT_LT(cmap_sdf.GetIndexImmutable(index).Value(), zero);
-          EXPECT_LT(tocmap_sdf.GetIndexImmutable(index).Value(), zero);
+          EXPECT_LT(get_sdf_index_value(occupancy_map_sdf, index), zero);
+          EXPECT_LT(
+              get_sdf_index_value(occupancy_component_map_sdf, index), zero);
+          EXPECT_LT(
+              get_sdf_index_value(tagged_object_occupancy_map_sdf, index),
+              zero);
+          EXPECT_LT(
+              get_sdf_index_value(
+                  tagged_object_occupancy_component_map_sdf, index),
+              zero);
         }
         else
         {
-          EXPECT_GT(cmap_sdf.GetIndexImmutable(index).Value(), zero);
-          EXPECT_GT(tocmap_sdf.GetIndexImmutable(index).Value(), zero);
+          EXPECT_GT(get_sdf_index_value(occupancy_map_sdf, index), zero);
+          EXPECT_GT(
+              get_sdf_index_value(occupancy_component_map_sdf, index), zero);
+          EXPECT_GT(
+              get_sdf_index_value(tagged_object_occupancy_map_sdf, index),
+              zero);
+          EXPECT_GT(
+              get_sdf_index_value(
+                  tagged_object_occupancy_component_map_sdf, index),
+              zero);
         }
       }
     }
@@ -153,27 +276,39 @@ TEST_P(SDFGenerationTestSuite, FullyFilledTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  // Make filled collision map and tagged object collision map
-  const CollisionMap filled_collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(1.0f));
+  // Make filled occupancy map types
+  const OccupancyMap filled_occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(1.0f));
 
-  const TaggedObjectCollisionMap filled_tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(1.0f, 1u));
+  const OccupancyComponentMap filled_occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(1.0f));
+
+  const TaggedObjectOccupancyMap filled_tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(1.0f, 1u));
+
+  const TaggedObjectOccupancyComponentMap
+      filled_tagged_object_occupancy_component_map(
+          origin_transform, frame, grid_sizes,
+          TaggedObjectOccupancyComponentCell(1.0f, 1u));
 
   // Test generation of float SDFs
   {
     const float negative_inf = -std::numeric_limits<float>::infinity();
     TestSDFGeneration<float>(
-        filled_collision_map, filled_tagged_object_collision_map, parallelism,
-        negative_inf, negative_inf);
+        filled_occupancy_map, filled_occupancy_component_map,
+        filled_tagged_object_occupancy_map,
+        filled_tagged_object_occupancy_component_map, parallelism, negative_inf,
+        negative_inf);
   }
 
   // Test generation of double SDFs
   {
     const double negative_inf = -std::numeric_limits<double>::infinity();
     TestSDFGeneration<double>(
-        filled_collision_map, filled_tagged_object_collision_map, parallelism,
-        negative_inf, negative_inf);
+        filled_occupancy_map, filled_occupancy_component_map,
+        filled_tagged_object_occupancy_map,
+        filled_tagged_object_occupancy_component_map, parallelism, negative_inf,
+        negative_inf);
   }
 }
 
@@ -194,26 +329,39 @@ TEST_P(SDFGenerationTestSuite, FullyEmptyTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  const CollisionMap empty_collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make empty occupancy map types
+  const OccupancyMap empty_occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  const TaggedObjectCollisionMap empty_tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  const OccupancyComponentMap empty_occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  const TaggedObjectOccupancyMap empty_tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  const TaggedObjectOccupancyComponentMap
+      empty_tagged_object_occupancy_component_map(
+          origin_transform, frame, grid_sizes,
+          TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Test generation of float SDFs
   {
     const float positive_inf = std::numeric_limits<float>::infinity();
     TestSDFGeneration<float>(
-        empty_collision_map, empty_tagged_object_collision_map, parallelism,
-        positive_inf, positive_inf);
+        empty_occupancy_map, empty_occupancy_component_map,
+        empty_tagged_object_occupancy_map,
+        empty_tagged_object_occupancy_component_map, parallelism, positive_inf,
+        positive_inf);
   }
 
   // Test generation of double SDFs
   {
     const double positive_inf = std::numeric_limits<double>::infinity();
     TestSDFGeneration<double>(
-        empty_collision_map, empty_tagged_object_collision_map, parallelism,
-        positive_inf, positive_inf);
+        empty_occupancy_map, empty_occupancy_component_map,
+        empty_tagged_object_occupancy_map,
+        empty_tagged_object_occupancy_component_map, parallelism, positive_inf,
+        positive_inf);
   }
 }
 
@@ -234,11 +382,19 @@ TEST_P(SDFGenerationTestSuite, CenterObstacleTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in the center of the grid
   for (int64_t x_index = 1; x_index < 3; x_index++)
@@ -247,29 +403,39 @@ TEST_P(SDFGenerationTestSuite, CenterObstacleTest)
     {
       for (int64_t z_index = 3; z_index < 9; z_index++)
       {
-        collision_map.SetIndex(x_index, y_index, 0, CollisionCell(1.0f));
-        tagged_object_collision_map.SetIndex(
-            x_index, y_index, 0, TaggedObjectCollisionCell(1.0f, 1u));
+        occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+        occupancy_component_map.SetIndex(
+            x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+        tagged_object_occupancy_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+        tagged_object_occupancy_component_map.SetIndex(
+            x_index, y_index, z_index,
+            TaggedObjectOccupancyComponentCell(1.0f, 1u));
       }
     }
   }
 
+  const double nominal_maximum =
+      std::sqrt(std::pow(resolution, 2.0) +
+                std::pow(2.0 * resolution, 2.0) +
+                std::pow(3.0* resolution, 2.0));
+
   // Test generation of float SDFs
   {
     const float minimum = -0.25f;
-    const float maximum = 2.8062f;
+    const float maximum = static_cast<float>(nominal_maximum);
     TestSDFGeneration<float>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 
   // Test generation of double SDFs
   {
     const double minimum = -0.25;
-    const double maximum = 2.8062;
+    const double maximum = nominal_maximum;
     TestSDFGeneration<double>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 }
 
@@ -290,11 +456,19 @@ TEST_P(SDFGenerationTestSuite, CornerObstacleTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a corner of the grid
   for (int64_t x_index = 0; x_index < 2; x_index++)
@@ -303,9 +477,14 @@ TEST_P(SDFGenerationTestSuite, CornerObstacleTest)
     {
       for (int64_t z_index = 0; z_index < 6; z_index++)
       {
-        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
-        tagged_object_collision_map.SetIndex(
-            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+        occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+        occupancy_component_map.SetIndex(
+            x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+        tagged_object_occupancy_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+        tagged_object_occupancy_component_map.SetIndex(
+            x_index, y_index, z_index,
+            TaggedObjectOccupancyComponentCell(1.0f, 1u));
       }
     }
   }
@@ -315,8 +494,8 @@ TEST_P(SDFGenerationTestSuite, CornerObstacleTest)
     const float minimum = -0.5f;
     const float maximum = 1.8708f;
     TestSDFGeneration<float>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 
   // Test generation of double SDFs
@@ -324,8 +503,8 @@ TEST_P(SDFGenerationTestSuite, CornerObstacleTest)
     const double minimum = -0.5;
     const double maximum = 1.8708;
     TestSDFGeneration<double>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 }
 
@@ -346,23 +525,38 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a face of the grid
-  const int64_t num_x_cells = collision_map.GetNumXCells();
-  const int64_t num_y_cells = collision_map.GetNumYCells();
+  const int64_t num_x_cells = occupancy_map.GetNumXCells();
+  const int64_t num_y_cells = occupancy_map.GetNumYCells();
+
+  constexpr int64_t z_index = 0;
 
   for (int64_t x_index = 0; x_index < num_x_cells; x_index++)
   {
     for (int64_t y_index = 0; y_index < num_y_cells; y_index++)
     {
-      collision_map.SetIndex(x_index, y_index, 0, CollisionCell(1.0f));
-      tagged_object_collision_map.SetIndex(
-          x_index, y_index, 0, TaggedObjectCollisionCell(1.0f, 1u));
+      occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+      occupancy_component_map.SetIndex(
+          x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+      tagged_object_occupancy_map.SetIndex(
+          x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+      tagged_object_occupancy_component_map.SetIndex(
+          x_index, y_index, z_index,
+          TaggedObjectOccupancyComponentCell(1.0f, 1u));
     }
   }
 
@@ -371,8 +565,8 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
     const float minimum = -0.25f;
     const float maximum = 2.75f;
     TestSDFGeneration<float>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 
   // Test generation of double SDFs
@@ -380,8 +574,8 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
     const double minimum = -0.25;
     const double maximum = 2.75;
     TestSDFGeneration<double>(
-        collision_map, tagged_object_collision_map, parallelism, minimum,
-        maximum);
+        occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+        tagged_object_occupancy_component_map, parallelism, minimum, maximum);
   }
 }
 
@@ -402,11 +596,19 @@ TEST_P(SDFGenerationTestSuite, LinearExactTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a corner of the grid
   for (int64_t x_index = 0; x_index < 1; x_index++)
@@ -415,61 +617,82 @@ TEST_P(SDFGenerationTestSuite, LinearExactTest)
     {
       for (int64_t z_index = 0; z_index < 2; z_index++)
       {
-        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
-        tagged_object_collision_map.SetIndex(
-            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+        occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+        occupancy_component_map.SetIndex(
+            x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+        tagged_object_occupancy_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+        tagged_object_occupancy_component_map.SetIndex(
+            x_index, y_index, z_index,
+            TaggedObjectOccupancyComponentCell(1.0f, 1u));
       }
     }
   }
 
   // Make SDFs
-  const auto cmap_sdf =
-      collision_map.ExtractSignedDistanceField<float>(
-          SDFGenerationParams<float>(parallelism));
-  const auto tocmap_sdf =
-      tagged_object_collision_map.ExtractSignedDistanceField<float>(
-          {}, SDFGenerationParams<float>(parallelism));
+  const auto generated_sdfs = GenerateSignedDistanceFields<float>(
+      occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+      tagged_object_occupancy_component_map, parallelism);
 
-  // Enforce sizes match
-  const int64_t num_x_cells = collision_map.GetNumXCells();
-  const int64_t num_y_cells = collision_map.GetNumYCells();
-  const int64_t num_z_cells = collision_map.GetNumZCells();
+  const auto& occupancy_map_sdf = generated_sdfs.occupancy_map_sdf;
+  const auto& occupancy_component_map_sdf =
+      generated_sdfs.occupancy_component_map_sdf;
+  const auto& tagged_object_occupancy_map_sdf =
+      generated_sdfs.tagged_object_occupancy_map_sdf;
+  const auto& tagged_object_occupancy_component_map_sdf =
+      generated_sdfs.tagged_object_occupancy_component_map_sdf;
 
-  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
-
-  const auto get_cmap_sdf_dist =
+  const auto get_occupancy_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  const auto get_tocmap_sdf_dist =
+  const auto get_occupancy_component_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -2.0f);
+  const auto get_tagged_object_occupancy_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), -1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), -1.0f);
+  const auto get_tagged_object_occupancy_component_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 2), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 0), -2.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 3), 2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 1), -1.0f);
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 2), 1.0f);
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 3), 2.0f);
 }
 
 TEST_P(SDFGenerationTestSuite, PlanarExactTest)
@@ -489,11 +712,19 @@ TEST_P(SDFGenerationTestSuite, PlanarExactTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a corner of the grid
   for (int64_t x_index = 0; x_index < 1; x_index++)
@@ -502,97 +733,166 @@ TEST_P(SDFGenerationTestSuite, PlanarExactTest)
     {
       for (int64_t z_index = 0; z_index < 2; z_index++)
       {
-        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
-        tagged_object_collision_map.SetIndex(
-            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+        occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+        occupancy_component_map.SetIndex(
+            x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+        tagged_object_occupancy_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+        tagged_object_occupancy_component_map.SetIndex(
+            x_index, y_index, z_index,
+            TaggedObjectOccupancyComponentCell(1.0f, 1u));
       }
     }
   }
 
   // Make SDFs
-  const auto cmap_sdf =
-      collision_map.ExtractSignedDistanceField<float>(
-          SDFGenerationParams<float>(parallelism));
-  const auto tocmap_sdf =
-      tagged_object_collision_map.ExtractSignedDistanceField<float>(
-          {}, SDFGenerationParams<float>(parallelism));
+  const auto generated_sdfs = GenerateSignedDistanceFields<float>(
+      occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+      tagged_object_occupancy_component_map, parallelism);
 
-  // Enforce sizes match
-  const int64_t num_x_cells = collision_map.GetNumXCells();
-  const int64_t num_y_cells = collision_map.GetNumYCells();
-  const int64_t num_z_cells = collision_map.GetNumZCells();
+  const auto& occupancy_map_sdf = generated_sdfs.occupancy_map_sdf;
+  const auto& occupancy_component_map_sdf =
+      generated_sdfs.occupancy_component_map_sdf;
+  const auto& tagged_object_occupancy_map_sdf =
+      generated_sdfs.tagged_object_occupancy_map_sdf;
+  const auto& tagged_object_occupancy_component_map_sdf =
+      generated_sdfs.tagged_object_occupancy_component_map_sdf;
 
-  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
-
-  const auto get_cmap_sdf_dist =
+  const auto get_occupancy_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  const auto get_tocmap_sdf_dist =
+  const auto get_occupancy_component_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -2.0f);
+  const auto get_tagged_object_occupancy_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), -1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), -1.0f);
+  const auto get_tagged_object_occupancy_component_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 2), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 0), -2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 0), -2.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 3), 2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 1), -1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 1), -1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 0), -1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 2), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 2), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 1), -1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 3), 2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 3), 2.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 2), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 1, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 1, 0), -1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 0), -1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 3), 2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 1, 1), -1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 1, 1), -1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 1), -1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 0), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 1, 2), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 1, 2), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 2), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 1), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 1, 3), 2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 1, 3), 2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 3), 2.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 2), std::sqrt(2.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 2, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 2, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 2, 0), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 2, 0), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 2, 3), std::sqrt(5.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 2, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 2, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 2, 1), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 2, 1), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 0), 2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 0), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(0, 2, 2), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 2, 2),
+      std::sqrt(2.0f));
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 1), 2.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 1), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(0, 2, 3), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 2, 3),
+      std::sqrt(5.0f));
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 2), std::sqrt(5.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 3, 0), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 3, 0), 2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 3, 0), 2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 3, 0), 2.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 3, 3), std::sqrt(8.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 3, 1), 2.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 3, 1), 2.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 3, 1), 2.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 3, 1), 2.0f);
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(0, 3, 2), std::sqrt(5.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 3, 2),
+      std::sqrt(5.0f));
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(0, 3, 3), std::sqrt(8.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 3, 3),
+      std::sqrt(8.0f));
 }
 
 TEST_P(SDFGenerationTestSuite, CubeExactTest)
@@ -612,11 +912,19 @@ TEST_P(SDFGenerationTestSuite, CubeExactTest)
       origin_translation * origin_rotation;
   const std::string frame = "test_frame";
 
-  CollisionMap collision_map(
-      origin_transform, frame, grid_sizes, CollisionCell(0.0f));
+  // Make occupancy map types
+  OccupancyMap occupancy_map(
+      origin_transform, frame, grid_sizes, OccupancyCell(0.0f));
 
-  TaggedObjectCollisionMap tagged_object_collision_map(
-      origin_transform, frame, grid_sizes, TaggedObjectCollisionCell(0.0f, 0u));
+  OccupancyComponentMap occupancy_component_map(
+      origin_transform, frame, grid_sizes, OccupancyComponentCell(0.0f));
+
+  TaggedObjectOccupancyMap tagged_object_occupancy_map(
+      origin_transform, frame, grid_sizes, TaggedObjectOccupancyCell(0.0f, 0u));
+
+  TaggedObjectOccupancyComponentMap tagged_object_occupancy_component_map(
+      origin_transform, frame, grid_sizes,
+      TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a corner of the grid
   for (int64_t x_index = 0; x_index < 1; x_index++)
@@ -625,73 +933,118 @@ TEST_P(SDFGenerationTestSuite, CubeExactTest)
     {
       for (int64_t z_index = 0; z_index < 1; z_index++)
       {
-        collision_map.SetIndex(x_index, y_index, z_index, CollisionCell(1.0f));
-        tagged_object_collision_map.SetIndex(
-            x_index, y_index, z_index, TaggedObjectCollisionCell(1.0f, 1u));
+        occupancy_map.SetIndex(x_index, y_index, z_index, OccupancyCell(1.0f));
+        occupancy_component_map.SetIndex(
+            x_index, y_index, z_index, OccupancyComponentCell(1.0f));
+        tagged_object_occupancy_map.SetIndex(
+            x_index, y_index, z_index, TaggedObjectOccupancyCell(1.0f, 1u));
+        tagged_object_occupancy_component_map.SetIndex(
+            x_index, y_index, z_index,
+            TaggedObjectOccupancyComponentCell(1.0f, 1u));
       }
     }
   }
 
   // Make SDFs
-  const auto cmap_sdf =
-      collision_map.ExtractSignedDistanceField<float>(
-          SDFGenerationParams<float>(parallelism));
-  const auto tocmap_sdf =
-      tagged_object_collision_map.ExtractSignedDistanceField<float>(
-          {}, SDFGenerationParams<float>(parallelism));
+  const auto generated_sdfs = GenerateSignedDistanceFields<float>(
+      occupancy_map, occupancy_component_map, tagged_object_occupancy_map,
+      tagged_object_occupancy_component_map, parallelism);
 
-  // Enforce sizes match
-  const int64_t num_x_cells = collision_map.GetNumXCells();
-  const int64_t num_y_cells = collision_map.GetNumYCells();
-  const int64_t num_z_cells = collision_map.GetNumZCells();
+  const auto& occupancy_map_sdf = generated_sdfs.occupancy_map_sdf;
+  const auto& occupancy_component_map_sdf =
+      generated_sdfs.occupancy_component_map_sdf;
+  const auto& tagged_object_occupancy_map_sdf =
+      generated_sdfs.tagged_object_occupancy_map_sdf;
+  const auto& tagged_object_occupancy_component_map_sdf =
+      generated_sdfs.tagged_object_occupancy_component_map_sdf;
 
-  EXPECT_EQ(num_x_cells, tagged_object_collision_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_collision_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_collision_map.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, cmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, cmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, cmap_sdf.GetNumZCells());
-
-  EXPECT_EQ(num_x_cells, tocmap_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tocmap_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tocmap_sdf.GetNumZCells());
-
-  const auto get_cmap_sdf_dist =
+  const auto get_occupancy_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return cmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  const auto get_tocmap_sdf_dist =
+  const auto get_occupancy_component_map_sdf_dist =
       [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
   {
-    return tocmap_sdf.GetIndexImmutable(x_index, y_index, z_index).Value();
+    return occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
   };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 0), -1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 0), -1.0f);
+  const auto get_tagged_object_occupancy_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 0, 1), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 0, 1), 1.0f);
+  const auto get_tagged_object_occupancy_component_map_sdf_dist =
+      [&](const int64_t x_index, const int64_t y_index, const int64_t z_index)
+  {
+    return tagged_object_occupancy_component_map_sdf.GetIndexImmutable(
+        x_index, y_index, z_index).Value();
+  };
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 0), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 0), -1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 0), -1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 0), -1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(0, 1, 1), std::sqrt(2.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 0, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 0, 1), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 0, 1), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 0, 1), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 0, 0), 1.0f);
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 0, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(0, 1, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(0, 1, 0), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 0), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 0, 1), std::sqrt(2.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(0, 1, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(0, 1, 1),
+      std::sqrt(2.0f));
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 1, 0), std::sqrt(2.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(1, 0, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_occupancy_component_map_sdf_dist(1, 0, 0), 1.0f);
+  EXPECT_FLOAT_EQ(get_tagged_object_occupancy_map_sdf_dist(1, 0, 0), 1.0f);
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(1, 0, 0), 1.0f);
 
-  EXPECT_FLOAT_EQ(get_cmap_sdf_dist(1, 1, 1), std::sqrt(3.0f));
-  EXPECT_FLOAT_EQ(get_tocmap_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(1, 0, 1), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(1, 0, 1),
+      std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(1, 1, 0), std::sqrt(2.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(1, 1, 0),
+      std::sqrt(2.0f));
+
+  EXPECT_FLOAT_EQ(get_occupancy_map_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+  EXPECT_FLOAT_EQ(
+      get_occupancy_component_map_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_map_sdf_dist(1, 1, 1), std::sqrt(3.0f));
+  EXPECT_FLOAT_EQ(
+      get_tagged_object_occupancy_component_map_sdf_dist(1, 1, 1),
+      std::sqrt(3.0f));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -722,4 +1075,3 @@ int main(int argc, char** argv)
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

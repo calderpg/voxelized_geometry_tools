@@ -1,4 +1,4 @@
-#include <voxelized_geometry_tools/dynamic_spatial_hashed_collision_map.hpp>
+#include <voxelized_geometry_tools/dynamic_spatial_hashed_occupancy_map.hpp>
 
 #include <cstdint>
 #include <fstream>
@@ -13,7 +13,7 @@
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 
 namespace voxelized_geometry_tools
 {
@@ -21,17 +21,17 @@ VGT_NAMESPACE_BEGIN
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
     ::DynamicSpatialHashedVoxelGridBase<
-        CollisionCell, std::vector<CollisionCell>>>
-DynamicSpatialHashedCollisionMap::DoClone() const
+        OccupancyCell, std::vector<OccupancyCell>>>
+DynamicSpatialHashedOccupancyMap::DoClone() const
 {
-  return std::unique_ptr<DynamicSpatialHashedCollisionMap>(
-      new DynamicSpatialHashedCollisionMap(*this));
+  return std::unique_ptr<DynamicSpatialHashedOccupancyMap>(
+      new DynamicSpatialHashedOccupancyMap(*this));
 }
 
 /// We need to serialize the frame and locked flag.
-uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
+uint64_t DynamicSpatialHashedOccupancyMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const CollisionCellSerializer& value_serializer) const
+    const OccupancyCellSerializer& value_serializer) const
 {
   CRU_UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -41,9 +41,9 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedSerializeSelf(
 }
 
 /// We need to deserialize the frame and locked flag.
-uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
+uint64_t DynamicSpatialHashedOccupancyMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const CollisionCellDeserializer& value_deserializer)
+    const OccupancyCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -57,43 +57,43 @@ uint64_t DynamicSpatialHashedCollisionMap::DerivedDeserializeSelf(
   return bytes_read;
 }
 
-bool DynamicSpatialHashedCollisionMap::OnMutableAccess(
+bool DynamicSpatialHashedOccupancyMap::OnMutableAccess(
     const Eigen::Vector4d& location)
 {
   CRU_UNUSED(location);
   return true;
 }
 
-bool DynamicSpatialHashedCollisionMap::OnMutableRawAccess()
+bool DynamicSpatialHashedOccupancyMap::OnMutableRawAccess()
 {
   return true;
 }
 
-uint64_t DynamicSpatialHashedCollisionMap::Serialize(
-    const DynamicSpatialHashedCollisionMap& map, std::vector<uint8_t>& buffer)
+uint64_t DynamicSpatialHashedOccupancyMap::Serialize(
+    const DynamicSpatialHashedOccupancyMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, CollisionCell::Serialize);
+  return map.SerializeSelf(buffer, OccupancyCell::Serialize);
 }
 
-DynamicSpatialHashedCollisionMap::DeserializedDynamicSpatialHashedCollisionMap
-DynamicSpatialHashedCollisionMap::Deserialize(
+DynamicSpatialHashedOccupancyMap::DeserializedDynamicSpatialHashedOccupancyMap
+DynamicSpatialHashedOccupancyMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
-  DynamicSpatialHashedCollisionMap temp_map;
+  DynamicSpatialHashedOccupancyMap temp_map;
   const uint64_t bytes_read
       = temp_map.DeserializeSelf(
-          buffer, starting_offset, CollisionCell::Deserialize);
+          buffer, starting_offset, OccupancyCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }
 
-void DynamicSpatialHashedCollisionMap::SaveToFile(
-    const DynamicSpatialHashedCollisionMap& map,
+void DynamicSpatialHashedOccupancyMap::SaveToFile(
+    const DynamicSpatialHashedOccupancyMap& map,
     const std::string& filepath,
     const bool compress)
 {
   std::vector<uint8_t> buffer;
-  DynamicSpatialHashedCollisionMap::Serialize(map, buffer);
+  DynamicSpatialHashedOccupancyMap::Serialize(map, buffer);
   std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
   if (compress)
   {
@@ -116,8 +116,8 @@ void DynamicSpatialHashedCollisionMap::SaveToFile(
   output_file.close();
 }
 
-DynamicSpatialHashedCollisionMap
-DynamicSpatialHashedCollisionMap::LoadFromFile(const std::string& filepath)
+DynamicSpatialHashedOccupancyMap
+DynamicSpatialHashedOccupancyMap::LoadFromFile(const std::string& filepath)
 {
   std::ifstream input_file(
       filepath, std::ios::in | std::ios::binary | std::ios::ate);
@@ -149,12 +149,12 @@ DynamicSpatialHashedCollisionMap::LoadFromFile(const std::string& filepath)
       const std::vector<uint8_t> decompressed
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
-      return DynamicSpatialHashedCollisionMap::Deserialize(
+      return DynamicSpatialHashedOccupancyMap::Deserialize(
           decompressed, 0).Value();
     }
     else if (header_string == "DMGR")
     {
-      return DynamicSpatialHashedCollisionMap::Deserialize(
+      return DynamicSpatialHashedOccupancyMap::Deserialize(
           file_buffer, 0).Value();
     }
     else

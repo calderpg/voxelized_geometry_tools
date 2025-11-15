@@ -1,5 +1,5 @@
 #include <common_robotics_utilities/print.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_component_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
@@ -39,7 +39,8 @@ int main(int argc, char** argv)
   using Marker = visualization_msgs::Marker;
 
   // Make a ROS node, which we'll use to publish copies of the data in the
-  // CollisionMap and SDF and Rviz markers that allow us to visualize them.
+  // OccupancyComponentMap and SDF and Rviz markers that allow us to visualize
+  // them.
   ros::init(argc, argv, "sdf_tools_tutorial");
   // Get a handle to the current node
   ros::NodeHandle nh;
@@ -68,41 +69,44 @@ int main(int argc, char** argv)
   const std::string frame = "tutorial_frame";
 
   ///////////////////////////////////
-  //// Let's make a CollisionMap ////
+  //// Let's make an OccupancyComponentMap ////
   ///////////////////////////////////
 
+  // Occupancy values > 0.5 are obstacles
+  // By initializing like this, the component value is automatically set to 0
+  const voxelized_geometry_tools::OccupancyComponentCell obstacle_cell(1.0f);
+  // Occupancy values < 0.5 are empty
+  // By initializing like this, the component value is automatically set to 0
+  const voxelized_geometry_tools::OccupancyComponentCell empty_cell(0.0f);
+
   // We pick a reasonable default and out-of-bounds value
-  // By initializing like this, the component value is automatically set to 0.
-  const voxelized_geometry_tools::CollisionCell default_cell(0.0);
+  const auto default_cell = empty_cell;
   // First, let's make the container
-  voxelized_geometry_tools::CollisionMap collision_map(
+  voxelized_geometry_tools::OccupancyComponentMap occupancy_map(
       origin_transform, frame, grid_sizes, default_cell);
 
   // Let's set some values
   // This is how you should iterate through the 3D grid's cells
-  for (int64_t x_index = 0; x_index < collision_map.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < occupancy_map.GetNumXCells(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < collision_map.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < occupancy_map.GetNumYCells(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < collision_map.GetNumZCells();
+      for (int64_t z_index = 0; z_index < occupancy_map.GetNumZCells();
            z_index++)
       {
         // Let's make the bottom corner (low x, low y, low z) an object
-        if ((x_index < (collision_map.GetNumXCells() / 2)) &&
-            (y_index < (collision_map.GetNumYCells() / 2)) &&
-            (z_index < (collision_map.GetNumZCells() / 2)))
+        if ((x_index < (occupancy_map.GetNumXCells() / 2)) &&
+            (y_index < (occupancy_map.GetNumYCells() / 2)) &&
+            (z_index < (occupancy_map.GetNumZCells() / 2)))
         {
-          // Occupancy values > 0.5 are obstacles
-          const voxelized_geometry_tools::CollisionCell obstacle_cell(1.0);
-          collision_map.SetIndex(x_index, y_index, z_index, obstacle_cell);
+          occupancy_map.SetIndex(x_index, y_index, z_index, obstacle_cell);
         }
       }
     }
   }
 
-  // We can also set by location - occupancy values > 0.5 are obstacles
-  const voxelized_geometry_tools::CollisionCell obstacle_cell(1.0);
-  collision_map.SetLocation(0.0, 0.0, 0.0, obstacle_cell);
+  // We can also set by location
+  occupancy_map.SetLocation(0.0, 0.0, 0.0, obstacle_cell);
 
   // Let's get some values
   // We can query by index
@@ -110,7 +114,7 @@ int main(int argc, char** argv)
   int64_t y_index = 10;
   int64_t z_index = 10;
   const auto index_query =
-      collision_map.GetIndexImmutable(x_index, y_index, z_index);
+      occupancy_map.GetIndexImmutable(x_index, y_index, z_index);
 
   // Is it in the grid?
   if (index_query)
@@ -125,7 +129,7 @@ int main(int argc, char** argv)
   double y_location = 0.0;
   double z_location = 0.0;
   const auto location_query =
-      collision_map.GetLocationImmutable(x_location, y_location, z_location);
+      occupancy_map.GetLocationImmutable(x_location, y_location, z_location);
 
   // Is it in the grid?
   if (location_query)
@@ -139,7 +143,7 @@ int main(int argc, char** argv)
   // Let's compute connected components
   const auto cc_start_time = std::chrono::steady_clock::now();
   const uint32_t num_connected_components =
-      collision_map.UpdateConnectedComponents();
+      occupancy_map.UpdateConnectedComponents();
   const auto cc_end_time = std::chrono::steady_clock::now();
   const double cc_elapsed =
       std::chrono::duration<double>(cc_end_time - cc_start_time).count();
@@ -149,7 +153,7 @@ int main(int argc, char** argv)
             << " connected components in the grid" << std::endl;
 
   // Let's display the results to Rviz
-  // First, the CollisionMap itself
+  // First, the OccupancyComponentMap itself
   // We need to provide colors to use
   const float display_alpha = 1.0;
   ColorRGBA collision_color;
@@ -167,23 +171,23 @@ int main(int argc, char** argv)
   unknown_color.g = 1.0;
   unknown_color.b = 0.0;
   unknown_color.a = display_alpha;
-  Marker collision_map_marker =
+  Marker occupancy_map_marker =
       voxelized_geometry_tools::ros_interface::ExportForDisplay(
-          collision_map, collision_color, free_color, unknown_color);
+          occupancy_map, collision_color, free_color, unknown_color);
   // To be safe, you'll need to set these yourself. The namespace (ns) value
   // should distinguish between different things being displayed while the id
   // value lets you have multiple versions of the same message at once. Always
   // set this to 1 if you only want one copy.
-  collision_map_marker.ns = "collision_map";
-  collision_map_marker.id = 1;
+  occupancy_map_marker.ns = "occupancy_map";
+  occupancy_map_marker.id = 1;
   // Send it off for display
-  display_fn(collision_map_marker);
+  display_fn(occupancy_map_marker);
   // Now, let's draw the connected components
   // Generally, you don't want a special color for unknown [P(occupancy) = 0.5]
   // components.
   Marker connected_components_marker =
       voxelized_geometry_tools::ros_interface
-          ::ExportConnectedComponentsForDisplay(collision_map, false);
+          ::ExportConnectedComponentsForDisplay(occupancy_map, false);
   connected_components_marker.ns = "connected_components";
   connected_components_marker.id = 1;
   display_fn(connected_components_marker);
@@ -204,10 +208,10 @@ int main(int argc, char** argv)
   const voxelized_geometry_tools::SignedDistanceFieldGenerationParameters<float>
       sdf_parameters(
           oob_value, parallelism, unknown_is_filled, add_virtual_border);
-  // We start by extracting the SDF from the CollisionMap
+  // We start by extracting the SDF from the OccupancyComponentMap
   const auto sdf_start_time = std::chrono::steady_clock::now();
   const auto sdf =
-      collision_map.ExtractSignedDistanceFieldFloat(sdf_parameters);
+      occupancy_map.ExtractSignedDistanceFieldFloat(sdf_parameters);
   const auto sdf_end_time = std::chrono::steady_clock::now();
   const double sdf_elapsed =
       std::chrono::duration<double>(sdf_end_time - sdf_start_time).count();

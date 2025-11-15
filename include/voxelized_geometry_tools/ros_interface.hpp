@@ -30,22 +30,28 @@
 #include <common_robotics_utilities/utility.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/zlib_helpers.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
-#include <voxelized_geometry_tools/dynamic_spatial_hashed_collision_map.hpp>
+#include <voxelized_geometry_tools/dynamic_spatial_hashed_occupancy_map.hpp>
+#include <voxelized_geometry_tools/occupancy_component_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
-#include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_map.hpp>
 #include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
-#include <voxelized_geometry_tools/msg/collision_map_message.hpp>
-#include <voxelized_geometry_tools/msg/dynamic_spatial_hashed_collision_map_message.hpp>
+#include <voxelized_geometry_tools/msg/dynamic_spatial_hashed_occupancy_map_message.hpp>
+#include <voxelized_geometry_tools/msg/occupancy_component_map_message.hpp>
+#include <voxelized_geometry_tools/msg/occupancy_map_message.hpp>
 #include <voxelized_geometry_tools/msg/signed_distance_field_message.hpp>
-#include <voxelized_geometry_tools/msg/tagged_object_collision_map_message.hpp>
+#include <voxelized_geometry_tools/msg/tagged_object_occupancy_component_map_message.hpp>
+#include <voxelized_geometry_tools/msg/tagged_object_occupancy_map_message.hpp>
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <voxelized_geometry_tools/CollisionMapMessage.h>
-#include <voxelized_geometry_tools/DynamicSpatialHashedCollisionMapMessage.h>
+#include <voxelized_geometry_tools/DynamicSpatialHashedOccupancyMapMessage.h>
+#include <voxelized_geometry_tools/OccupancyComponentMapMessage.h>
+#include <voxelized_geometry_tools/OccupancyMapMessage.h>
 #include <voxelized_geometry_tools/SignedDistanceFieldMessage.h>
-#include <voxelized_geometry_tools/TaggedObjectCollisionMapMessage.h>
+#include <voxelized_geometry_tools/TaggedObjectOccupancyComponentMapMessage.h>
+#include <voxelized_geometry_tools/TaggedObjectOccupancyMapMessage.h>
 #endif
 
 namespace voxelized_geometry_tools
@@ -60,12 +66,15 @@ using Point = geometry_msgs::msg::Point;
 using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
 
-using CollisionMapMessage = msg::CollisionMapMessage;
-using DynamicSpatialHashedCollisionMapMessage =
-    msg::DynamicSpatialHashedCollisionMapMessage;
+using DynamicSpatialHashedOccupancyMapMessage =
+    msg::DynamicSpatialHashedOccupancyMapMessage;
+using OccupancyComponentMapMessage = msg::OccupancyComponentMapMessage;
+using OccupancyMapMessage = msg::OccupancyMapMessage;
 using SignedDistanceFieldMessage = msg::SignedDistanceFieldMessage;
-using TaggedObjectCollisionMapMessage =
-    msg::TaggedObjectCollisionMapMessage;
+using TaggedObjectOccupancyComponentMapMessage =
+    msg::TaggedObjectOccupancyComponentMapMessage;
+using TaggedObjectOccupancyMapMessage =
+    msg::TaggedObjectOccupancyMapMessage;
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
 using ColorRGBA = std_msgs::ColorRGBA;
 using Point = geometry_msgs::Point;
@@ -516,137 +525,241 @@ inline SignedDistanceField<ScalarType> LoadFromMessageRepresentation(
   }
 }
 
-/// Export CollisionMap to RViz for display.
+/// Export OccupancyMap to RViz for display.
 
 Marker ExportForDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 MarkerArray ExportForSeparateDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 Marker ExportSurfacesForDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 MarkerArray ExportSurfacesForSeparateDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
-Marker ExportConnectedComponentsForDisplay(
-    const CollisionMap& collision_map,
-    const bool color_unknown_components);
-
 Marker ExportIndexMapForDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const ColorRGBA& surface_color);
 
 Marker ExportIndicesForDisplay(
-    const CollisionMap& collision_map,
+    const OccupancyMap& occupancy_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
     const ColorRGBA& surface_color);
 
-/// Convert CollisionMap to and from ROS messages.
+/// Convert OccupancyMap to and from ROS messages.
 
-CollisionMapMessage GetMessageRepresentation(const CollisionMap& map);
+OccupancyMapMessage GetMessageRepresentation(const OccupancyMap& map);
 
-CollisionMap LoadFromMessageRepresentation(const CollisionMapMessage& message);
+OccupancyMap LoadFromMessageRepresentation(const OccupancyMapMessage& message);
 
-/// Export DynamicSpatialHashedCollisionMap to RViz for display.
+/// Export OccupancyComponentMap to RViz for display.
 
-MarkerArray ExportForDisplay(
-    const DynamicSpatialHashedCollisionMap& collision_map,
+Marker ExportForDisplay(
+    const OccupancyComponentMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 MarkerArray ExportForSeparateDisplay(
-    const DynamicSpatialHashedCollisionMap& collision_map,
-    const ColorRGBA& collision_color,
-    const ColorRGBA& free_color,
-    const ColorRGBA& unknown_color);
-
-DynamicSpatialHashedCollisionMapMessage GetMessageRepresentation(
-    const DynamicSpatialHashedCollisionMap& map);
-
-DynamicSpatialHashedCollisionMap LoadFromMessageRepresentation(
-    const DynamicSpatialHashedCollisionMapMessage& message);
-
-/// Export TaggedObjectCollisionMap to RViz for display.
-
-Marker ExportForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
-    const ColorRGBA& collision_color,
-    const ColorRGBA& free_color,
-    const ColorRGBA& unknown_color);
-
-Marker ExportForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, ColorRGBA>& object_color_map
-        =std::map<uint32_t, ColorRGBA>());
-
-MarkerArray ExportForSeparateDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const OccupancyComponentMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 Marker ExportSurfacesForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const OccupancyComponentMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
-
-Marker ExportSurfacesForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
-    const std::map<uint32_t, ColorRGBA>& object_color_map
-        =std::map<uint32_t, ColorRGBA>());
 
 MarkerArray ExportSurfacesForSeparateDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const OccupancyComponentMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
     const ColorRGBA& unknown_color);
 
 Marker ExportConnectedComponentsForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const OccupancyComponentMap& occupancy_map,
+    const bool color_unknown_components);
+
+Marker ExportIndexMapForDisplay(
+    const OccupancyComponentMap& occupancy_map,
+    const std::unordered_map<
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
+    const ColorRGBA& surface_color);
+
+Marker ExportIndicesForDisplay(
+    const OccupancyComponentMap& occupancy_map,
+    const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
+        indices,
+    const ColorRGBA& surface_color);
+
+/// Convert OccupancyComponentMap to and from ROS messages.
+
+OccupancyComponentMapMessage GetMessageRepresentation(
+    const OccupancyComponentMap& map);
+
+OccupancyComponentMap LoadFromMessageRepresentation(
+    const OccupancyComponentMapMessage& message);
+
+/// Export DynamicSpatialHashedOccupancyMap to RViz for display.
+
+MarkerArray ExportForDisplay(
+    const DynamicSpatialHashedOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+MarkerArray ExportForSeparateDisplay(
+    const DynamicSpatialHashedOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+/// Convert DynamicSpatialHashedOccupancyMap to and from ROS messages.
+
+DynamicSpatialHashedOccupancyMapMessage GetMessageRepresentation(
+    const DynamicSpatialHashedOccupancyMap& map);
+
+DynamicSpatialHashedOccupancyMap LoadFromMessageRepresentation(
+    const DynamicSpatialHashedOccupancyMapMessage& message);
+
+/// Export TaggedObjectOccupancyMap to RViz for display.
+
+Marker ExportForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
+
+MarkerArray ExportForSeparateDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportSurfacesForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportSurfacesForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
+
+MarkerArray ExportSurfacesForSeparateDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportIndexMapForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const std::unordered_map<
+        common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
+    const ColorRGBA& surface_color);
+
+Marker ExportIndicesForDisplay(
+    const TaggedObjectOccupancyMap& occupancy_map,
+    const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
+        indices,
+    const ColorRGBA& surface_color);
+
+/// Convert TaggedObjectOccupancyMap to and from ROS messages.
+
+TaggedObjectOccupancyMapMessage GetMessageRepresentation(
+    const TaggedObjectOccupancyMap& map);
+
+TaggedObjectOccupancyMap LoadFromMessageRepresentation(
+    const TaggedObjectOccupancyMapMessage& message);
+
+/// Export TaggedObjectOccupancyComponentMap to RViz for display.
+
+Marker ExportForDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportForDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
+
+MarkerArray ExportForSeparateDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportSurfacesForDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportSurfacesForDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const std::map<uint32_t, ColorRGBA>& object_color_map
+        =std::map<uint32_t, ColorRGBA>());
+
+MarkerArray ExportSurfacesForSeparateDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
+    const ColorRGBA& collision_color,
+    const ColorRGBA& free_color,
+    const ColorRGBA& unknown_color);
+
+Marker ExportConnectedComponentsForDisplay(
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
     const bool color_unknown_components);
 
 Marker ExportSpatialSegmentForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
     const uint32_t object_id, const uint32_t spatial_segment);
 
 Marker ExportIndexMapForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const ColorRGBA& surface_color);
 
 Marker ExportIndicesForDisplay(
-    const TaggedObjectCollisionMap& collision_map,
+    const TaggedObjectOccupancyComponentMap& occupancy_map,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
     const ColorRGBA& surface_color);
 
-/// Convert TaggedObjectCollisionMap to and from ROS messages.
+/// Convert TaggedObjectOccupancyComponentMap to and from ROS messages.
 
-TaggedObjectCollisionMapMessage GetMessageRepresentation(
-    const TaggedObjectCollisionMap& map);
+TaggedObjectOccupancyComponentMapMessage GetMessageRepresentation(
+    const TaggedObjectOccupancyComponentMap& map);
 
-TaggedObjectCollisionMap LoadFromMessageRepresentation(
-    const TaggedObjectCollisionMapMessage& message);
+TaggedObjectOccupancyComponentMap LoadFromMessageRepresentation(
+    const TaggedObjectOccupancyComponentMapMessage& message);
 }  // namespace ros_interface
 VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

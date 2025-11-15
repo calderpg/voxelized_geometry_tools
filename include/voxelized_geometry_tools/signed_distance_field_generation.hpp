@@ -21,8 +21,7 @@ namespace signed_distance_field_generation
 {
 // To allow for faster development/improvements, the SignedDistanceField
 // generation API has no stability guarantees and lives in an internal
-// namespace. Use the stable API exposed by CollisionMap and
-// TaggedObjectCollisionMap instead.
+// namespace. Use the stable API exposed by occupancy map types instead.
 namespace internal
 {
 using common_robotics_utilities::voxel_grid::GridIndex;

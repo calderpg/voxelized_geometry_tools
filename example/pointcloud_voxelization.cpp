@@ -21,9 +21,9 @@
 #error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
 #endif
 
-#include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
@@ -109,7 +109,7 @@ void check_equal(const float v1, const float v2)
   }
 }
 
-void check_voxelization(const voxelized_geometry_tools::CollisionMap& occupancy)
+void check_voxelization(const voxelized_geometry_tools::OccupancyMap& occupancy)
 {
   // Make sure the grid is properly filled
   for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
@@ -168,10 +168,10 @@ void test_pointcloud_voxelization(
   // 1/4 meter resolution, so 8 cells/axis
   const double grid_resolution = 0.25;
   const double step_size_multiplier = 0.5;
-  const voxelized_geometry_tools::CollisionCell default_cell(0.0f);
+  const voxelized_geometry_tools::OccupancyCell default_cell(0.0f);
   const common_robotics_utilities::voxel_grid::GridSizes grid_size(
       grid_resolution, x_size, y_size, z_size);
-  voxelized_geometry_tools::CollisionMap static_environment(
+  voxelized_geometry_tools::OccupancyMap static_environment(
       X_WG, "world", grid_size, default_cell);
   // Set the bottom cells filled
   for (int64_t xidx = 0; xidx < static_environment.GetNumXCells(); xidx++)
@@ -179,7 +179,7 @@ void test_pointcloud_voxelization(
     for (int64_t yidx = 0; yidx < static_environment.GetNumYCells(); yidx++)
     {
       static_environment.SetIndex(
-          xidx, yidx, 0, voxelized_geometry_tools::CollisionCell(1.0f));
+          xidx, yidx, 0, voxelized_geometry_tools::OccupancyCell(1.0f));
     }
   }
   // Make some test pointclouds

@@ -1,4 +1,4 @@
-#include <voxelized_geometry_tools/tagged_object_collision_map.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
 
 #include <cmath>
 #include <cstdint>
@@ -21,8 +21,9 @@
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
-uint64_t TaggedObjectCollisionCell::Serialize(
-    const TaggedObjectCollisionCell& cell, std::vector<uint8_t>& buffer)
+uint64_t TaggedObjectOccupancyComponentCell::Serialize(
+    const TaggedObjectOccupancyComponentCell& cell,
+    std::vector<uint8_t>& buffer)
 {
   const uint64_t start_size = buffer.size();
   common_robotics_utilities::serialization::SerializeMemcpyable<float>(
@@ -37,8 +38,9 @@ uint64_t TaggedObjectCollisionCell::Serialize(
   return bytes_written;
 }
 
-TaggedObjectCollisionCell::DeserializedTaggedObjectCollisionCell
-TaggedObjectCollisionCell::Deserialize(
+TaggedObjectOccupancyComponentCell::
+    DeserializedTaggedObjectOccupancyComponentCell
+TaggedObjectOccupancyComponentCell::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
   uint64_t current_position = starting_offset;
@@ -58,7 +60,7 @@ TaggedObjectCollisionCell::Deserialize(
       = common_robotics_utilities::serialization
           ::DeserializeMemcpyable<uint32_t>(buffer, current_position);
   current_position += spatial_segment_deserialized.BytesRead();
-  const TaggedObjectCollisionCell cell(
+  const TaggedObjectOccupancyComponentCell cell(
       occupancy_deserialized.Value(), object_id_deserialized.Value(),
       component_deserialized.Value(), spatial_segment_deserialized.Value());
   // Figure out how many bytes were read
@@ -68,19 +70,19 @@ TaggedObjectCollisionCell::Deserialize(
 }
 
 /// We need to implement cloning.
-std::unique_ptr<common_robotics_utilities::voxel_grid
-    ::VoxelGridBase<TaggedObjectCollisionCell,
-                    std::vector<TaggedObjectCollisionCell>>>
-TaggedObjectCollisionMap::DoClone() const
+std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridBase
+    <TaggedObjectOccupancyComponentCell,
+     std::vector<TaggedObjectOccupancyComponentCell>>>
+TaggedObjectOccupancyComponentMap::DoClone() const
 {
-  return std::unique_ptr<TaggedObjectCollisionMap>(
-      new TaggedObjectCollisionMap(*this));
+  return std::unique_ptr<TaggedObjectOccupancyComponentMap>(
+      new TaggedObjectOccupancyComponentMap(*this));
 }
 
 /// We need to serialize the frame and locked flag.
-uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
+uint64_t TaggedObjectOccupancyComponentMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
-    const TaggedObjectCollisionCellSerializer& value_serializer) const
+    const TaggedObjectOccupancyComponentCellSerializer& value_serializer) const
 {
   CRU_UNUSED(value_serializer);
   const uint64_t start_size = buffer.size();
@@ -98,9 +100,9 @@ uint64_t TaggedObjectCollisionMap::DerivedSerializeSelf(
 }
 
 /// We need to deserialize the frame and locked flag.
-uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
+uint64_t TaggedObjectOccupancyComponentMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-    const TaggedObjectCollisionCellDeserializer& value_deserializer)
+    const TaggedObjectOccupancyComponentCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
   uint64_t current_position = starting_offset;
@@ -137,7 +139,7 @@ uint64_t TaggedObjectCollisionMap::DerivedDeserializeSelf(
 }
 
 /// Invalidate connected components and spatial segments on mutable access.
-bool TaggedObjectCollisionMap::OnMutableAccess(
+bool TaggedObjectOccupancyComponentMap::OnMutableAccess(
     const int64_t x_index, const int64_t y_index, const int64_t z_index)
 {
   CRU_UNUSED(x_index);
@@ -149,38 +151,38 @@ bool TaggedObjectCollisionMap::OnMutableAccess(
 }
 
 /// Invalidate connected components and spatial segments on mutable raw access.
-bool TaggedObjectCollisionMap::OnMutableRawAccess()
+bool TaggedObjectOccupancyComponentMap::OnMutableRawAccess()
 {
   components_valid_.store(false);
   spatial_segments_valid_.store(false);
   return true;
 }
 
-uint64_t TaggedObjectCollisionMap::Serialize(
-    const TaggedObjectCollisionMap& map, std::vector<uint8_t>& buffer)
+uint64_t TaggedObjectOccupancyComponentMap::Serialize(
+    const TaggedObjectOccupancyComponentMap& map, std::vector<uint8_t>& buffer)
 {
-  return map.SerializeSelf(buffer, TaggedObjectCollisionCell::Serialize);
+  return map.SerializeSelf(
+      buffer, TaggedObjectOccupancyComponentCell::Serialize);
 }
 
-TaggedObjectCollisionMap::DeserializedTaggedObjectCollisionMap
-TaggedObjectCollisionMap::Deserialize(
+TaggedObjectOccupancyComponentMap::DeserializedTaggedObjectOccupancyComponentMap
+TaggedObjectOccupancyComponentMap::Deserialize(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset)
 {
-  TaggedObjectCollisionMap temp_map;
-  const uint64_t bytes_read
-      = temp_map.DeserializeSelf(
-          buffer, starting_offset, TaggedObjectCollisionCell::Deserialize);
+  TaggedObjectOccupancyComponentMap temp_map;
+  const uint64_t bytes_read = temp_map.DeserializeSelf(
+      buffer, starting_offset, TaggedObjectOccupancyComponentCell::Deserialize);
   return common_robotics_utilities::serialization::MakeDeserialized(
       temp_map, bytes_read);
 }
 
-void TaggedObjectCollisionMap::SaveToFile(
-    const TaggedObjectCollisionMap& map,
+void TaggedObjectOccupancyComponentMap::SaveToFile(
+    const TaggedObjectOccupancyComponentMap& map,
     const std::string& filepath,
     const bool compress)
 {
   std::vector<uint8_t> buffer;
-  TaggedObjectCollisionMap::Serialize(map, buffer);
+  TaggedObjectOccupancyComponentMap::Serialize(map, buffer);
   std::ofstream output_file(filepath, std::ios::out|std::ios::binary);
   if (compress)
   {
@@ -203,8 +205,8 @@ void TaggedObjectCollisionMap::SaveToFile(
   output_file.close();
 }
 
-TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
-    const std::string& filepath)
+TaggedObjectOccupancyComponentMap
+TaggedObjectOccupancyComponentMap::LoadFromFile(const std::string& filepath)
 {
   std::ifstream input_file(
       filepath, std::ios::in | std::ios::binary | std::ios::ate);
@@ -236,11 +238,13 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
       const std::vector<uint8_t> decompressed
           = common_robotics_utilities::zlib_helpers
               ::DecompressBytes(file_buffer);
-      return TaggedObjectCollisionMap::Deserialize(decompressed, 0).Value();
+      return TaggedObjectOccupancyComponentMap::Deserialize(
+          decompressed, 0).Value();
     }
     else if (header_string == "TMGR")
     {
-      return TaggedObjectCollisionMap::Deserialize(file_buffer, 0).Value();
+      return TaggedObjectOccupancyComponentMap::Deserialize(
+          file_buffer, 0).Value();
     }
     else
     {
@@ -255,14 +259,14 @@ TaggedObjectCollisionMap TaggedObjectCollisionMap::LoadFromFile(
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::IsSurfaceIndex(
+TaggedObjectOccupancyComponentMap::IsSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::IsSurfaceIndex(
+TaggedObjectOccupancyComponentMap::IsSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -312,14 +316,14 @@ TaggedObjectCollisionMap::IsSurfaceIndex(
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
+TaggedObjectOccupancyComponentMap::IsConnectedComponentSurfaceIndex(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return IsConnectedComponentSurfaceIndex(index.X(), index.Y(), index.Z());
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
+TaggedObjectOccupancyComponentMap::IsConnectedComponentSurfaceIndex(
     const int64_t x_index, const int64_t y_index,
     const int64_t z_index) const
 {
@@ -381,35 +385,35 @@ TaggedObjectCollisionMap::IsConnectedComponentSurfaceIndex(
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::CheckIfCandidateCorner(
+TaggedObjectOccupancyComponentMap::CheckIfCandidateCorner(
     const double x, const double y, const double z) const
 {
   return CheckIfCandidateCorner4d(Eigen::Vector4d(x, y, z, 1.0));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::CheckIfCandidateCorner3d(
+TaggedObjectOccupancyComponentMap::CheckIfCandidateCorner3d(
     const Eigen::Vector3d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex3d(location));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::CheckIfCandidateCorner4d(
+TaggedObjectOccupancyComponentMap::CheckIfCandidateCorner4d(
     const Eigen::Vector4d& location) const
 {
   return CheckIfCandidateCorner(LocationToGridIndex4d(location));
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::CheckIfCandidateCorner(
+TaggedObjectOccupancyComponentMap::CheckIfCandidateCorner(
     const common_robotics_utilities::voxel_grid::GridIndex& index) const
 {
   return CheckIfCandidateCorner(index.X(), index.Y(), index.Z());
 }
 
 common_robotics_utilities::OwningMaybe<bool>
-TaggedObjectCollisionMap::CheckIfCandidateCorner(
+TaggedObjectOccupancyComponentMap::CheckIfCandidateCorner(
     const int64_t x_index, const int64_t y_index, const int64_t z_index) const
 {
   const auto current_cell = GetIndexImmutable(x_index, y_index, z_index);
@@ -477,7 +481,7 @@ TaggedObjectCollisionMap::CheckIfCandidateCorner(
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-TaggedObjectCollisionMap::ExtractComponentSurfaces(
+TaggedObjectOccupancyComponentMap::ExtractComponentSurfaces(
     const COMPONENT_TYPES component_types_to_extract) const
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
@@ -499,7 +503,7 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
       = [&] (const GridIndex& index)
   {
     const auto query = GetIndexImmutable(index);
-    const TaggedObjectCollisionCell& current_cell = query.Value();
+    const TaggedObjectOccupancyComponentCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_extract & FILLED_COMPONENTS) > 0x00)
@@ -538,27 +542,27 @@ TaggedObjectCollisionMap::ExtractComponentSurfaces(
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-TaggedObjectCollisionMap::ExtractFilledComponentSurfaces() const
+TaggedObjectOccupancyComponentMap::ExtractFilledComponentSurfaces() const
 {
   return ExtractComponentSurfaces(FILLED_COMPONENTS);
 }
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-TaggedObjectCollisionMap::ExtractUnknownComponentSurfaces() const
+TaggedObjectOccupancyComponentMap::ExtractUnknownComponentSurfaces() const
 {
   return ExtractComponentSurfaces(UNKNOWN_COMPONENTS);
 }
 
 std::map<uint32_t, std::unordered_map<
     common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
-TaggedObjectCollisionMap::ExtractEmptyComponentSurfaces() const
+TaggedObjectOccupancyComponentMap::ExtractEmptyComponentSurfaces() const
 {
   return ExtractComponentSurfaces(EMPTY_COMPONENTS);
 }
 
 topology_computation::TopologicalInvariants
-TaggedObjectCollisionMap::ComputeComponentTopology(
+TaggedObjectOccupancyComponentMap::ComputeComponentTopology(
     const COMPONENT_TYPES component_types_to_use,
     const bool connect_across_objects,
     const common_robotics_utilities::utility::LoggingFunction& logging_fn)
@@ -582,7 +586,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
       = [&] (const GridIndex& index)
   {
     const auto query = GetIndexImmutable(index);
-    const TaggedObjectCollisionCell& current_cell = query.Value();
+    const TaggedObjectOccupancyComponentCell& current_cell = query.Value();
     if (current_cell.Occupancy() > 0.5)
     {
       if ((component_types_to_use & FILLED_COMPONENTS) > 0x00)
@@ -620,7 +624,7 @@ TaggedObjectCollisionMap::ComputeComponentTopology(
 }
 
 SignedDistanceField<double>
-TaggedObjectCollisionMap::ExtractSignedDistanceFieldDouble(
+TaggedObjectOccupancyComponentMap::ExtractSignedDistanceFieldDouble(
     const std::vector<uint32_t>& objects_to_use,
     const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
@@ -628,7 +632,7 @@ TaggedObjectCollisionMap::ExtractSignedDistanceFieldDouble(
 }
 
 SignedDistanceField<float>
-TaggedObjectCollisionMap::ExtractSignedDistanceFieldFloat(
+TaggedObjectOccupancyComponentMap::ExtractSignedDistanceFieldFloat(
     const std::vector<uint32_t>& objects_to_use,
     const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
@@ -636,7 +640,7 @@ TaggedObjectCollisionMap::ExtractSignedDistanceFieldFloat(
 }
 
 std::map<uint32_t, SignedDistanceField<double>>
-TaggedObjectCollisionMap::MakeSeparateObjectSDFsDouble(
+TaggedObjectOccupancyComponentMap::MakeSeparateObjectSDFsDouble(
     const std::vector<uint32_t>& object_ids,
     const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
@@ -644,7 +648,7 @@ TaggedObjectCollisionMap::MakeSeparateObjectSDFsDouble(
 }
 
 std::map<uint32_t, SignedDistanceField<float>>
-TaggedObjectCollisionMap::MakeSeparateObjectSDFsFloat(
+TaggedObjectOccupancyComponentMap::MakeSeparateObjectSDFsFloat(
     const std::vector<uint32_t>& object_ids,
     const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
@@ -652,34 +656,36 @@ TaggedObjectCollisionMap::MakeSeparateObjectSDFsFloat(
 }
 
 std::map<uint32_t, SignedDistanceField<double>>
-TaggedObjectCollisionMap::MakeAllObjectSDFsDouble(
+TaggedObjectOccupancyComponentMap::MakeAllObjectSDFsDouble(
     const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
   return MakeAllObjectSDFs<double>(parameters);
 }
 
 std::map<uint32_t, SignedDistanceField<float>>
-TaggedObjectCollisionMap::MakeAllObjectSDFsFloat(
+TaggedObjectOccupancyComponentMap::MakeAllObjectSDFsFloat(
     const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
   return MakeAllObjectSDFs<float>(parameters);
 }
 
 SignedDistanceField<double>
-TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
+TaggedObjectOccupancyComponentMap::
+ExtractFreeAndNamedObjectsSignedDistanceFieldDouble(
     const SignedDistanceFieldGenerationParameters<double>& parameters) const
 {
   return ExtractFreeAndNamedObjectsSignedDistanceField<double>(parameters);
 }
 
 SignedDistanceField<float>
-TaggedObjectCollisionMap::ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
+TaggedObjectOccupancyComponentMap::
+ExtractFreeAndNamedObjectsSignedDistanceFieldFloat(
     const SignedDistanceFieldGenerationParameters<float>& parameters) const
 {
   return ExtractFreeAndNamedObjectsSignedDistanceField<float>(parameters);
 }
 
-uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
+uint32_t TaggedObjectOccupancyComponentMap::UpdateConnectedComponents(
     const bool connect_across_objects)
 {
   using common_robotics_utilities::voxel_grid::GridIndex;
@@ -765,7 +771,7 @@ uint32_t TaggedObjectCollisionMap::UpdateConnectedComponents(
   return number_of_components_;
 }
 
-uint32_t TaggedObjectCollisionMap::UpdateSpatialSegments(
+uint32_t TaggedObjectOccupancyComponentMap::UpdateSpatialSegments(
     const double connected_threshold,
     const SignedDistanceFieldGenerationParameters<float>& sdf_parameters)
 {

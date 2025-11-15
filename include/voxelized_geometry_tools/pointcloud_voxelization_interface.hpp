@@ -7,7 +7,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
@@ -241,13 +241,13 @@ public:
 
   virtual ~PointCloudVoxelizationInterface() {}
 
-  CollisionMap VoxelizePointClouds(
-      const CollisionMap& static_environment, const double step_size_multiplier,
+  OccupancyMap VoxelizePointClouds(
+      const OccupancyMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       const std::function<void(const VoxelizerRuntime&)>&
           runtime_log_fn = {}) const {
-    CollisionMap output_environment = static_environment;
+    OccupancyMap output_environment = static_environment;
     const auto voxelizer_runtime = VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, pointclouds,
         output_environment);
@@ -259,10 +259,10 @@ public:
   }
 
   VoxelizerRuntime VoxelizePointClouds(
-      const CollisionMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-      CollisionMap& output_environment) const {
+      OccupancyMap& output_environment) const {
     if (!static_environment.IsInitialized())
     {
       throw std::invalid_argument("!static_environment.IsInitialized()");
@@ -297,10 +297,10 @@ public:
 
 protected:
   virtual VoxelizerRuntime DoVoxelizePointClouds(
-      const CollisionMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment, const double step_size_multiplier,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-      CollisionMap& output_environment) const = 0;
+      OccupancyMap& output_environment) const = 0;
 
   PointCloudVoxelizationInterface() = default;
 };

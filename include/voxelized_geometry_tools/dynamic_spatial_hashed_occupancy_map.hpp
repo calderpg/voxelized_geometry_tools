@@ -9,21 +9,21 @@
 #include <common_robotics_utilities/serialization.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
 #include <common_robotics_utilities/dynamic_spatial_hashed_voxel_grid.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/vgt_namespace.hpp>
 
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
-class DynamicSpatialHashedCollisionMap final
+class DynamicSpatialHashedOccupancyMap final
     : public common_robotics_utilities::voxel_grid
         ::DynamicSpatialHashedVoxelGridBase<
-            CollisionCell, std::vector<CollisionCell>>
+            OccupancyCell, std::vector<OccupancyCell>>
 {
 private:
-  using DeserializedDynamicSpatialHashedCollisionMap
+  using DeserializedDynamicSpatialHashedOccupancyMap
       = common_robotics_utilities::serialization
-          ::Deserialized<DynamicSpatialHashedCollisionMap>;
+          ::Deserialized<DynamicSpatialHashedOccupancyMap>;
 
   std::string frame_;
 
@@ -32,18 +32,18 @@ private:
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
       ::DynamicSpatialHashedVoxelGridBase<
-          CollisionCell, std::vector<CollisionCell>>>
+          OccupancyCell, std::vector<OccupancyCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const CollisionCellSerializer& value_serializer) const override;
+      const OccupancyCellSerializer& value_serializer) const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const CollisionCellDeserializer& value_deserializer) override;
+      const OccupancyCellDeserializer& value_deserializer) override;
 
   bool OnMutableAccess(const Eigen::Vector4d& location) override;
 
@@ -51,25 +51,25 @@ private:
 
 public:
   static uint64_t Serialize(
-      const DynamicSpatialHashedCollisionMap& grid,
+      const DynamicSpatialHashedOccupancyMap& grid,
       std::vector<uint8_t>& buffer);
 
-  static DeserializedDynamicSpatialHashedCollisionMap Deserialize(
+  static DeserializedDynamicSpatialHashedOccupancyMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
-  static void SaveToFile(const DynamicSpatialHashedCollisionMap& map,
+  static void SaveToFile(const DynamicSpatialHashedOccupancyMap& map,
                          const std::string& filepath,
                          const bool compress);
 
-  static DynamicSpatialHashedCollisionMap LoadFromFile(
+  static DynamicSpatialHashedOccupancyMap LoadFromFile(
       const std::string& filepath);
 
-  DynamicSpatialHashedCollisionMap(
+  DynamicSpatialHashedOccupancyMap(
       const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
-      const CollisionCell& default_value, const size_t expected_chunks,
+      const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
-          CollisionCell, std::vector<CollisionCell>>(
+          OccupancyCell, std::vector<OccupancyCell>>(
               Eigen::Isometry3d::Identity(), chunk_sizes, default_value,
               expected_chunks),
         frame_(frame)
@@ -81,13 +81,13 @@ public:
     }
   }
 
-  DynamicSpatialHashedCollisionMap(
+  DynamicSpatialHashedOccupancyMap(
       const Eigen::Isometry3d& origin_transform,
       const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
-      const CollisionCell& default_value, const size_t expected_chunks,
+      const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
-          CollisionCell, std::vector<CollisionCell>>(
+          OccupancyCell, std::vector<OccupancyCell>>(
               origin_transform, chunk_sizes, default_value, expected_chunks),
         frame_(frame)
   {
@@ -98,9 +98,9 @@ public:
     }
   }
 
-  DynamicSpatialHashedCollisionMap()
+  DynamicSpatialHashedOccupancyMap()
       : DynamicSpatialHashedVoxelGridBase<
-          CollisionCell, std::vector<CollisionCell>>() {}
+          OccupancyCell, std::vector<OccupancyCell>>() {}
 
   double GetResolution() const { return GetCellSizes().x(); }
 

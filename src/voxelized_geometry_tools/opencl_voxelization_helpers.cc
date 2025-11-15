@@ -124,8 +124,7 @@ void kernel FilterGrids(
     const int outlier_points_threshold, const int num_cameras_seen_free)
 {
   const int voxel_index = get_global_id(0);
-  const int filter_grid_index = voxel_index * 2;
-  const float current_occupancy = filter_grid[filter_grid_index];
+  const float current_occupancy = filter_grid[voxel_index];
   if (current_occupancy <= 0.5f)
   {
     int cameras_seen_filled = 0;
@@ -134,7 +133,7 @@ void kernel FilterGrids(
     {
       const int tracking_grid_offset = num_cells * 2 * idx;
       const int tracking_grid_index =
-          tracking_grid_offset + filter_grid_index;
+          tracking_grid_offset + (voxel_index * 2);
       const int free_count = tracking_grid[tracking_grid_index];
       const int filled_count = tracking_grid[tracking_grid_index + 1];
       const int filtered_filled_count =
@@ -163,15 +162,15 @@ void kernel FilterGrids(
     }
     if (cameras_seen_filled > 0)
     {
-      filter_grid[filter_grid_index] = 1.0f;
+      filter_grid[voxel_index] = 1.0f;
     }
     else if (cameras_seen_free >= num_cameras_seen_free)
     {
-      filter_grid[filter_grid_index] = 0.0f;
+      filter_grid[voxel_index] = 0.0f;
     }
     else
     {
-      filter_grid[filter_grid_index] = 0.5f;
+      filter_grid[voxel_index] = 0.5f;
     }
   }
 }
@@ -506,7 +505,7 @@ public:
       const int64_t num_cells, const void* host_data_ptr) override
   {
     const size_t filter_grid_buffer_size =
-        sizeof(float) * static_cast<size_t>(num_cells) * 2;
+        sizeof(float) * static_cast<size_t>(num_cells);
     cl_int err = 0;
     std::unique_ptr<cl::Buffer> filter_grid_buffer(new cl::Buffer(
         *context_, CL_MEM_READ_WRITE | CL_MEM_COPY_HOST_PTR,
@@ -600,7 +599,7 @@ public:
           "RetrieveFilteredGrid finish failed: " + LogOpenCLError(err));
     }
 
-    const size_t item_size = sizeof(float) * 2;
+    const size_t item_size = sizeof(float);
     const size_t buffer_size =
         static_cast<size_t>(real_filter_grid.NumCells()) * item_size;
     err = queue_->enqueueReadBuffer(

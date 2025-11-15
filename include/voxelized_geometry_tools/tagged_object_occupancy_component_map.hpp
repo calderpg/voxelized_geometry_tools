@@ -27,12 +27,12 @@
 namespace voxelized_geometry_tools
 {
 VGT_NAMESPACE_BEGIN
-class TaggedObjectCollisionCell
+class TaggedObjectOccupancyComponentCell
 {
 private:
-  using DeserializedTaggedObjectCollisionCell
+  using DeserializedTaggedObjectOccupancyComponentCell
       = common_robotics_utilities::serialization
-          ::Deserialized<TaggedObjectCollisionCell>;
+          ::Deserialized<TaggedObjectOccupancyComponentCell>;
 
   common_robotics_utilities::utility
       ::CopyableMoveableAtomic<float, std::memory_order_relaxed>
@@ -49,24 +49,26 @@ private:
 
 public:
   static uint64_t Serialize(
-      const TaggedObjectCollisionCell& cell, std::vector<uint8_t>& buffer);
+      const TaggedObjectOccupancyComponentCell& cell,
+      std::vector<uint8_t>& buffer);
 
-  static DeserializedTaggedObjectCollisionCell Deserialize(
+  static DeserializedTaggedObjectOccupancyComponentCell Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
-  TaggedObjectCollisionCell()
+  TaggedObjectOccupancyComponentCell()
       : occupancy_(0.0f), object_id_(0u), component_(0u), spatial_segment_(0u)
   {}
 
-  TaggedObjectCollisionCell(const float occupancy)
+  explicit TaggedObjectOccupancyComponentCell(const float occupancy)
       : occupancy_(occupancy), object_id_(0u),
         component_(0u), spatial_segment_(0u) {}
 
-  TaggedObjectCollisionCell(const float occupancy, const uint32_t object_id)
+  TaggedObjectOccupancyComponentCell(
+      const float occupancy, const uint32_t object_id)
       : occupancy_(occupancy), object_id_(object_id),
         component_(0u), spatial_segment_(0u) {}
 
-  TaggedObjectCollisionCell(
+  TaggedObjectOccupancyComponentCell(
       const float occupancy, const uint32_t object_id,
       const uint32_t component, const uint32_t spatial_segment)
       : occupancy_(occupancy), object_id_(object_id),
@@ -93,27 +95,27 @@ public:
 };
 
 // Enforce that despite its members being std::atomics,
-// TaggedObjectCollisionCell has the same size as before.
+// TaggedObjectOccupancyComponentCell has the same size as before.
 static_assert(
-    sizeof(TaggedObjectCollisionCell) == (sizeof(float) * 4),
-    "TaggedObjectCollisionCell is larger than expected.");
+    sizeof(TaggedObjectOccupancyComponentCell) == (sizeof(float) * 4),
+    "TaggedObjectOccupancyComponentCell is larger than expected.");
 
-using TaggedObjectCollisionCellSerializer
+using TaggedObjectOccupancyComponentCellSerializer
     = common_robotics_utilities::serialization
-        ::Serializer<TaggedObjectCollisionCell>;
-using TaggedObjectCollisionCellDeserializer
+        ::Serializer<TaggedObjectOccupancyComponentCell>;
+using TaggedObjectOccupancyComponentCellDeserializer
     = common_robotics_utilities::serialization
-        ::Deserializer<TaggedObjectCollisionCell>;
+        ::Deserializer<TaggedObjectOccupancyComponentCell>;
 
-class TaggedObjectCollisionMap
+class TaggedObjectOccupancyComponentMap
     : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<TaggedObjectCollisionCell,
-                        std::vector<TaggedObjectCollisionCell>>
+        ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
+                        std::vector<TaggedObjectOccupancyComponentCell>>
 {
 private:
-  using DeserializedTaggedObjectCollisionMap
+  using DeserializedTaggedObjectOccupancyComponentMap
       = common_robotics_utilities::serialization
-          ::Deserialized<TaggedObjectCollisionMap>;
+          ::Deserialized<TaggedObjectOccupancyComponentMap>;
 
   uint32_t number_of_components_ = 0u;
   uint32_t number_of_spatial_segments_ = 0u;
@@ -127,20 +129,20 @@ private:
 
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<TaggedObjectCollisionCell,
-                      std::vector<TaggedObjectCollisionCell>>>
+      ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
+                      std::vector<TaggedObjectOccupancyComponentCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
-      const TaggedObjectCollisionCellSerializer& value_serializer)
+      const TaggedObjectOccupancyComponentCellSerializer& value_serializer)
       const override;
 
   /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
-      const TaggedObjectCollisionCellDeserializer& value_deserializer)
+      const TaggedObjectOccupancyComponentCellDeserializer& value_deserializer)
       override;
 
   /// Invalidate connected components and spatial segments on mutable access.
@@ -154,38 +156,41 @@ private:
 
 public:
   static uint64_t Serialize(
-      const TaggedObjectCollisionMap& map, std::vector<uint8_t>& buffer);
+      const TaggedObjectOccupancyComponentMap& map,
+      std::vector<uint8_t>& buffer);
 
-  static DeserializedTaggedObjectCollisionMap Deserialize(
+  static DeserializedTaggedObjectOccupancyComponentMap Deserialize(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset);
 
-  static void SaveToFile(const TaggedObjectCollisionMap& map,
+  static void SaveToFile(const TaggedObjectOccupancyComponentMap& map,
                          const std::string& filepath,
                          const bool compress);
 
-  static TaggedObjectCollisionMap LoadFromFile(const std::string& filepath);
+  static TaggedObjectOccupancyComponentMap LoadFromFile(
+      const std::string& filepath);
 
-  TaggedObjectCollisionMap(
+  TaggedObjectOccupancyComponentMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const TaggedObjectCollisionCell& default_value)
-      : TaggedObjectCollisionMap(
+      const TaggedObjectOccupancyComponentCell& default_value)
+      : TaggedObjectOccupancyComponentMap(
           origin_transform, frame, sizes, default_value, default_value) {}
 
-  TaggedObjectCollisionMap(
+  TaggedObjectOccupancyComponentMap(
       const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const TaggedObjectCollisionCell& default_value)
-      : TaggedObjectCollisionMap(frame, sizes, default_value, default_value) {}
+      const TaggedObjectOccupancyComponentCell& default_value)
+      : TaggedObjectOccupancyComponentMap(
+          frame, sizes, default_value, default_value) {}
 
-  TaggedObjectCollisionMap(
+  TaggedObjectOccupancyComponentMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const TaggedObjectCollisionCell& default_value,
-      const TaggedObjectCollisionCell& oob_value)
+      const TaggedObjectOccupancyComponentCell& default_value,
+      const TaggedObjectOccupancyComponentCell& oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectCollisionCell,
-                          std::vector<TaggedObjectCollisionCell>>(
+          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
+                          std::vector<TaggedObjectOccupancyComponentCell>>(
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -196,14 +201,14 @@ public:
     }
   }
 
-  TaggedObjectCollisionMap(
+  TaggedObjectOccupancyComponentMap(
       const std::string& frame,
       const common_robotics_utilities::voxel_grid::GridSizes& sizes,
-      const TaggedObjectCollisionCell& default_value,
-      const TaggedObjectCollisionCell& oob_value)
+      const TaggedObjectOccupancyComponentCell& default_value,
+      const TaggedObjectOccupancyComponentCell& oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectCollisionCell,
-                          std::vector<TaggedObjectCollisionCell>>(
+          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
+                          std::vector<TaggedObjectOccupancyComponentCell>>(
               sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -214,10 +219,10 @@ public:
     }
   }
 
-  TaggedObjectCollisionMap()
+  TaggedObjectOccupancyComponentMap()
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectCollisionCell,
-                          std::vector<TaggedObjectCollisionCell>>() {}
+          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
+                          std::vector<TaggedObjectOccupancyComponentCell>>() {}
 
   bool AreComponentsValid() const { return components_valid_.load(); }
 
@@ -396,7 +401,8 @@ public:
     };
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
+            <TaggedObjectOccupancyComponentCell,
+             std::vector<TaggedObjectOccupancyComponentCell>,
              ScalarType>(*this, is_filled_fn, GetFrame(), parameters);
   }
 
@@ -428,7 +434,7 @@ public:
         for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
         {
           const auto query = GetIndexImmutable(x_index, y_index, z_index);
-          const TaggedObjectCollisionCell& cell = query.Value();
+          const TaggedObjectOccupancyComponentCell& cell = query.Value();
           const uint32_t cell_object_id = cell.ObjectId();
           if (cell_object_id > 0)
           {
@@ -468,7 +474,8 @@ public:
     };
     const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
+            <TaggedObjectOccupancyComponentCell,
+             std::vector<TaggedObjectOccupancyComponentCell>,
              ScalarType>(*this, free_sdf_filled_fn, GetFrame(), parameters);
 
     // Make the helper function
@@ -494,7 +501,8 @@ public:
     };
     const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectCollisionCell, std::vector<TaggedObjectCollisionCell>,
+            <TaggedObjectOccupancyComponentCell,
+             std::vector<TaggedObjectOccupancyComponentCell>,
              ScalarType>(*this, object_filled_fn, GetFrame(), parameters);
 
     SignedDistanceField<ScalarType> combined_sdf = free_sdf;

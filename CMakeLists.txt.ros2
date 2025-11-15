@@ -28,10 +28,12 @@ find_package(drake QUIET)
 
 rosidl_generate_interfaces(
   ${PROJECT_NAME}_interfaces
-  msg/CollisionMapMessage.msg
-  msg/DynamicSpatialHashedCollisionMapMessage.msg
+  msg/DynamicSpatialHashedOccupancyMapMessage.msg
+  msg/OccupancyComponentMapMessage.msg
+  msg/OccupancyMapMessage.msg
   msg/SignedDistanceFieldMessage.msg
-  msg/TaggedObjectCollisionMapMessage.msg
+  msg/TaggedObjectOccupancyComponentMapMessage.msg
+  msg/TaggedObjectOccupancyMapMessage.msg
   DEPENDENCIES std_msgs
 )
 
@@ -81,19 +83,25 @@ set(CMAKE_SHARED_LINKER_FLAGS
 
 # Voxelized geometry tools library
 add_library(${PROJECT_NAME}
-            include/${PROJECT_NAME}/collision_map.hpp
-            include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
+            include/${PROJECT_NAME}/dynamic_spatial_hashed_occupancy_map.hpp
             include/${PROJECT_NAME}/mesh_rasterizer.hpp
+            include/${PROJECT_NAME}/occupancy_component_map.hpp
+            include/${PROJECT_NAME}/occupancy_map.hpp
+            include/${PROJECT_NAME}/occupancy_map_conversions.hpp
             include/${PROJECT_NAME}/signed_distance_field.hpp
             include/${PROJECT_NAME}/signed_distance_field_generation.hpp
-            include/${PROJECT_NAME}/tagged_object_collision_map.hpp
+            include/${PROJECT_NAME}/tagged_object_occupancy_component_map.hpp
+            include/${PROJECT_NAME}/tagged_object_occupancy_map.hpp
             include/${PROJECT_NAME}/topology_computation.hpp
-            src/${PROJECT_NAME}/collision_map.cpp
+            src/${PROJECT_NAME}/dynamic_spatial_hashed_occupancy_map.cpp
             src/${PROJECT_NAME}/mesh_rasterizer.cpp
-            src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
+            src/${PROJECT_NAME}/occupancy_component_map.cpp
+            src/${PROJECT_NAME}/occupancy_map.cpp
+            src/${PROJECT_NAME}/occupancy_map_conversions.cpp
             src/${PROJECT_NAME}/signed_distance_field.cpp
             src/${PROJECT_NAME}/signed_distance_field_generation.cpp
-            src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
+            src/${PROJECT_NAME}/tagged_object_occupancy_component_map.cpp
+            src/${PROJECT_NAME}/tagged_object_occupancy_map.cpp)
 ament_target_dependencies(${PROJECT_NAME} common_robotics_utilities)
 
 # Cuda voxelization helpers library
@@ -222,13 +230,17 @@ if(BUILD_TESTING)
     # Tests
     find_package(ament_cmake_gtest REQUIRED)
 
+    ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
+    target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
+
+    ament_add_gtest(occupancy_map_conversions_test
+        test/occupancy_map_conversions_test.cpp)
+    target_link_libraries(occupancy_map_conversions_test ${PROJECT_NAME})
+
     ament_add_gtest(pointcloud_voxelization_test
         test/pointcloud_voxelization_test.cpp)
     target_link_libraries(pointcloud_voxelization_test
         ${PROJECT_NAME}_pointcloud_voxelization)
-
-    ament_add_gtest(mesh_rasterization_test test/mesh_rasterization_test.cpp)
-    target_link_libraries(mesh_rasterization_test ${PROJECT_NAME})
 
     ament_add_gtest(sdf_generation_test test/sdf_generation_test.cpp)
     target_link_libraries(sdf_generation_test ${PROJECT_NAME})

@@ -39,7 +39,7 @@ bool CheckCellsEquivalent(
     const OccupancyComponentCell& to_cell)
 {
   return (from_cell.Occupancy() == to_cell.Occupancy()) &&
-         (from_cell.Component() == from_cell.Component());
+         (from_cell.Component() == to_cell.Component());
 }
 
 bool CheckCellsEquivalent(

@@ -1,6 +1,6 @@
 #include <common_robotics_utilities/print.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
+#include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
@@ -48,12 +48,15 @@ void test_spatial_segments(
           Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitZ()));
   const common_robotics_utilities::voxel_grid::GridSizes grid_sizes(
       res, x_size, y_size, z_size);
-  const voxelized_geometry_tools::TaggedObjectCollisionCell empty_cell(0.0, 0u);
-  voxelized_geometry_tools::TaggedObjectCollisionMap tocmap(
+  const voxelized_geometry_tools::TaggedObjectOccupancyComponentCell empty_cell(
+      0.0f, 0u);
+  voxelized_geometry_tools::TaggedObjectOccupancyComponentMap tocmap(
       origin_transform, "world", grid_sizes, empty_cell);
 
-  const voxelized_geometry_tools::TaggedObjectCollisionCell filled_1(1.0, 1u);
-  const voxelized_geometry_tools::TaggedObjectCollisionCell filled_2(1.0, 2u);
+  const voxelized_geometry_tools::TaggedObjectOccupancyComponentCell filled_1(
+      1.0f, 1u);
+  const voxelized_geometry_tools::TaggedObjectOccupancyComponentCell filled_2(
+      1.0f, 2u);
 
   for (int64_t x_idx = 0; x_idx < tocmap.GetNumXCells(); x_idx++)
   {

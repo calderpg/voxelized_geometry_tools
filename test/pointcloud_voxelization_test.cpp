@@ -10,7 +10,7 @@
 #include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/openmp_helpers.hpp>
 #include <gtest/gtest.h>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/pointcloud_voxelization.hpp>
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
@@ -76,7 +76,7 @@ private:
   Eigen::Isometry3d origin_transform_ = Eigen::Isometry3d::Identity();
 };
 
-void check_empty_voxelization(const CollisionMap& occupancy)
+void check_empty_voxelization(const OccupancyMap& occupancy)
 {
   // Make sure the grid is properly filled
   for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
@@ -105,7 +105,7 @@ void check_empty_voxelization(const CollisionMap& occupancy)
   }
 }
 
-void check_voxelization(const CollisionMap& occupancy)
+void check_voxelization(const OccupancyMap& occupancy)
 {
   // Make sure the grid is properly filled
   for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
@@ -166,12 +166,12 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
   // 1/4 meter resolution, so 8 cells/axis
   const double grid_resolution = 0.25;
   const double step_size_multiplier = 0.5;
-  const CollisionCell empty_cell(0.0f);
-  const CollisionCell filled_cell(1.0f);
+  const OccupancyCell empty_cell(0.0f);
+  const OccupancyCell filled_cell(1.0f);
 
   const common_robotics_utilities::voxel_grid::GridSizes grid_size(
       grid_resolution, x_size, y_size, z_size);
-  CollisionMap static_environment(X_WG, "world", grid_size, empty_cell);
+  OccupancyMap static_environment(X_WG, "world", grid_size, empty_cell);
 
   // Set the bottom cells filled
   for (int64_t xidx = 0; xidx < static_environment.GetNumXCells(); xidx++)
@@ -332,4 +332,3 @@ int main(int argc, char** argv)
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
-

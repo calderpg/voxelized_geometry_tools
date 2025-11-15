@@ -26,10 +26,12 @@ find_package(drake QUIET)
 ## Generate messages in the 'msg' folder
 add_message_files(DIRECTORY msg
                   FILES
-                  CollisionMapMessage.msg
-                  DynamicSpatialHashedCollisionMapMessage.msg
+                  DynamicSpatialHashedOccupancyMapMessage.msg
+                  OccupancyComponentMapMessage.msg
+                  OccupancyMapMessage.msg
                   SignedDistanceFieldMessage.msg
-                  TaggedObjectCollisionMapMessage.msg)
+                  TaggedObjectOccupancyComponentMapMessage.msg
+                  TaggedObjectOccupancyMapMessage.msg)
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(DEPENDENCIES geometry_msgs std_msgs)
@@ -107,19 +109,23 @@ set(CMAKE_SHARED_LINKER_FLAGS
 
 # Voxelized geometry tools library
 add_library(${PROJECT_NAME}
-            include/${PROJECT_NAME}/collision_map.hpp
-            include/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.hpp
+            include/${PROJECT_NAME}/dynamic_spatial_hashed_occupancy_map.hpp
             include/${PROJECT_NAME}/mesh_rasterizer.hpp
+            include/${PROJECT_NAME}/occupancy_component_map.hpp
+            include/${PROJECT_NAME}/occupancy_map.hpp
             include/${PROJECT_NAME}/signed_distance_field.hpp
             include/${PROJECT_NAME}/signed_distance_field_generation.hpp
-            include/${PROJECT_NAME}/tagged_object_collision_map.hpp
+            include/${PROJECT_NAME}/tagged_object_occupancy_component_map.hpp
+            include/${PROJECT_NAME}/tagged_object_occupancy_map.hpp
             include/${PROJECT_NAME}/topology_computation.hpp
-            src/${PROJECT_NAME}/collision_map.cpp
+            src/${PROJECT_NAME}/dynamic_spatial_hashed_occupancy_map.cpp
             src/${PROJECT_NAME}/mesh_rasterizer.cpp
-            src/${PROJECT_NAME}/dynamic_spatial_hashed_collision_map.cpp
+            src/${PROJECT_NAME}/occupancy_component_map.cpp
+            src/${PROJECT_NAME}/occupancy_map.cpp
             src/${PROJECT_NAME}/signed_distance_field.cpp
             src/${PROJECT_NAME}/signed_distance_field_generation.cpp
-            src/${PROJECT_NAME}/tagged_object_collision_map.cpp)
+            src/${PROJECT_NAME}/tagged_object_occupancy_component_map.cpp
+            src/${PROJECT_NAME}/tagged_object_occupancy_map.cpp)
 add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 

@@ -148,7 +148,7 @@ void FilterGrids(
   const int32_t voxel_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (voxel_index < num_cells)
   {
-    const float current_occupancy = device_filter_grid_ptr[voxel_index * 2];
+    const float current_occupancy = device_filter_grid_ptr[voxel_index];
     // Filled cells stay filled, we don't work with them.
     // We only change cells that are unknown or empty.
     if (current_occupancy <= 0.5)
@@ -190,17 +190,17 @@ void FilterGrids(
       if (cameras_seen_filled > 0)
       {
         // If any camera saw something here, it is filled.
-        device_filter_grid_ptr[voxel_index * 2] = 1.0;
+        device_filter_grid_ptr[voxel_index] = 1.0;
       }
       else if (cameras_seen_free >= num_cameras_seen_free)
       {
         // Did enough cameras see this empty?
-        device_filter_grid_ptr[voxel_index * 2] = 0.0;
+        device_filter_grid_ptr[voxel_index] = 0.0;
       }
       else
       {
         // Otherwise, it is unknown.
-        device_filter_grid_ptr[voxel_index * 2] = 0.5;
+        device_filter_grid_ptr[voxel_index] = 0.5;
       }
     }
   }
@@ -479,7 +479,7 @@ public:
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(
        const int64_t num_cells, const void* host_data_ptr) override
   {
-    const size_t filter_grid_elements = 2 * static_cast<size_t>(num_cells);
+    const size_t filter_grid_elements = static_cast<size_t>(num_cells);
 
     return std::unique_ptr<FilterGridHandle>(new CudaFilterGridHandle(
         CudaBuffer<float>(filter_grid_elements, host_data_ptr), num_cells));
@@ -541,7 +541,7 @@ public:
     CudaCheckErrors(
         cudaDeviceSynchronize(),
         "RetrieveFilteredGrid failed to synchronize");
-    const size_t item_size = sizeof(float) * 2;
+    const size_t item_size = sizeof(float);
     const size_t buffer_size = real_filter_grid.NumCells() * item_size;
     CudaCheckErrors(
         cudaMemcpy(

@@ -10,8 +10,8 @@
 
 #include <Eigen/Geometry>
 #include <common_robotics_utilities/utility.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
 #include <voxelized_geometry_tools/cuda_voxelization_helpers.h>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 #include <voxelized_geometry_tools/opencl_voxelization_helpers.h>
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
@@ -63,10 +63,10 @@ DevicePointCloudVoxelizer::DevicePointCloudVoxelizer(
 }
 
 VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
-    const CollisionMap& static_environment, const double step_size_multiplier,
+    const OccupancyMap& static_environment, const double step_size_multiplier,
     const PointCloudVoxelizationFilterOptions& filter_options,
     const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
-    CollisionMap& output_environment) const
+    OccupancyMap& output_environment) const
 {
   EnforceAvailable();
 

@@ -9,7 +9,8 @@
 #include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/parallelism.hpp>
 #include <common_robotics_utilities/voxel_grid.hpp>
-#include <voxelized_geometry_tools/collision_map.hpp>
+#include <voxelized_geometry_tools/occupancy_component_map.hpp>
+#include <voxelized_geometry_tools/occupancy_map.hpp>
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::parallelism::ParallelForBackend;
@@ -99,21 +100,21 @@ Eigen::Vector3d CalcClosestPointOnTriangle(
 
   return p_MQclosest;
 }
-}  // namespace
 
-void RasterizeTriangle(
+template<typename OccupancyMapType>
+void RasterizeTriangleImpl(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     const size_t triangle_index,
-    voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_triangle)
+    OccupancyMapType& occupancy_map,
+    const bool enforce_occupancy_map_contains_triangle)
 {
-  if (!collision_map.IsInitialized())
+  if (!occupancy_map.IsInitialized())
   {
-    throw std::invalid_argument("collision_map must be initialized");
+    throw std::invalid_argument("occupancy_map must be initialized");
   }
 
-  const double min_check_radius = collision_map.GetResolution() * 0.5;
+  const double min_check_radius = occupancy_map.GetResolution() * 0.5;
   const double max_check_radius = min_check_radius * std::sqrt(3.0);
   const double max_check_radius_squared = std::pow(max_check_radius, 2.0);
 
@@ -138,9 +139,9 @@ void RasterizeTriangle(
   const double z_max = std::max({p_Mv1.z(), p_Mv2.z(), p_Mv3.z()});
 
   const auto min_index =
-      collision_map.LocationToGridIndex(x_min, y_min, z_min);
+      occupancy_map.LocationToGridIndex(x_min, y_min, z_min);
   const auto max_index =
-      collision_map.LocationToGridIndex(x_max, y_max, z_max);
+      occupancy_map.LocationToGridIndex(x_max, y_max, z_max);
 
   for (int64_t x_index = min_index.X(); x_index <= max_index.X();
        x_index++)
@@ -153,8 +154,9 @@ void RasterizeTriangle(
       {
         const common_robotics_utilities::voxel_grid::GridIndex
             current_index(x_index, y_index, z_index);
-        const Eigen::Vector3d p_MQ =
-            collision_map.GridIndexToLocation(current_index).head<3>();
+        const Eigen::Vector4d current_index_location =
+            occupancy_map.GridIndexToLocation(current_index);
+        const Eigen::Vector3d p_MQ = current_index_location.head<3>();
 
         const Eigen::Vector3d p_MQclosest =
             CalcClosestPointOnTriangle(p_Mv1, p_Mv2, p_Mv3, normal, p_MQ);
@@ -170,7 +172,7 @@ void RasterizeTriangle(
         /// else if distance_squared < min_check_radius_squared:
         ///   triangle_intersects = true
         /// else:
-        ///   check_index = collision_map.LocationToGridIndex3d(p_MQclosest)
+        ///   check_index = occupancy_map.LocationToGridIndex3d(p_MQclosest)
         ///   if check_index == current_index:
         ///     triangle_intersects = true;
         ///   else:
@@ -182,15 +184,15 @@ void RasterizeTriangle(
 
         if (triangle_intersects)
         {
-          auto query = collision_map.GetIndexMutable(current_index);
+          auto query = occupancy_map.GetIndexMutable(current_index);
           if (query)
           {
             query.Value().SetOccupancy(1.0f);
           }
-          else if (enforce_collision_map_contains_triangle)
+          else if (enforce_occupancy_map_contains_triangle)
           {
             throw std::runtime_error(
-                "Triangle is not contained by collision map");
+                "Triangle is not contained by occupancy map");
           }
         }
       }
@@ -198,25 +200,25 @@ void RasterizeTriangle(
   }
 }
 
-void RasterizeMesh(
+template<typename OccupancyMapType>
+void RasterizeMeshImpl(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
-    voxelized_geometry_tools::CollisionMap& collision_map,
-    const bool enforce_collision_map_contains_mesh,
+    OccupancyMapType& occupancy_map,
+    const bool enforce_occupancy_map_contains_mesh,
     const DegreeOfParallelism& parallelism)
 {
-  if (!collision_map.IsInitialized())
+  if (!occupancy_map.IsInitialized())
   {
-    throw std::invalid_argument("collision_map must be initialized");
+    throw std::invalid_argument("occupancy_map must be initialized");
   }
-
 
   // Helper lambda for each item's work
   const auto per_item_work = [&](const int32_t, const int64_t triangle_index)
   {
-    RasterizeTriangle(
-        vertices, triangles, static_cast<size_t>(triangle_index), collision_map,
-        enforce_collision_map_contains_mesh);
+    RasterizeTriangleImpl<OccupancyMapType>(
+        vertices, triangles, static_cast<size_t>(triangle_index), occupancy_map,
+        enforce_occupancy_map_contains_mesh);
   };
 
   // Raycast all points in the pointcloud. Use OpenMP if available, if not fall
@@ -226,7 +228,8 @@ void RasterizeMesh(
       ParallelForBackend::BEST_AVAILABLE);
 }
 
-voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
+template<typename OccupancyMapType, typename OccupancyCellType>
+OccupancyMapType RasterizeMeshIntoOccupancyMapImpl(
     const std::vector<Eigen::Vector3d>& vertices,
     const std::vector<Eigen::Vector3i>& triangles,
     const double resolution,
@@ -261,15 +264,83 @@ voxelized_geometry_tools::CollisionMap RasterizeMeshIntoCollisionMap(
       lower_corner.y() - resolution,
       lower_corner.z() - resolution));
 
-  const voxelized_geometry_tools::CollisionCell empty_cell(0.0f);
-  voxelized_geometry_tools::CollisionMap collision_map(
-      X_OG, "mesh", filter_grid_sizes, empty_cell);
+  const OccupancyCellType empty_cell(0.0f);
+  OccupancyMapType occupancy_map(X_OG, "mesh", filter_grid_sizes, empty_cell);
 
-  RasterizeMesh(vertices, triangles, collision_map, true, parallelism);
+  RasterizeMesh(vertices, triangles, occupancy_map, true, parallelism);
 
-  return collision_map;
+  return occupancy_map;
+}
+}  // namespace
+
+void RasterizeTriangle(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    const size_t triangle_index,
+    OccupancyMap& occupancy_map,
+    const bool enforce_occupancy_map_contains_triangle)
+{
+  RasterizeTriangleImpl<OccupancyMap>(
+      vertices, triangles, triangle_index, occupancy_map,
+      enforce_occupancy_map_contains_triangle);
+}
+
+void RasterizeTriangle(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    const size_t triangle_index,
+    OccupancyComponentMap& occupancy_map,
+    const bool enforce_occupancy_map_contains_triangle)
+{
+  RasterizeTriangleImpl<OccupancyComponentMap>(
+      vertices, triangles, triangle_index, occupancy_map,
+      enforce_occupancy_map_contains_triangle);
+}
+
+void RasterizeMesh(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    OccupancyMap& occupancy_map,
+    const bool enforce_occupancy_map_contains_mesh,
+    const DegreeOfParallelism& parallelism)
+{
+  RasterizeMeshImpl<OccupancyMap>(
+      vertices, triangles, occupancy_map, enforce_occupancy_map_contains_mesh,
+      parallelism);
+}
+
+void RasterizeMesh(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    OccupancyComponentMap& occupancy_map,
+    const bool enforce_occupancy_map_contains_mesh,
+    const DegreeOfParallelism& parallelism)
+{
+  RasterizeMeshImpl<OccupancyComponentMap>(
+      vertices, triangles, occupancy_map, enforce_occupancy_map_contains_mesh,
+      parallelism);
+}
+
+OccupancyMap RasterizeMeshIntoOccupancyMap(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    const double resolution,
+    const DegreeOfParallelism& parallelism)
+{
+  return RasterizeMeshIntoOccupancyMapImpl<OccupancyMap, OccupancyCell>(
+      vertices, triangles, resolution, parallelism);
+}
+
+OccupancyComponentMap RasterizeMeshIntoOccupancyComponentMap(
+    const std::vector<Eigen::Vector3d>& vertices,
+    const std::vector<Eigen::Vector3i>& triangles,
+    const double resolution,
+    const DegreeOfParallelism& parallelism)
+{
+  return RasterizeMeshIntoOccupancyMapImpl
+      <OccupancyComponentMap, OccupancyComponentCell>(
+          vertices, triangles, resolution, parallelism);
 }
 }  // namespace mesh_rasterizer
 VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools
-

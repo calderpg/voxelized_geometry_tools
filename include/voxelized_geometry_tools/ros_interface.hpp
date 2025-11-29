@@ -115,15 +115,15 @@ inline Marker ExportVoxelGridToRViz(
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
-          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
+          ::EigenIsometry3dToGeometryPose(voxel_grid.OriginTransform());
   display_rep.scale
       = common_robotics_utilities::ros_conversions
-          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
-  for (int64_t x_index = 0; x_index < voxel_grid.GetNumXCells(); x_index++)
+          ::EigenVector3dToGeometryVector3(voxel_grid.VoxelSizes());
+  for (int64_t x_index = 0; x_index < voxel_grid.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < voxel_grid.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < voxel_grid.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < voxel_grid.GetNumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < voxel_grid.NumZVoxels(); z_index++)
       {
         const auto cell_value
             = voxel_grid.GetIndexImmutable(x_index, y_index, z_index).Value();
@@ -175,10 +175,10 @@ inline Marker ExportVoxelGridIndexMapToRViz(
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
-          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
+          ::EigenIsometry3dToGeometryPose(voxel_grid.OriginTransform());
   display_rep.scale
       = common_robotics_utilities::ros_conversions
-          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
+          ::EigenVector3dToGeometryVector3(voxel_grid.VoxelSizes());
   for (auto surface_itr = index_map.begin(); surface_itr != index_map.end();
        ++surface_itr)
   {
@@ -232,10 +232,10 @@ inline Marker ExportVoxelGridIndicesToRViz(
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
-          ::EigenIsometry3dToGeometryPose(voxel_grid.GetOriginTransform());
+          ::EigenIsometry3dToGeometryPose(voxel_grid.OriginTransform());
   display_rep.scale
       = common_robotics_utilities::ros_conversions
-          ::EigenVector3dToGeometryVector3(voxel_grid.GetCellSizes());
+          ::EigenVector3dToGeometryVector3(voxel_grid.VoxelSizes());
   for (const GridIndex& index : indices)
   {
     const auto cell_value = voxel_grid.GetIndexImmutable(index).Value();
@@ -256,116 +256,75 @@ inline Marker ExportVoxelGridIndicesToRViz(
 }
 
 template<typename T, typename BackingStore=std::vector<T>>
-inline std::pair<Marker, Marker>
-ExportDynamicSpatialHashedVoxelGridToRViz(
+inline Marker ExportDynamicSpatialHashedVoxelGridToRViz(
     const common_robotics_utilities::voxel_grid
         ::DynamicSpatialHashedVoxelGridBase<T, BackingStore>& dsh_voxel_grid,
     const std::string& frame,
     const std::function<ColorRGBA(
-        const T&, const Eigen::Vector4d&)>& chunk_color_fn,
-    const std::function<ColorRGBA(
-        const T&, const Eigen::Vector4d&)>& cell_color_fn)
+        const T&, const common_robotics_utilities
+                      ::voxel_grid::GridIndex&)>& voxel_color_fn)
 {
+  using common_robotics_utilities::voxel_grid::ChunkIndex;
   using common_robotics_utilities::voxel_grid::GridIndex;
-  using common_robotics_utilities::voxel_grid::DSHVGFillStatus;
-  Marker chunks_display_rep;
+
+  Marker display_rep;
   // Populate the header
-  chunks_display_rep.header.frame_id = frame;
+  display_rep.header.frame_id = frame;
   // Populate the options
-  chunks_display_rep.ns = "";
-  chunks_display_rep.id = 0;
-  chunks_display_rep.type = Marker::CUBE_LIST;
-  chunks_display_rep.action = Marker::ADD;
+  display_rep.ns = "";
+  display_rep.id = 0;
+  display_rep.type = Marker::CUBE_LIST;
+  display_rep.action = Marker::ADD;
 #if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
-  chunks_display_rep.lifetime = rclcpp::Duration(0, 0);
+  display_rep.lifetime = rclcpp::Duration(0, 0);
 #elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  chunks_display_rep.lifetime = ros::Duration(0.0);
+  display_rep.lifetime = ros::Duration(0.0);
 #endif
-  chunks_display_rep.frame_locked = false;
-  chunks_display_rep.pose
+  display_rep.frame_locked = false;
+  display_rep.pose
       = common_robotics_utilities::ros_conversions
-          ::EigenIsometry3dToGeometryPose(dsh_voxel_grid.GetOriginTransform());
-  chunks_display_rep.scale
+          ::EigenIsometry3dToGeometryPose(dsh_voxel_grid.OriginTransform());
+  display_rep.scale
       = common_robotics_utilities::ros_conversions
-          ::EigenVector3dToGeometryVector3(dsh_voxel_grid.GetChunkSizes());
-  Marker cells_display_rep;
-  // Populate the header
-  cells_display_rep.header.frame_id = frame;
-  // Populate the options
-  cells_display_rep.ns = "";
-  cells_display_rep.id = 0;
-  cells_display_rep.type = Marker::CUBE_LIST;
-  cells_display_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
-  cells_display_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  cells_display_rep.lifetime = ros::Duration(0.0);
-#endif
-  cells_display_rep.frame_locked = false;
-  cells_display_rep.pose
-      = common_robotics_utilities::ros_conversions
-          ::EigenIsometry3dToGeometryPose(dsh_voxel_grid.GetOriginTransform());
-  cells_display_rep.scale
-      = common_robotics_utilities::ros_conversions
-          ::EigenVector3dToGeometryVector3(dsh_voxel_grid.GetCellSizes());
+          ::EigenVector3dToGeometryVector3(dsh_voxel_grid.VoxelSizes());
   // Go through the chunks in the DSH voxel grid
-  const common_robotics_utilities::voxel_grid::GridSizes& chunk_grid_sizes
-      = dsh_voxel_grid.GetChunkGridSizes();
-  const auto& internal_chunks = dsh_voxel_grid.GetImmutableInternalChunks();
-  for (auto internal_chunks_itr = internal_chunks.begin();
-       internal_chunks_itr != internal_chunks.end();
+  const auto& chunk_voxel_counts = dsh_voxel_grid.ChunkVoxelCounts();
+  const auto& internal_chunk_keeper =
+      dsh_voxel_grid.GetImmutableInternalChunkKeeper();
+  for (auto internal_chunks_itr = internal_chunk_keeper.begin();
+       internal_chunks_itr != internal_chunk_keeper.end();
        ++internal_chunks_itr)
   {
+    const auto& chunk_base = internal_chunks_itr->first;
     const auto& current_chunk = internal_chunks_itr->second;
-    const DSHVGFillStatus current_chunk_fill = current_chunk.FillStatus();
-    if (current_chunk_fill == DSHVGFillStatus::CHUNK_FILLED)
+    for (int64_t x_index = 0; x_index < chunk_voxel_counts.x(); x_index++)
     {
-      const Eigen::Vector4d chunk_center
-          = current_chunk.GetChunkCenterInGridFrame();
-      const ColorRGBA chunk_color = chunk_color_fn(
-          current_chunk.GetLocationImmutable4d(chunk_center).Value(),
-          chunk_center);
-      if (chunk_color.a > 0.0f)
+      for (int64_t y_index = 0; y_index < chunk_voxel_counts.y(); y_index++)
       {
-        const Point chunk_center_point
-            = common_robotics_utilities::ros_conversions
-                ::EigenVector4dToGeometryPoint(chunk_center);
-        chunks_display_rep.points.push_back(chunk_center_point);
-        chunks_display_rep.colors.push_back(chunk_color);
-      }
-    }
-    else if (current_chunk_fill == DSHVGFillStatus::CELL_FILLED)
-    {
-      for (int64_t x_index = 0; x_index < chunk_grid_sizes.NumXCells();
-           x_index++)
-      {
-        for (int64_t y_index = 0; y_index < chunk_grid_sizes.NumYCells();
-             y_index++)
+        for (int64_t z_index = 0; z_index < chunk_voxel_counts.z(); z_index++)
         {
-          for (int64_t z_index = 0; z_index < chunk_grid_sizes.NumZCells();
-               z_index++)
+          const ChunkIndex chunk_index(x_index, y_index, z_index);
+          const GridIndex grid_index = chunk_index + chunk_base;
+          const int64_t chunk_data_index =
+              dsh_voxel_grid.ChunkIndexToDataIndex(chunk_index);
+          const T& voxel_value = current_chunk.AccessIndex(chunk_data_index);
+          const ColorRGBA voxel_color = voxel_color_fn(voxel_value, grid_index);
+
+          if (voxel_color.a > 0.0f)
           {
-            const GridIndex internal_index(x_index, y_index, z_index);
-            const Eigen::Vector4d cell_center
-                = current_chunk.GetCellLocationInGridFrame(internal_index);
-            const ColorRGBA cell_color
-                = cell_color_fn(
-                    current_chunk.GetIndexImmutable(internal_index).Value(),
-                    cell_center);
-            if (cell_color.a > 0.0f)
-            {
-              const Point cell_center_point
-                  = common_robotics_utilities::ros_conversions
-                      ::EigenVector4dToGeometryPoint(cell_center);
-              cells_display_rep.points.push_back(cell_center_point);
-              cells_display_rep.colors.push_back(cell_color);
-            }
+            const Eigen::Vector4d voxel_center =
+                dsh_voxel_grid.GridIndexToLocationInGridFrame(grid_index);
+            const Point voxel_center_point =
+                common_robotics_utilities::ros_conversions
+                    ::EigenVector4dToGeometryPoint(voxel_center);
+            display_rep.points.push_back(voxel_center_point);
+            display_rep.colors.push_back(voxel_color);
           }
         }
       }
     }
   }
-  return std::make_pair(chunks_display_rep, cells_display_rep);
+  return display_rep;
 }
 
 /// Export SDF to RViz display.
@@ -415,7 +374,7 @@ inline Marker ExportSDFForDisplay(
     return new_color;
   };
   auto display_rep =
-      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.GetFrame(), color_fn);
+      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.Frame(), color_fn);
   display_rep.ns = "sdf_distance";
   display_rep.id = 1;
   return display_rep;
@@ -445,7 +404,7 @@ inline Marker ExportSDFForDisplayCollisionOnly(
     }
   };
   auto display_rep =
-      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.GetFrame(), color_fn);
+      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.Frame(), color_fn);
   display_rep.ns = "sdf_collision";
   display_rep.id = 1;
   return display_rep;
@@ -458,7 +417,7 @@ inline SignedDistanceFieldMessage GetMessageRepresentation(
     const SignedDistanceField<ScalarType>& sdf)
 {
   SignedDistanceFieldMessage sdf_message;
-  sdf_message.header.frame_id = sdf.GetFrame();
+  sdf_message.header.frame_id = sdf.Frame();
   std::vector<uint8_t> buffer;
   SignedDistanceField<ScalarType>::Serialize(sdf, buffer);
   sdf_message.serialized_sdf
@@ -621,7 +580,7 @@ OccupancyComponentMap LoadFromMessageRepresentation(
 
 /// Export DynamicSpatialHashedOccupancyMap to RViz for display.
 
-MarkerArray ExportForDisplay(
+Marker ExportForDisplay(
     const DynamicSpatialHashedOccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,

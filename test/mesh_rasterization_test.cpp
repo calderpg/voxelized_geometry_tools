@@ -36,24 +36,24 @@ TEST_P(MeshRasterizationTestSuite, TestOccupancyMap)
   };
 
   // Due to how the triangle discretizes, we expect the lower layer to be empty.
-  for (int64_t xidx = 0; xidx < occupancy_map.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy_map.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy_map.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy_map.NumYVoxels(); yidx++)
     {
       EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
     }
   }
 
   // Check the upper layer of voxels.
-  for (int64_t xidx = 0; xidx < occupancy_map.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy_map.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy_map.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy_map.NumYVoxels(); yidx++)
     {
       if (xidx == 0 || yidx == 0)
       {
         EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
       }
-      else if (yidx >= (occupancy_map.GetNumYCells() - xidx))
+      else if (yidx >= (occupancy_map.NumYVoxels() - xidx))
       {
         EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
       }
@@ -88,24 +88,24 @@ TEST_P(MeshRasterizationTestSuite, TestOccupancyComponentMap)
   };
 
   // Due to how the triangle discretizes, we expect the lower layer to be empty.
-  for (int64_t xidx = 0; xidx < occupancy_map.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy_map.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy_map.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy_map.NumYVoxels(); yidx++)
     {
       EXPECT_EQ(get_cell_occupancy(xidx, yidx, 0), 0.0f);
     }
   }
 
   // Check the upper layer of voxels.
-  for (int64_t xidx = 0; xidx < occupancy_map.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy_map.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy_map.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy_map.NumYVoxels(); yidx++)
     {
       if (xidx == 0 || yidx == 0)
       {
         EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
       }
-      else if (yidx >= (occupancy_map.GetNumYCells() - xidx))
+      else if (yidx >= (occupancy_map.NumYVoxels() - xidx))
       {
         EXPECT_EQ(get_cell_occupancy(xidx, yidx, 1), 0.0f);
       }

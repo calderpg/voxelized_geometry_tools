@@ -9,7 +9,8 @@
 #include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
 #include <voxelized_geometry_tools/tagged_object_occupancy_map.hpp>
 
-using common_robotics_utilities::voxel_grid::GridSizes;
+using common_robotics_utilities::voxel_grid::Vector3i64;
+using common_robotics_utilities::voxel_grid::VoxelGridSizes;
 
 namespace voxelized_geometry_tools
 {
@@ -79,30 +80,30 @@ void CheckOccupancyMapsEquivalent(
 
   if (from_map_initialized)
   {
-    const auto& from_map_origin_transform = from_map.GetOriginTransform();
-    const auto& to_map_origin_transform = to_map.GetOriginTransform();
+    const auto& from_map_origin_transform = from_map.OriginTransform();
+    const auto& to_map_origin_transform = to_map.OriginTransform();
 
     EXPECT_TRUE(TransformsExactlyEqual(
         from_map_origin_transform, to_map_origin_transform));
 
-    const auto& from_map_grid_sizes = from_map.GetGridSizes();
-    const auto& to_map_grid_sizes = to_map.GetGridSizes();
+    const auto& from_map_grid_sizes = from_map.ControlSizes();
+    const auto& to_map_grid_sizes = to_map.ControlSizes();
 
     EXPECT_EQ(from_map_grid_sizes, to_map_grid_sizes);
 
-    const auto& from_map_frame = from_map.GetFrame();
-    const auto& to_map_frame = to_map.GetFrame();
+    const auto& from_map_frame = from_map.Frame();
+    const auto& to_map_frame = to_map.Frame();
 
     EXPECT_EQ(from_map_frame, to_map_frame);
 
-    const auto& from_map_default_cell = from_map.GetDefaultValue();
-    const auto& to_map_default_cell = to_map.GetDefaultValue();
+    const auto& from_map_default_cell = from_map.DefaultValue();
+    const auto& to_map_default_cell = to_map.DefaultValue();
 
     EXPECT_TRUE(
         CheckCellsEquivalent(from_map_default_cell, to_map_default_cell));
 
-    const auto& from_map_oob_cell = from_map.GetOOBValue();
-    const auto& to_map_oob_cell = to_map.GetOOBValue();
+    const auto& from_map_oob_cell = from_map.OOBValue();
+    const auto& to_map_oob_cell = to_map.OOBValue();
 
     EXPECT_TRUE(CheckCellsEquivalent(from_map_oob_cell, to_map_oob_cell));
 
@@ -336,7 +337,8 @@ GTEST_TEST(OccupancyMapConversionsTest, FilledOccupancyMapConversions)
   constexpr int64_t num_x_cells = 5;
   constexpr int64_t num_y_cells = 10;
   constexpr int64_t num_z_cells = 20;
-  const GridSizes grid_sizes(resolution, num_x_cells, num_y_cells, num_z_cells);
+  const auto grid_sizes = VoxelGridSizes::FromVoxelCounts(
+      resolution, Vector3i64(num_x_cells, num_y_cells, num_z_cells));
 
   const std::string frame = "test_frame";
 
@@ -406,7 +408,8 @@ GTEST_TEST(OccupancyMapConversionsTest, PatternOccupancyMapConversions)
   constexpr int64_t num_x_cells = 5;
   constexpr int64_t num_y_cells = 10;
   constexpr int64_t num_z_cells = 20;
-  const GridSizes grid_sizes(resolution, num_x_cells, num_y_cells, num_z_cells);
+  const auto grid_sizes = VoxelGridSizes::FromVoxelCounts(
+      resolution, Vector3i64(num_x_cells, num_y_cells, num_z_cells));
 
   const std::string frame = "test_frame";
 

@@ -13,7 +13,7 @@
 
 using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::voxel_grid::GridIndex;
-using common_robotics_utilities::voxel_grid::GridSizes;
+using common_robotics_utilities::voxel_grid::VoxelGridSizes;
 
 namespace voxelized_geometry_tools
 {
@@ -48,21 +48,21 @@ GeneratedSignedDistanceFields<ScalarType> GenerateSignedDistanceFields(
     const DegreeOfParallelism& parallelism)
 {
   // Enforce occupancy map sizes match
-  const int64_t num_x_cells = occupancy_map.GetNumXCells();
-  const int64_t num_y_cells = occupancy_map.GetNumYCells();
-  const int64_t num_z_cells = occupancy_map.GetNumZCells();
+  const int64_t num_x_cells = occupancy_map.NumXVoxels();
+  const int64_t num_y_cells = occupancy_map.NumYVoxels();
+  const int64_t num_z_cells = occupancy_map.NumZVoxels();
 
-  EXPECT_EQ(num_x_cells, occupancy_component_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, occupancy_component_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, occupancy_component_map.GetNumZCells());
+  EXPECT_EQ(num_x_cells, occupancy_component_map.NumXVoxels());
+  EXPECT_EQ(num_y_cells, occupancy_component_map.NumYVoxels());
+  EXPECT_EQ(num_z_cells, occupancy_component_map.NumZVoxels());
 
-  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map.GetNumZCells());
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map.NumXVoxels());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map.NumYVoxels());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map.NumZVoxels());
 
-  EXPECT_EQ(num_x_cells, tagged_object_occupancy_component_map.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_occupancy_component_map.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_occupancy_component_map.GetNumZCells());
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_component_map.NumXVoxels());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_component_map.NumYVoxels());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_component_map.NumZVoxels());
 
   // Make SDFs
   const auto occupancy_map_sdf =
@@ -80,24 +80,24 @@ GeneratedSignedDistanceFields<ScalarType> GenerateSignedDistanceFields(
               {}, SDFGenerationParams<ScalarType>(parallelism));
 
   // Enforce SDF sizes match
-  EXPECT_EQ(num_x_cells, occupancy_map_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, occupancy_map_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, occupancy_map_sdf.GetNumZCells());
+  EXPECT_EQ(num_x_cells, occupancy_map_sdf.NumXVoxels());
+  EXPECT_EQ(num_y_cells, occupancy_map_sdf.NumYVoxels());
+  EXPECT_EQ(num_z_cells, occupancy_map_sdf.NumZVoxels());
 
-  EXPECT_EQ(num_x_cells, occupancy_component_map_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, occupancy_component_map_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, occupancy_component_map_sdf.GetNumZCells());
+  EXPECT_EQ(num_x_cells, occupancy_component_map_sdf.NumXVoxels());
+  EXPECT_EQ(num_y_cells, occupancy_component_map_sdf.NumYVoxels());
+  EXPECT_EQ(num_z_cells, occupancy_component_map_sdf.NumZVoxels());
 
-  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map_sdf.GetNumXCells());
-  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map_sdf.GetNumYCells());
-  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map_sdf.GetNumZCells());
+  EXPECT_EQ(num_x_cells, tagged_object_occupancy_map_sdf.NumXVoxels());
+  EXPECT_EQ(num_y_cells, tagged_object_occupancy_map_sdf.NumYVoxels());
+  EXPECT_EQ(num_z_cells, tagged_object_occupancy_map_sdf.NumZVoxels());
 
   EXPECT_EQ(
-      num_x_cells, tagged_object_occupancy_component_map_sdf.GetNumXCells());
+      num_x_cells, tagged_object_occupancy_component_map_sdf.NumXVoxels());
   EXPECT_EQ(
-      num_y_cells, tagged_object_occupancy_component_map_sdf.GetNumYCells());
+      num_y_cells, tagged_object_occupancy_component_map_sdf.NumYVoxels());
   EXPECT_EQ(
-      num_z_cells, tagged_object_occupancy_component_map_sdf.GetNumZCells());
+      num_z_cells, tagged_object_occupancy_component_map_sdf.NumZVoxels());
 
   return GeneratedSignedDistanceFields<ScalarType>{
       occupancy_map_sdf, occupancy_component_map_sdf,
@@ -197,9 +197,9 @@ void TestSDFGeneration(
     return sdf.GetIndexImmutable(index).Value();
   };
 
-  const int64_t num_x_cells = occupancy_map.GetNumXCells();
-  const int64_t num_y_cells = occupancy_map.GetNumYCells();
-  const int64_t num_z_cells = occupancy_map.GetNumZCells();
+  const int64_t num_x_cells = occupancy_map.NumXVoxels();
+  const int64_t num_y_cells = occupancy_map.NumYVoxels();
+  const int64_t num_z_cells = occupancy_map.NumZVoxels();
 
   for (int64_t x_index = 0; x_index < num_x_cells; x_index++)
   {
@@ -268,7 +268,8 @@ TEST_P(SDFGenerationTestSuite, FullyFilledTest)
   const double x_size = 1.0;
   const double y_size = 2.0;
   const double z_size = 3.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -321,7 +322,8 @@ TEST_P(SDFGenerationTestSuite, FullyEmptyTest)
   const double x_size = 1.0;
   const double y_size = 2.0;
   const double z_size = 3.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -374,7 +376,8 @@ TEST_P(SDFGenerationTestSuite, CenterObstacleTest)
   const double x_size = 1.0;
   const double y_size = 2.0;
   const double z_size = 3.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -448,7 +451,8 @@ TEST_P(SDFGenerationTestSuite, CornerObstacleTest)
   const double x_size = 1.0;
   const double y_size = 2.0;
   const double z_size = 3.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -517,7 +521,8 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
   const double x_size = 1.0;
   const double y_size = 2.0;
   const double z_size = 3.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -540,8 +545,8 @@ TEST_P(SDFGenerationTestSuite, FaceObstacleTest)
       TaggedObjectOccupancyComponentCell(0.0f, 0u));
 
   // Fill an obstacle in a face of the grid
-  const int64_t num_x_cells = occupancy_map.GetNumXCells();
-  const int64_t num_y_cells = occupancy_map.GetNumYCells();
+  const int64_t num_x_cells = occupancy_map.NumXVoxels();
+  const int64_t num_y_cells = occupancy_map.NumYVoxels();
 
   constexpr int64_t z_index = 0;
 
@@ -588,7 +593,8 @@ TEST_P(SDFGenerationTestSuite, LinearExactTest)
   const double x_size = 1.0;
   const double y_size = 1.0;
   const double z_size = 4.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
 
   const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -704,7 +710,8 @@ TEST_P(SDFGenerationTestSuite, PlanarExactTest)
   const double x_size = 1.0;
   const double y_size = 4.0;
   const double z_size = 4.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
 
   const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -904,7 +911,8 @@ TEST_P(SDFGenerationTestSuite, CubeExactTest)
   const double x_size = 2.0;
   const double y_size = 2.0;
   const double z_size = 2.0;
-  const GridSizes grid_sizes(resolution, x_size, y_size, z_size);
+  const auto grid_sizes = VoxelGridSizes::FromGridSizes(
+      resolution, Eigen::Vector3d(x_size, y_size, z_size));
 
   const Eigen::Translation3d origin_translation(0.0, 0.0, 0.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);

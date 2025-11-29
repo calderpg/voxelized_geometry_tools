@@ -601,7 +601,7 @@ public:
 
     const size_t item_size = sizeof(float);
     const size_t buffer_size =
-        static_cast<size_t>(real_filter_grid.NumCells()) * item_size;
+        static_cast<size_t>(real_filter_grid.NumVoxels()) * item_size;
     err = queue_->enqueueReadBuffer(
         real_filter_grid.GetBuffer(), CL_TRUE, 0, buffer_size, host_data_ptr);
     if (err != CL_SUCCESS)

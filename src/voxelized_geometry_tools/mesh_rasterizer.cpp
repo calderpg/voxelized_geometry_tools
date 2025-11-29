@@ -114,7 +114,7 @@ void RasterizeTriangleImpl(
     throw std::invalid_argument("occupancy_map must be initialized");
   }
 
-  const double min_check_radius = occupancy_map.GetResolution() * 0.5;
+  const double min_check_radius = occupancy_map.Resolution() * 0.5;
   const double max_check_radius = min_check_radius * std::sqrt(3.0);
   const double max_check_radius_squared = std::pow(max_check_radius, 2.0);
 
@@ -255,17 +255,21 @@ OccupancyMapType RasterizeMeshIntoOccupancyMapImpl(
   const Eigen::Vector3d object_size = upper_corner - lower_corner;
 
   const double buffer_size = resolution * 2.0;
-  const common_robotics_utilities::voxel_grid::GridSizes filter_grid_sizes(
-      resolution, object_size.x() + buffer_size, object_size.y() + buffer_size,
+  const Eigen::Vector3d grid_dimensions(
+      object_size.x() + buffer_size, object_size.y() + buffer_size,
       object_size.z() + buffer_size);
+  const auto grid_sizes =
+      common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
+          resolution, grid_dimensions);
 
-  const Eigen::Isometry3d X_OG(Eigen::Translation3d(
+  const Eigen::Isometry3d origin_transform(Eigen::Translation3d(
       lower_corner.x() - resolution,
       lower_corner.y() - resolution,
       lower_corner.z() - resolution));
 
   const OccupancyCellType empty_cell(0.0f);
-  OccupancyMapType occupancy_map(X_OG, "mesh", filter_grid_sizes, empty_cell);
+  OccupancyMapType occupancy_map(
+      origin_transform, "mesh", grid_sizes, empty_cell);
 
   RasterizeMesh(vertices, triangles, occupancy_map, true, parallelism);
 

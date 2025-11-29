@@ -117,13 +117,13 @@ public:
 
   virtual ~FilterGridHandle() {}
 
-  int64_t NumCells() const { return num_cells_; }
+  int64_t NumVoxels() const { return num_voxels_; }
 
 protected:
-  FilterGridHandle(const int64_t num_cells) : num_cells_(num_cells) {}
+  FilterGridHandle(const int64_t num_voxels) : num_voxels_(num_voxels) {}
 
 private:
-  int64_t num_cells_ = 0;
+  int64_t num_voxels_ = 0;
 };
 
 class DeviceVoxelizationHelperInterface

@@ -53,7 +53,6 @@ OccupancyMap::DoClone() const
   return std::unique_ptr<OccupancyMap>(new OccupancyMap(*this));
 }
 
-/// We need to serialize the frame and locked flag.
 uint64_t OccupancyMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
     const OccupancyCellSerializer& value_serializer) const
@@ -65,12 +64,14 @@ uint64_t OccupancyMap::DerivedSerializeSelf(
   return bytes_written;
 }
 
-/// We need to deserialize the frame and locked flag.
 uint64_t OccupancyMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
     const OccupancyCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
+  // Enforce uniform voxel sizes
+  EnforceUniformVoxelSize();
+  // Deserialize our additional members
   uint64_t current_position = starting_offset;
   const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
@@ -203,17 +204,17 @@ common_robotics_utilities::OwningMaybe<bool> OccupancyMap::IsSurfaceIndex(
 {
   // First, we make sure that indices are within bounds
   // Out of bounds indices are NOT surface cells
-  if (IndexInBounds(x_index, y_index, z_index) == false)
+  if (!CheckGridIndexInBounds(x_index, y_index, z_index))
   {
     return common_robotics_utilities::OwningMaybe<bool>();
   }
   // Check all 26 possible neighbors
   const int64_t min_x_check = std::max(INT64_C(0), x_index - 1);
-  const int64_t max_x_check = std::min(GetNumXCells() - 1, x_index + 1);
+  const int64_t max_x_check = std::min(NumXVoxels() - 1, x_index + 1);
   const int64_t min_y_check = std::max(INT64_C(0), y_index - 1);
-  const int64_t max_y_check = std::min(GetNumYCells() - 1, y_index + 1);
+  const int64_t max_y_check = std::min(NumYVoxels() - 1, y_index + 1);
   const int64_t min_z_check = std::max(INT64_C(0), z_index - 1);
-  const int64_t max_z_check = std::min(GetNumZCells() - 1, z_index + 1);
+  const int64_t max_z_check = std::min(NumZVoxels() - 1, z_index + 1);
   const float our_occupancy
       = GetIndexImmutable(x_index, y_index, z_index).Value().Occupancy();
   for (int64_t x_idx = min_x_check; x_idx <= max_x_check; x_idx++)

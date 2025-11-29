@@ -55,7 +55,7 @@ void RaycastPointCloud(
     CpuVoxelizationTrackingGrid& tracking_grid)
 {
   // Get X_GW, the transform from grid origin to world
-  const Eigen::Isometry3d& X_GW = tracking_grid.GetInverseOriginTransform();
+  const Eigen::Isometry3d& X_GW = tracking_grid.InverseOriginTransform();
   // Get X_WC, the transform from world to the origin of the pointcloud
   const Eigen::Isometry3d& X_WC = cloud.GetPointCloudOriginTransform();
   // Transform X_GC, transform from grid origin to the origin of the pointcloud
@@ -194,7 +194,7 @@ void CombineAndFilterGrids(
   // Use OpenMP if available, if not fall back to manual dispatch via
   // std::async.
   StaticParallelForIndexLoop(
-      parallelism, 0, filtered_grid.GetTotalCells(), per_item_work,
+      parallelism, 0, filtered_grid.NumTotalVoxels(), per_item_work,
       ParallelForBackend::BEST_AVAILABLE);
 }
 }  // namespace
@@ -246,16 +246,16 @@ VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
   // Pose of grid G in world W.
-  const Eigen::Isometry3d& X_WG = static_environment.GetOriginTransform();
+  const Eigen::Isometry3d& X_WG = static_environment.OriginTransform();
   // Get grid resolution and size parameters.
-  const auto& grid_size = static_environment.GetGridSizes();
-  const double cell_size = static_environment.GetResolution();
+  const auto& grid_sizes = static_environment.ControlSizes();
+  const double cell_size = static_environment.Resolution();
   const double step_size = cell_size * step_size_multiplier;
   // For each cloud, raycast it into its own "tracking grid"
   VectorCpuVoxelizationTrackingGrid tracking_grids(
       pointclouds.size(),
       CpuVoxelizationTrackingGrid(
-          X_WG, grid_size, CpuVoxelizationTrackingCell()));
+          X_WG, grid_sizes, CpuVoxelizationTrackingCell()));
   for (size_t idx = 0; idx < pointclouds.size(); idx++)
   {
     const PointCloudWrapperSharedPtr& cloud_ptr = pointclouds.at(idx);

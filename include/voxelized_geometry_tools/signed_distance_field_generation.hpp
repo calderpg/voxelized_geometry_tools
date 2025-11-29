@@ -25,7 +25,8 @@ namespace signed_distance_field_generation
 namespace internal
 {
 using common_robotics_utilities::voxel_grid::GridIndex;
-using common_robotics_utilities::voxel_grid::GridSizes;
+using common_robotics_utilities::voxel_grid::Vector3i64;
+using common_robotics_utilities::voxel_grid::VoxelGridSizes;
 
 using EDTDistanceField =
     common_robotics_utilities::voxel_grid::VoxelGrid<double>;
@@ -37,7 +38,8 @@ void ComputeDistanceFieldTransformInPlace(
 
 template<typename SDFScalarType>
 inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
-    const Eigen::Isometry3d& grid_origin_transform, const GridSizes& grid_sizes,
+    const Eigen::Isometry3d& grid_origin_transform,
+    const VoxelGridSizes& grid_sizes,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
     const std::string& frame,
     const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
@@ -52,11 +54,11 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   EDTDistanceField free_distance_field(
       grid_origin_transform, grid_sizes, unmarked_cell);
 
-  for (int64_t x_index = 0; x_index < grid_sizes.NumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < grid_sizes.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < grid_sizes.NumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < grid_sizes.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < grid_sizes.NumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < grid_sizes.NumZVoxels(); z_index++)
       {
         const GridIndex current_index(x_index, y_index, z_index);
         if (is_filled_fn(current_index))
@@ -80,11 +82,11 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
       grid_origin_transform, frame, grid_sizes, parameters.OOBValue());
-  for (int64_t x_index = 0; x_index < new_sdf.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < new_sdf.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < new_sdf.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < new_sdf.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < new_sdf.GetNumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < new_sdf.NumZVoxels(); z_index++)
       {
         const double filled_distance_squared =
             filled_distance_field.GetIndexImmutable(
@@ -94,9 +96,9 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
                 x_index, y_index, z_index).Value();
 
         const double distance1 =
-            std::sqrt(filled_distance_squared) * new_sdf.GetResolution();
+            std::sqrt(filled_distance_squared) * new_sdf.Resolution();
         const double distance2 =
-            std::sqrt(free_distance_squared) * new_sdf.GetResolution();
+            std::sqrt(free_distance_squared) * new_sdf.Resolution();
         const double distance = distance1 - distance2;
 
         new_sdf.SetIndex(
@@ -118,7 +120,7 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const std::string& frame,
     const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)
 {
-  if (!grid.HasUniformCellSize())
+  if (!grid.HasUniformVoxelSize())
   {
     throw std::invalid_argument("Grid must have uniform resolution");
   }
@@ -126,28 +128,28 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   {
     // This is the conventional single-pass result
     return ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), grid.GetGridSizes(), is_filled_fn, frame,
+        grid.OriginTransform(), grid.ControlSizes(), is_filled_fn, frame,
         parameters);
   }
   else
   {
     const int64_t x_axis_size_offset =
-        (grid.GetNumXCells() > 1) ? INT64_C(2) : INT64_C(0);
+        (grid.NumXVoxels() > 1) ? INT64_C(2) : INT64_C(0);
     const int64_t x_axis_query_offset =
-        (grid.GetNumXCells() > 1) ? INT64_C(1) : INT64_C(0);
+        (grid.NumXVoxels() > 1) ? INT64_C(1) : INT64_C(0);
     const int64_t y_axis_size_offset =
-        (grid.GetNumYCells() > 1) ? INT64_C(2) : INT64_C(0);
+        (grid.NumYVoxels() > 1) ? INT64_C(2) : INT64_C(0);
     const int64_t y_axis_query_offset =
-        (grid.GetNumYCells() > 1) ? INT64_C(1) : INT64_C(0);
+        (grid.NumYVoxels() > 1) ? INT64_C(1) : INT64_C(0);
     const int64_t z_axis_size_offset =
-        (grid.GetNumZCells() > 1) ? INT64_C(2) : INT64_C(0);
+        (grid.NumZVoxels() > 1) ? INT64_C(2) : INT64_C(0);
     const int64_t z_axis_query_offset =
-        (grid.GetNumZCells() > 1) ? INT64_C(1) : INT64_C(0);
+        (grid.NumZVoxels() > 1) ? INT64_C(1) : INT64_C(0);
 
     // We need to lie about the size of the grid to add a virtual border
-    const int64_t num_x_cells = grid.GetNumXCells() + x_axis_size_offset;
-    const int64_t num_y_cells = grid.GetNumYCells() + y_axis_size_offset;
-    const int64_t num_z_cells = grid.GetNumZCells() + z_axis_size_offset;
+    const int64_t num_x_cells = grid.NumXVoxels() + x_axis_size_offset;
+    const int64_t num_y_cells = grid.NumYVoxels() + y_axis_size_offset;
+    const int64_t num_z_cells = grid.NumZVoxels() + z_axis_size_offset;
 
     // Make some deceitful helper functions that hide our lies about size
     // For the free space SDF, we lie and say the virtual border is filled
@@ -233,24 +235,24 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     };
 
     // Make both SDFs
-    const common_robotics_utilities::voxel_grid::GridSizes enlarged_sizes(
-        grid.GetCellSizes().x(), num_x_cells, num_y_cells, num_z_cells);
+    const auto enlarged_sizes = VoxelGridSizes::FromVoxelCounts(
+        grid.VoxelXSize(), Vector3i64(num_x_cells, num_y_cells, num_z_cells));
     const auto free_sdf = ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), enlarged_sizes, free_is_filled_fn, frame,
+        grid.OriginTransform(), enlarged_sizes, free_is_filled_fn, frame,
         parameters);
     const auto filled_sdf = ExtractSignedDistanceField<SDFScalarType>(
-        grid.GetOriginTransform(), enlarged_sizes, filled_is_filled_fn, frame,
+        grid.OriginTransform(), enlarged_sizes, filled_is_filled_fn, frame,
         parameters);
 
     // Combine to make a single SDF
     SignedDistanceField<SDFScalarType> combined_sdf(
-        grid.GetOriginTransform(), frame, grid.GetGridSizes(),
+        grid.OriginTransform(), frame, grid.ControlSizes(),
         parameters.OOBValue());
-    for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
+    for (int64_t x_idx = 0; x_idx < combined_sdf.NumXVoxels(); x_idx++)
     {
-      for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
+      for (int64_t y_idx = 0; y_idx < combined_sdf.NumYVoxels(); y_idx++)
       {
-        for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
+        for (int64_t z_idx = 0; z_idx < combined_sdf.NumZVoxels(); z_idx++)
         {
           const int64_t query_x_idx = x_idx + x_axis_query_offset;
           const int64_t query_y_idx = y_idx + y_axis_query_offset;

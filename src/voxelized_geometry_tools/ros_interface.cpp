@@ -63,7 +63,7 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<OccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
+          occupancy_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map";
   display_rep.id = 1;
   return display_rep;
@@ -129,7 +129,7 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<OccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
+          occupancy_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
@@ -176,7 +176,7 @@ Marker ExportIndexMapForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndexMapToRViz<OccupancyCell>(
-      occupancy_map, index_map, occupancy_map.GetFrame(), color_fn);
+      occupancy_map, index_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
@@ -195,7 +195,7 @@ Marker ExportIndicesForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndicesToRViz<OccupancyCell>(
-      occupancy_map, indices, occupancy_map.GetFrame(), color_fn);
+      occupancy_map, indices, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
@@ -204,7 +204,7 @@ Marker ExportIndicesForDisplay(
 OccupancyMapMessage GetMessageRepresentation(const OccupancyMap& map)
 {
   OccupancyMapMessage map_message;
-  map_message.header.frame_id = map.GetFrame();
+  map_message.header.frame_id = map.Frame();
   std::vector<uint8_t> buffer;
   OccupancyMap::Serialize(map, buffer);
   map_message.serialized_map
@@ -253,7 +253,7 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<OccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
+          occupancy_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map";
   display_rep.id = 1;
   return display_rep;
@@ -319,7 +319,7 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<OccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
+          occupancy_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
@@ -382,7 +382,7 @@ Marker ExportConnectedComponentsForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<OccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
+          occupancy_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "connected_components";
   display_rep.id = 1;
   return display_rep;
@@ -401,7 +401,7 @@ Marker ExportIndexMapForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndexMapToRViz<OccupancyComponentCell>(
-      occupancy_map, index_map, occupancy_map.GetFrame(), color_fn);
+      occupancy_map, index_map, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
@@ -420,7 +420,7 @@ Marker ExportIndicesForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndicesToRViz<OccupancyComponentCell>(
-      occupancy_map, indices, occupancy_map.GetFrame(), color_fn);
+      occupancy_map, indices, occupancy_map.Frame(), color_fn);
   display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
@@ -430,7 +430,7 @@ OccupancyComponentMapMessage GetMessageRepresentation(
     const OccupancyComponentMap& map)
 {
   OccupancyComponentMapMessage map_message;
-  map_message.header.frame_id = map.GetFrame();
+  map_message.header.frame_id = map.Frame();
   std::vector<uint8_t> buffer;
   OccupancyComponentMap::Serialize(map, buffer);
   map_message.serialized_map
@@ -456,7 +456,7 @@ OccupancyComponentMap LoadFromMessageRepresentation(
   }
 }
 
-MarkerArray ExportForDisplay(
+Marker ExportForDisplay(
     const DynamicSpatialHashedOccupancyMap& occupancy_map,
     const ColorRGBA& collision_color,
     const ColorRGBA& free_color,
@@ -464,7 +464,7 @@ MarkerArray ExportForDisplay(
 {
   const auto color_fn
       = [&] (const OccupancyCell& cell,
-             const Eigen::Vector4d&)
+             const common_robotics_utilities::voxel_grid::GridIndex&)
   {
     if (cell.Occupancy() > 0.5)
     {
@@ -481,14 +481,10 @@ MarkerArray ExportForDisplay(
   };
   auto display_rep
       = ExportDynamicSpatialHashedVoxelGridToRViz<OccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn, color_fn);
-  display_rep.first.ns = "dsh_occupancy_map_chunks";
-  display_rep.first.id = 1;
-  display_rep.second.ns = "dsh_occupancy_map_cells";
-  display_rep.second.id = 1;
-  MarkerArray display_markers;
-  display_markers.markers = {display_rep.first, display_rep.second};
-  return display_markers;
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map";
+  display_rep.id = 1;
+  return display_rep;
 }
 
 MarkerArray ExportForSeparateDisplay(
@@ -500,34 +496,19 @@ MarkerArray ExportForSeparateDisplay(
   const ColorRGBA no_color
       = common_robotics_utilities::color_builder
           ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
-  MarkerArray collision_only_markers
+  Marker collision_only_marker
       = ExportForDisplay(occupancy_map, collision_color, no_color, no_color);
-  for (auto& collision_only_marker : collision_only_markers.markers)
-  {
-   collision_only_marker.ns += "_collision_only";
-  }
-  MarkerArray free_only_markers
+  collision_only_marker.ns = "collision_only";
+  Marker free_only_marker
       = ExportForDisplay(occupancy_map, no_color, free_color, no_color);
-  for (auto& free_only_marker : free_only_markers.markers)
-  {
-    free_only_marker.ns += "_free_only";
-  }
-  MarkerArray unknown_only_markers
+  free_only_marker.ns = "free_only";
+  Marker unknown_only_marker
       = ExportForDisplay(occupancy_map, no_color, no_color, unknown_color);
-  for (auto& unknown_only_marker : unknown_only_markers.markers)
-  {
-    unknown_only_marker.ns += "_unknown_only";
-  }
+  unknown_only_marker.ns = "unknown_only";
   MarkerArray display_messages;
-  display_messages.markers.insert(display_messages.markers.end(),
-                                  collision_only_markers.markers.begin(),
-                                  collision_only_markers.markers.end());
-  display_messages.markers.insert(display_messages.markers.end(),
-                                  free_only_markers.markers.begin(),
-                                  free_only_markers.markers.end());
-  display_messages.markers.insert(display_messages.markers.end(),
-                                  unknown_only_markers.markers.begin(),
-                                  unknown_only_markers.markers.end());
+  display_messages.markers = {collision_only_marker,
+                              free_only_marker,
+                              unknown_only_marker};
   return display_messages;
 }
 
@@ -535,7 +516,7 @@ DynamicSpatialHashedOccupancyMapMessage GetMessageRepresentation(
     const DynamicSpatialHashedOccupancyMap& map)
 {
   DynamicSpatialHashedOccupancyMapMessage map_message;
-  map_message.header.frame_id = map.GetFrame();
+  map_message.header.frame_id = map.Frame();
   std::vector<uint8_t> buffer;
   DynamicSpatialHashedOccupancyMap::Serialize(map, buffer);
   map_message.serialized_map
@@ -587,8 +568,8 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map";
   display_rep.id = 1;
   return display_rep;
 }
@@ -625,8 +606,8 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_objects";
   display_rep.id = 1;
   return display_rep;
 }
@@ -642,13 +623,13 @@ MarkerArray ExportForSeparateDisplay(
           ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   Marker collision_only_marker
       = ExportForDisplay(occupancy_map, collision_color, no_color, no_color);
-  collision_only_marker.ns = "tagged_object_collision_only";
+  collision_only_marker.ns = "collision_only";
   Marker free_only_marker
       = ExportForDisplay(occupancy_map, no_color, free_color, no_color);
-  free_only_marker.ns = "tagged_object_free_only";
+  free_only_marker.ns = "free_only";
   Marker unknown_only_marker
       = ExportForDisplay(occupancy_map, no_color, no_color, unknown_color);
-  unknown_only_marker.ns = "tagged_object_unknown_only";
+  unknown_only_marker.ns = "unknown_only";
   MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
@@ -691,8 +672,8 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_surfaces";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
 }
@@ -736,8 +717,8 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_surfaces";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
 }
@@ -754,15 +735,15 @@ MarkerArray ExportSurfacesForSeparateDisplay(
   Marker collision_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, collision_color, no_color, no_color);
-  collision_only_marker.ns = "tagged_object_collision_surfaces_only";
+  collision_only_marker.ns = "collision_surfaces_only";
   Marker free_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, no_color, free_color, no_color);
-  free_only_marker.ns = "tagged_object_free_surfaces_only";
+  free_only_marker.ns = "free_surfaces_only";
   Marker unknown_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, no_color, no_color, unknown_color);
-  unknown_only_marker.ns = "tagged_object_unknown_surfaces_only";
+  unknown_only_marker.ns = "unknown_surfaces_only";
   MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
@@ -783,8 +764,8 @@ Marker ExportIndexMapForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndexMapToRViz<TaggedObjectOccupancyCell>(
-      occupancy_map, index_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map_surface";
+      occupancy_map, index_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
 }
@@ -802,8 +783,8 @@ Marker ExportIndicesForDisplay(
     return surface_color;
   };
   auto display_rep = ExportVoxelGridIndicesToRViz<TaggedObjectOccupancyCell>(
-      occupancy_map, indices, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map_surface";
+      occupancy_map, indices, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
 }
@@ -812,7 +793,7 @@ TaggedObjectOccupancyMapMessage GetMessageRepresentation(
     const TaggedObjectOccupancyMap& map)
 {
   TaggedObjectOccupancyMapMessage map_message;
-  map_message.header.frame_id = map.GetFrame();
+  map_message.header.frame_id = map.Frame();
   std::vector<uint8_t> buffer;
   TaggedObjectOccupancyMap::Serialize(map, buffer);
   map_message.serialized_map
@@ -863,8 +844,8 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map";
   display_rep.id = 1;
   return display_rep;
 }
@@ -901,8 +882,8 @@ Marker ExportForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_objects";
   display_rep.id = 1;
   return display_rep;
 }
@@ -918,13 +899,13 @@ MarkerArray ExportForSeparateDisplay(
           ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   Marker collision_only_marker
       = ExportForDisplay(occupancy_map, collision_color, no_color, no_color);
-  collision_only_marker.ns = "tagged_object_collision_only";
+  collision_only_marker.ns = "collision_only";
   Marker free_only_marker
       = ExportForDisplay(occupancy_map, no_color, free_color, no_color);
-  free_only_marker.ns = "tagged_object_free_only";
+  free_only_marker.ns = "free_only";
   Marker unknown_only_marker
       = ExportForDisplay(occupancy_map, no_color, no_color, unknown_color);
-  unknown_only_marker.ns = "tagged_object_unknown_only";
+  unknown_only_marker.ns = "unknown_only";
   MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
@@ -967,8 +948,8 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_surfaces";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
 }
@@ -1012,8 +993,8 @@ Marker ExportSurfacesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_surfaces";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_surfaces";
   display_rep.id = 1;
   return display_rep;
 }
@@ -1030,15 +1011,15 @@ MarkerArray ExportSurfacesForSeparateDisplay(
   Marker collision_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, collision_color, no_color, no_color);
-  collision_only_marker.ns = "tagged_object_collision_surfaces_only";
+  collision_only_marker.ns = "collision_surfaces_only";
   Marker free_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, no_color, free_color, no_color);
-  free_only_marker.ns = "tagged_object_free_surfaces_only";
+  free_only_marker.ns = "free_surfaces_only";
   Marker unknown_only_marker
       = ExportSurfacesForDisplay(
           occupancy_map, no_color, no_color, unknown_color);
-  unknown_only_marker.ns = "tagged_object_unknown_surfaces_only";
+  unknown_only_marker.ns = "unknown_surfaces_only";
   MarkerArray display_messages;
   display_messages.markers = {collision_only_marker,
                               free_only_marker,
@@ -1075,8 +1056,8 @@ Marker ExportConnectedComponentsForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_connected_components";
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "connected_components";
   display_rep.id = 1;
   return display_rep;
 }
@@ -1086,7 +1067,7 @@ Marker ExportSpatialSegmentForDisplay(
     const uint32_t object_id, const uint32_t spatial_segment)
 {
   const uint32_t number_of_segments
-      = occupancy_map.GetNumSpatialSegments().Value();
+      = occupancy_map.NumSpatialSegments().Value();
   const ColorRGBA no_color
       = common_robotics_utilities::color_builder
           ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
@@ -1117,8 +1098,8 @@ Marker ExportSpatialSegmentForDisplay(
   };
   auto display_rep
       = ExportVoxelGridToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_"
+          occupancy_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "object_"
                    + std::to_string(object_id)
                    + "_spatial_segment_"
                    + std::to_string(spatial_segment);
@@ -1140,8 +1121,8 @@ Marker ExportIndexMapForDisplay(
   };
   auto display_rep
       = ExportVoxelGridIndexMapToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, index_map, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map_surface";
+          occupancy_map, index_map, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
 }
@@ -1160,8 +1141,8 @@ Marker ExportIndicesForDisplay(
   };
   auto display_rep
       = ExportVoxelGridIndicesToRViz<TaggedObjectOccupancyComponentCell>(
-          occupancy_map, indices, occupancy_map.GetFrame(), color_fn);
-  display_rep.ns = "tagged_object_occupancy_map_surface";
+          occupancy_map, indices, occupancy_map.Frame(), color_fn);
+  display_rep.ns = "occupancy_map_surface";
   display_rep.id = 1;
   return display_rep;
 }
@@ -1170,7 +1151,7 @@ TaggedObjectOccupancyComponentMapMessage GetMessageRepresentation(
     const TaggedObjectOccupancyComponentMap& map)
 {
   TaggedObjectOccupancyComponentMapMessage map_message;
-  map_message.header.frame_id = map.GetFrame();
+  map_message.header.frame_id = map.Frame();
   std::vector<uint8_t> buffer;
   TaggedObjectOccupancyComponentMap::Serialize(map, buffer);
   map_message.serialized_map

@@ -275,11 +275,11 @@ public:
     {
       throw std::invalid_argument("!output_environment.IsInitialized()");
     }
-    if (static_environment.GetGridSizes() != output_environment.GetGridSizes())
+    if (static_environment.ControlSizes() != output_environment.ControlSizes())
     {
       throw std::invalid_argument(
-          "static_environment.GetGridSizes() != "
-          "output_environment.GetGridSizes()");
+          "static_environment.ControlSizes() != "
+          "output_environment.ControlSizes()");
     }
     for (size_t idx = 0; idx < pointclouds.size(); idx++)
     {

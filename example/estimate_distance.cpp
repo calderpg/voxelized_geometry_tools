@@ -48,8 +48,9 @@ void test_estimate_distance(
   const Eigen::Isometry3d origin_transform
       = Eigen::Translation3d(0.0, 0.0, 0.0) * Eigen::Quaterniond(
           Eigen::AngleAxisd(M_PI_4, Eigen::Vector3d::UnitZ()));
-  const common_robotics_utilities::voxel_grid::GridSizes map_sizes(
-      res, size, size, 1.0);
+  const auto map_sizes =
+      common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
+          res, Eigen::Vector3d(size, size, 1.0));
   const voxelized_geometry_tools::OccupancyCell empty_cell(0.0f);
   const voxelized_geometry_tools::OccupancyCell filled_cell(1.0f);
   auto map = voxelized_geometry_tools::OccupancyMap(
@@ -117,18 +118,18 @@ void test_estimate_distance(
   distance_rep.frame_locked = false;
   distance_rep.pose =
       common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(
-          sdf.GetOriginTransform());
-  const double step = sdf.GetResolution() * 0.125 * 0.25;
-  distance_rep.scale.x = sdf.GetResolution() * step; // * 0.125;
-  distance_rep.scale.y = sdf.GetResolution() * step; // * 0.125;
-  distance_rep.scale.z = sdf.GetResolution() * 0.95; // * 0.125;
+          sdf.OriginTransform());
+  const double step = sdf.Resolution() * 0.125 * 0.25;
+  distance_rep.scale.x = sdf.Resolution() * step; // * 0.125;
+  distance_rep.scale.y = sdf.Resolution() * step; // * 0.125;
+  distance_rep.scale.z = sdf.Resolution() * 0.95; // * 0.125;
   // Add all the cells of the SDF to the message
   double min_distance = 0.0;
   double max_distance = 0.0;
   // Add colors for all the cells of the SDF to the message
-  for (double x = 0; x < sdf.GetXSize(); x += step)
+  for (double x = 0; x < sdf.GridXSize(); x += step)
   {
-    for (double y = 0; y < sdf.GetYSize(); y += step)
+    for (double y = 0; y < sdf.GridYSize(); y += step)
     {
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
@@ -152,9 +153,9 @@ void test_estimate_distance(
   std::cout << "Min dist " << min_distance << " Max dist " << max_distance
             << std::endl;
 
-  for (double x = 0; x < sdf.GetXSize(); x += step)
+  for (double x = 0; x < sdf.GridXSize(); x += step)
   {
-    for (double y = 0; y < sdf.GetYSize(); y += step)
+    for (double y = 0; y < sdf.GridYSize(); y += step)
     {
       double z = 0.5;
       //for (double z = 0; z <= sdf.GetZSize(); z += step)
@@ -187,18 +188,18 @@ void test_estimate_distance(
   markers.markers = {map_marker, sdf_marker, distance_rep};
 
   // Make gradient markers
-  for (int64_t x_idx = 0; x_idx < sdf.GetNumXCells(); x_idx++)
+  for (int64_t x_idx = 0; x_idx < sdf.NumXVoxels(); x_idx++)
   {
-    for (int64_t y_idx = 0; y_idx < sdf.GetNumYCells(); y_idx++)
+    for (int64_t y_idx = 0; y_idx < sdf.NumYVoxels(); y_idx++)
     {
-      for (int64_t z_idx = 0; z_idx < sdf.GetNumZCells(); z_idx++)
+      for (int64_t z_idx = 0; z_idx < sdf.NumZVoxels(); z_idx++)
       {
         const Eigen::Vector4d location =
             sdf.GridIndexToLocation(x_idx, y_idx, z_idx);
         const auto coarse_gradient =
             sdf.GetLocationCoarseGradient4d(location, true);
         const auto fine_gradient = sdf.GetLocationFineGradient4d(
-            location, sdf.GetResolution() * 0.125);
+            location, sdf.Resolution() * 0.125);
 
         if (coarse_gradient)
         {
@@ -226,8 +227,8 @@ void test_estimate_distance(
           gradient_rep.points.push_back(
               common_robotics_utilities::ros_conversions
                   ::EigenVector4dToGeometryPoint(location + gradient_vector));
-          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
-          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
+          gradient_rep.scale.x = sdf.Resolution() * 0.06125;
+          gradient_rep.scale.y = sdf.Resolution() * 0.125;
           gradient_rep.scale.z = 0.0;
           gradient_rep.color = common_robotics_utilities::color_builder
               ::MakeFromFloatColors<ColorRGBA>(1.0, 0.5, 0.0, 1.0);
@@ -261,8 +262,8 @@ void test_estimate_distance(
           gradient_rep.points.push_back(
               common_robotics_utilities::ros_conversions
                   ::EigenVector4dToGeometryPoint(location + gradient_vector));
-          gradient_rep.scale.x = sdf.GetResolution() * 0.06125;
-          gradient_rep.scale.y = sdf.GetResolution() * 0.125;
+          gradient_rep.scale.x = sdf.Resolution() * 0.06125;
+          gradient_rep.scale.y = sdf.Resolution() * 0.125;
           gradient_rep.scale.z = 0.0;
           gradient_rep.color = common_robotics_utilities::color_builder
               ::MakeFromFloatColors<ColorRGBA>(0.0, 0.5, 1.0, 1.0);

@@ -46,6 +46,9 @@ uint64_t DynamicSpatialHashedOccupancyMap::DerivedDeserializeSelf(
     const OccupancyCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
+  // Enforce uniform voxel sizes
+  EnforceUniformVoxelSize();
+  // Deserialize our additional members
   uint64_t current_position = starting_offset;
   const auto frame_deserialized
       = common_robotics_utilities::serialization::DeserializeString<char>(
@@ -58,9 +61,11 @@ uint64_t DynamicSpatialHashedOccupancyMap::DerivedDeserializeSelf(
 }
 
 bool DynamicSpatialHashedOccupancyMap::OnMutableAccess(
-    const Eigen::Vector4d& location)
+    const int64_t x_index, const int64_t y_index, const int64_t z_index)
 {
-  CRU_UNUSED(location);
+  CRU_UNUSED(x_index);
+  CRU_UNUSED(y_index);
+  CRU_UNUSED(z_index);
   return true;
 }
 

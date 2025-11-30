@@ -107,7 +107,7 @@ public:
 
   virtual int64_t Size() const = 0;
 
-  virtual const Eigen::Isometry3d& GetPointCloudOriginTransform() const = 0;
+  virtual const Eigen::Isometry3d& PointCloudOriginTransform() const = 0;
 
   virtual void SetPointCloudOriginTransform(
       const Eigen::Isometry3d& origin_transform) = 0;

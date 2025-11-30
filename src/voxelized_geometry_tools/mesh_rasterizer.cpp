@@ -256,7 +256,8 @@ OccupancyMapType RasterizeMeshIntoOccupancyMapImpl(
 
   const double buffer_size = resolution * 2.0;
   const Eigen::Vector3d grid_dimensions(
-      object_size.x() + buffer_size, object_size.y() + buffer_size,
+      object_size.x() + buffer_size,
+      object_size.y() + buffer_size,
       object_size.z() + buffer_size);
   const auto grid_sizes =
       common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(

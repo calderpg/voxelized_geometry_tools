@@ -116,7 +116,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     {
       // Get X_WC, the transform from world to the origin of the pointcloud
       const Eigen::Isometry3d& X_WC =
-          pointcloud->GetPointCloudOriginTransform();
+          pointcloud->PointCloudOriginTransform();
       // X_GC, transform from grid origin to the origin of the pointcloud
       const Eigen::Isometry3f grid_pointcloud_transform_float =
           (X_GW * X_WC).cast<float>();

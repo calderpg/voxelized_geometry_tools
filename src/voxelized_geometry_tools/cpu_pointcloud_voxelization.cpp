@@ -57,7 +57,7 @@ void RaycastPointCloud(
   // Get X_GW, the transform from grid origin to world
   const Eigen::Isometry3d& X_GW = tracking_grid.InverseOriginTransform();
   // Get X_WC, the transform from world to the origin of the pointcloud
-  const Eigen::Isometry3d& X_WC = cloud.GetPointCloudOriginTransform();
+  const Eigen::Isometry3d& X_WC = cloud.PointCloudOriginTransform();
   // Transform X_GC, transform from grid origin to the origin of the pointcloud
   const Eigen::Isometry3d X_GC = X_GW * X_WC;
   // Get the pointcloud origin in grid frame

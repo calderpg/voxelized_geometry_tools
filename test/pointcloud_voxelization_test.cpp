@@ -45,7 +45,7 @@ public:
 
   int64_t Size() const override { return static_cast<int64_t>(points_.size()); }
 
-  const Eigen::Isometry3d& GetPointCloudOriginTransform() const override
+  const Eigen::Isometry3d& PointCloudOriginTransform() const override
   {
     return origin_transform_;
   }

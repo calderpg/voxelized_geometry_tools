@@ -44,7 +44,7 @@ public:
     return static_cast<int64_t>(cloud_ptr_->width * cloud_ptr_->height);
   }
 
-  const Eigen::Isometry3d& GetPointCloudOriginTransform() const override
+  const Eigen::Isometry3d& PointCloudOriginTransform() const override
   {
     return origin_transform_;
   }

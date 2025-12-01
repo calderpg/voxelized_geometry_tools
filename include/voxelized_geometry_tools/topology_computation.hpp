@@ -76,7 +76,7 @@ int64_t MarkConnectedComponent(
   // components, in general, will take ~1/16 of the grid in size
   // which means, with 2 cells/hash bucket, we'll initialize to grid size/32
   const size_t queued_set_size_hint
-      = static_cast<size_t>(source_grid.GetTotalCells() / 32);
+      = static_cast<size_t>(source_grid.NumTotalVoxels() / 32);
   std::unordered_set<GridIndex> queued_set(queued_set_size_hint);
   // Enqueue the starting index
   working_queue.push_back(start_index);
@@ -146,11 +146,11 @@ uint32_t ComputeConnectedComponents(
                              const uint32_t)>& mark_component_fn)
 {
   // Reset components first
-  for (int64_t x_index = 0; x_index < source_grid.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < source_grid.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < source_grid.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < source_grid.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < source_grid.GetNumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < source_grid.NumZVoxels(); z_index++)
       {
         const GridIndex index(x_index, y_index, z_index);
         mark_component_fn(index, 0u);
@@ -158,17 +158,17 @@ uint32_t ComputeConnectedComponents(
     }
   }
   // Mark the components
-  int64_t total_cells = source_grid.GetNumXCells()
-                        * source_grid.GetNumYCells()
-                        * source_grid.GetNumZCells();
+  int64_t total_cells = source_grid.NumXVoxels()
+                        * source_grid.NumYVoxels()
+                        * source_grid.NumZVoxels();
   int64_t marked_cells = 0;
   uint32_t connected_components = 0;
   // Sweep through the grid
-  for (int64_t x_index = 0; x_index < source_grid.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < source_grid.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < source_grid.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < source_grid.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < source_grid.GetNumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < source_grid.NumZVoxels(); z_index++)
       {
         const GridIndex index(x_index, y_index, z_index);
         // Check if the cell has already been marked, if so, ignore
@@ -309,11 +309,11 @@ ExtractComponentSurfaces(
   std::map<uint32_t, std::unordered_map<GridIndex, uint8_t>>
       component_surfaces;
   // Loop through the grid and extract surface cells for each component
-  for (int64_t x_index = 0; x_index < source_grid.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < source_grid.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < source_grid.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < source_grid.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < source_grid.GetNumZCells(); z_index++)
+      for (int64_t z_index = 0; z_index < source_grid.NumZVoxels(); z_index++)
       {
         const GridIndex current_index(x_index, y_index, z_index);
         if (is_surface_index_fn(current_index))

@@ -59,8 +59,9 @@ int main(int argc, char** argv)
   const double x_size = 10.0;
   const double y_size = 10.0;
   const double z_size = 10.0;
-  const common_robotics_utilities::voxel_grid::GridSizes grid_sizes(
-      resolution, x_size, y_size, z_size);
+  const auto grid_sizes =
+      common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
+          resolution, Eigen::Vector3d(x_size, y_size, z_size));
   // Let's center the grid around the origin
   const Eigen::Translation3d origin_translation(-5.0, -5.0, -5.0);
   const Eigen::Quaterniond origin_rotation(1.0, 0.0, 0.0, 0.0);
@@ -87,17 +88,17 @@ int main(int argc, char** argv)
 
   // Let's set some values
   // This is how you should iterate through the 3D grid's cells
-  for (int64_t x_index = 0; x_index < occupancy_map.GetNumXCells(); x_index++)
+  for (int64_t x_index = 0; x_index < occupancy_map.NumXVoxels(); x_index++)
   {
-    for (int64_t y_index = 0; y_index < occupancy_map.GetNumYCells(); y_index++)
+    for (int64_t y_index = 0; y_index < occupancy_map.NumYVoxels(); y_index++)
     {
-      for (int64_t z_index = 0; z_index < occupancy_map.GetNumZCells();
+      for (int64_t z_index = 0; z_index < occupancy_map.NumZVoxels();
            z_index++)
       {
         // Let's make the bottom corner (low x, low y, low z) an object
-        if ((x_index < (occupancy_map.GetNumXCells() / 2)) &&
-            (y_index < (occupancy_map.GetNumYCells() / 2)) &&
-            (z_index < (occupancy_map.GetNumZCells() / 2)))
+        if ((x_index < (occupancy_map.NumXVoxels() / 2)) &&
+            (y_index < (occupancy_map.NumYVoxels() / 2)) &&
+            (z_index < (occupancy_map.NumZVoxels() / 2)))
         {
           occupancy_map.SetIndex(x_index, y_index, z_index, obstacle_cell);
         }

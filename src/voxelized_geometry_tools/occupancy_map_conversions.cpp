@@ -16,9 +16,9 @@ ToMapType ConvertOccupancyMapImpl(
   if (from_map.IsInitialized())
   {
     ToMapType to_map(
-        from_map.GetOriginTransform(), from_map.GetFrame(),
-        from_map.GetGridSizes(), cell_converter(from_map.GetDefaultValue()),
-        cell_converter(from_map.GetOOBValue()));
+        from_map.OriginTransform(), from_map.Frame(), from_map.ControlSizes(),
+        cell_converter(from_map.DefaultValue()),
+        cell_converter(from_map.OOBValue()));
 
     const auto& from_backing_store = from_map.GetImmutableRawData();
     auto& to_backing_store = to_map.GetMutableRawData();

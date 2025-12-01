@@ -115,6 +115,15 @@ private:
 
   bool OnMutableRawAccess() override;
 
+  void EnforceUniformVoxelSize() const
+  {
+    if (!HasUniformVoxelSize())
+    {
+      throw std::invalid_argument(
+          "Tagged object occupancy map cannot have non-uniform voxel sizes");
+    }
+  }
+
 public:
   static uint64_t Serialize(
       const TaggedObjectOccupancyMap& map, std::vector<uint8_t>& buffer);
@@ -130,20 +139,20 @@ public:
 
   TaggedObjectOccupancyMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value)
       : TaggedObjectOccupancyMap(
           origin_transform, frame, sizes, default_value, default_value) {}
 
   TaggedObjectOccupancyMap(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value)
       : TaggedObjectOccupancyMap(frame, sizes, default_value, default_value) {}
 
   TaggedObjectOccupancyMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value,
       const TaggedObjectOccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
@@ -152,16 +161,12 @@ public:
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "Tagged object collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   TaggedObjectOccupancyMap(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value,
       const TaggedObjectOccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
@@ -170,11 +175,7 @@ public:
               sizes, default_value, oob_value),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "Tagged object collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   TaggedObjectOccupancyMap()
@@ -182,9 +183,9 @@ public:
           ::VoxelGridBase<TaggedObjectOccupancyCell,
                           std::vector<TaggedObjectOccupancyCell>>() {}
 
-  double GetResolution() const { return GetCellSizes().x(); }
+  double Resolution() const { return VoxelXSize(); }
 
-  const std::string& GetFrame() const { return frame_; }
+  const std::string& Frame() const { return frame_; }
 
   void SetFrame(const std::string& frame) { frame_ = frame; }
 
@@ -242,7 +243,7 @@ public:
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, is_filled_fn, GetFrame(), parameters);
+             ScalarType>(*this, is_filled_fn, Frame(), parameters);
   }
 
   template<typename ScalarType>
@@ -266,11 +267,11 @@ public:
       const
   {
     std::set<uint32_t> object_ids_set;
-    for (int64_t x_index = 0; x_index < GetNumXCells(); x_index++)
+    for (int64_t x_index = 0; x_index < NumXVoxels(); x_index++)
     {
-      for (int64_t y_index = 0; y_index < GetNumYCells(); y_index++)
+      for (int64_t y_index = 0; y_index < NumYVoxels(); y_index++)
       {
-        for (int64_t z_index = 0; z_index < GetNumZCells(); z_index++)
+        for (int64_t z_index = 0; z_index < NumZVoxels(); z_index++)
         {
           const auto query = GetIndexImmutable(x_index, y_index, z_index);
           const TaggedObjectOccupancyCell& cell = query.Value();
@@ -314,7 +315,7 @@ public:
     const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, free_sdf_filled_fn, GetFrame(), parameters);
+             ScalarType>(*this, free_sdf_filled_fn, Frame(), parameters);
 
     // Make the helper function
     const std::function<bool(const GridIndex&)>
@@ -340,15 +341,15 @@ public:
     const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, object_filled_fn, GetFrame(), parameters);
+             ScalarType>(*this, object_filled_fn, Frame(), parameters);
 
     SignedDistanceField<ScalarType> combined_sdf = free_sdf;
     combined_sdf.Unlock();
-    for (int64_t x_idx = 0; x_idx < combined_sdf.GetNumXCells(); x_idx++)
+    for (int64_t x_idx = 0; x_idx < combined_sdf.NumXVoxels(); x_idx++)
     {
-      for (int64_t y_idx = 0; y_idx < combined_sdf.GetNumYCells(); y_idx++)
+      for (int64_t y_idx = 0; y_idx < combined_sdf.NumYVoxels(); y_idx++)
       {
-        for (int64_t z_idx = 0; z_idx < combined_sdf.GetNumZCells(); z_idx++)
+        for (int64_t z_idx = 0; z_idx < combined_sdf.NumZVoxels(); z_idx++)
         {
           const ScalarType free_sdf_value =
               free_sdf.GetIndexImmutable(x_idx, y_idx, z_idx).Value();

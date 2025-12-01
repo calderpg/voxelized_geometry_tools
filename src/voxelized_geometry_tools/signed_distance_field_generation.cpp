@@ -258,9 +258,9 @@ void ComputeOneDimensionDistanceTransformInPlace(
 void ComputeDistanceFieldTransformInPlace(
     const DegreeOfParallelism& parallelism, EDTDistanceField& distance_field)
 {
-  const int64_t num_x_cells = distance_field.GetNumXCells();
-  const int64_t num_y_cells = distance_field.GetNumYCells();
-  const int64_t num_z_cells = distance_field.GetNumZCells();
+  const int64_t num_x_cells = distance_field.NumXVoxels();
+  const int64_t num_y_cells = distance_field.NumYVoxels();
+  const int64_t num_z_cells = distance_field.NumZVoxels();
 
   const auto get_indicies_from_iteration = [&](
       const int64_t step, const int64_t iteration)

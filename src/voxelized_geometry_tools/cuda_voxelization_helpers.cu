@@ -544,7 +544,7 @@ public:
         cudaDeviceSynchronize(),
         "RetrieveFilteredGrid failed to synchronize");
     const size_t item_size = sizeof(float);
-    const size_t buffer_size = real_filter_grid.NumCells() * item_size;
+    const size_t buffer_size = real_filter_grid.NumVoxels() * item_size;
     CudaCheckErrors(
         cudaMemcpy(
             host_data_ptr, real_filter_grid.GetBuffer(), buffer_size,

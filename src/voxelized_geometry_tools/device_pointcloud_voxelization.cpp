@@ -81,7 +81,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 
   std::unique_ptr<TrackingGridsHandle> tracking_grids =
       helper_interface_->PrepareTrackingGrids(
-          static_environment.GetTotalCells(),
+          static_environment.NumTotalVoxels(),
           static_cast<int32_t>(num_tracking_grids));
   if (tracking_grids->GetNumTrackingGrids() != num_tracking_grids)
   {
@@ -89,21 +89,20 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   }
 
   // Get X_GW, the transform from grid origin to world
-  const Eigen::Isometry3d& X_GW =
-      static_environment.GetInverseOriginTransform();
+  const Eigen::Isometry3d& X_GW = static_environment.InverseOriginTransform();
 
   // Prepare grid data
   const float inverse_step_size =
       static_cast<float>(1.0 /
-          (static_environment.GetResolution() * step_size_multiplier));
+          (static_environment.Resolution() * step_size_multiplier));
   const float inverse_cell_size =
-      static_cast<float>(static_environment.GetGridSizes().InvCellXSize());
+      static_cast<float>(static_environment.ControlSizes().InverseVoxelXSize());
   const int32_t num_x_cells =
-      static_cast<int32_t>(static_environment.GetNumXCells());
+      static_cast<int32_t>(static_environment.NumXVoxels());
   const int32_t num_y_cells =
-      static_cast<int32_t>(static_environment.GetNumYCells());
+      static_cast<int32_t>(static_environment.NumYVoxels());
   const int32_t num_z_cells =
-      static_cast<int32_t>(static_environment.GetNumZCells());
+      static_cast<int32_t>(static_environment.NumZVoxels());
 
   // Lambda for the raycasting of a single pointcloud.
   const auto per_item_work = [&](const int32_t, const int64_t pointcloud_index)
@@ -117,7 +116,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
     {
       // Get X_WC, the transform from world to the origin of the pointcloud
       const Eigen::Isometry3d& X_WC =
-          pointcloud->GetPointCloudOriginTransform();
+          pointcloud->PointCloudOriginTransform();
       // X_GC, transform from grid origin to the origin of the pointcloud
       const Eigen::Isometry3f grid_pointcloud_transform_float =
           (X_GW * X_WC).cast<float>();
@@ -158,7 +157,7 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
 
   std::unique_ptr<FilterGridHandle> filter_grid =
       helper_interface_->PrepareFilterGrid(
-          static_environment.GetTotalCells(),
+          static_environment.NumTotalVoxels(),
           static_environment.GetImmutableRawData().data());
 
   helper_interface_->FilterTrackingGrids(

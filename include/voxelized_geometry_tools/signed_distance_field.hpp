@@ -263,7 +263,7 @@ private:
   {
     const double nominal_sdf_distance = static_cast<double>(
         this->GetIndexImmutable(x_idx, y_idx, z_idx).Value());
-    const double cell_center_distance_offset = GetResolution() * 0.5;
+    const double cell_center_distance_offset = Resolution() * 0.5;
     if (nominal_sdf_distance >= 0.0)
     {
       return nominal_sdf_distance - cell_center_distance_offset;
@@ -318,7 +318,7 @@ private:
   {
     // Get the query location in grid frame
     const Eigen::Vector4d grid_frame_query_location
-        = this->GetInverseOriginTransform() * query_location;
+        = this->InverseOriginTransform() * query_location;
     // Switch between all the possible options of where we are
     const Eigen::Vector4d cell_center_location
         = this->GridIndexToLocationInGridFrame(x_idx, y_idx, z_idx);
@@ -327,13 +327,13 @@ private:
     // Find the best-matching 8 surrounding cell centers
     const std::pair<int64_t, int64_t> x_axis_indices
         = GetAxisInterpolationIndices(
-            x_idx, this->GetNumXCells(), query_offset(0));
+            x_idx, this->NumXVoxels(), query_offset(0));
     const std::pair<int64_t, int64_t> y_axis_indices
         = GetAxisInterpolationIndices(
-            y_idx, this->GetNumYCells(), query_offset(1));
+            y_idx, this->NumYVoxels(), query_offset(1));
     const std::pair<int64_t, int64_t> z_axis_indices
         = GetAxisInterpolationIndices(
-            z_idx, this->GetNumZCells(), query_offset(2));
+            z_idx, this->NumZVoxels(), query_offset(2));
     const Eigen::Vector4d lower_corner_location
         = this->GridIndexToLocationInGridFrame(x_axis_indices.first,
                                                y_axis_indices.first,
@@ -372,7 +372,7 @@ private:
                                      z_axis_indices.second);
     return common_robotics_utilities::math::TrilinearInterpolate<double>(
         lower_corner_location.head(3),
-        lower_corner_location.head(3) + this->GetCellSizes(),
+        lower_corner_location.head(3) + this->VoxelSizes(),
         mxmymz_distance, mxmypz_distance, mxpymz_distance, mxpypz_distance,
         pxmymz_distance, pxmypz_distance, pxpymz_distance, pxpypz_distance,
         grid_frame_query_location.head(3));
@@ -432,7 +432,7 @@ private:
           break;
         }
         // Check if we've been pushed past the edge
-        if (!this->IndexInBounds(current_index))
+        if (!this->CheckGridIndexInBounds(current_index))
         {
           // We have the "off the grid" local maxima
           local_extrema
@@ -483,7 +483,7 @@ private:
   {
     // A gradient is at a local maxima if the absolute value of all components
     // (x,y,z) are less than 1/2 SDF resolution
-    const double step_resolution = GetResolution() * 0.06125;
+    const double step_resolution = Resolution() * 0.06125;
     if (std::abs(gradient(0)) <= step_resolution
         && std::abs(gradient(1)) <= step_resolution
         && std::abs(gradient(2)) <= step_resolution)
@@ -509,7 +509,7 @@ private:
     }
     // Given the gradient, pick the "best fit" of the 26 neighboring points
     common_robotics_utilities::voxel_grid::GridIndex next_index = index;
-    const double step_resolution = GetResolution() * 0.06125;
+    const double step_resolution = Resolution() * 0.06125;
     if (working_gradient(0) > step_resolution)
     {
       next_index.X() += 1;
@@ -548,7 +548,6 @@ private:
         new SignedDistanceField<ScalarType>(*this));
   }
 
-  /// We need to serialize the frame and locked flag.
   uint64_t DerivedSerializeSelf(
       std::vector<uint8_t>& buffer,
       const ScalarTypeSerializer& value_serializer) const override
@@ -562,12 +561,14 @@ private:
     return bytes_written;
   }
 
-  /// We need to deserialize the frame and locked flag.
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const ScalarTypeDeserializer& value_deserializer) override
   {
     CRU_UNUSED(value_deserializer);
+    // Enforce uniform voxel sizes
+    EnforceUniformVoxelSize();
+    // Deserialize our additional members
     uint64_t current_position = starting_offset;
     // Deserialize SDF stuff
     const auto frame_deserialized
@@ -607,6 +608,15 @@ private:
 
   /// We do not allow mutable raw access if the SDF is locked.
   bool OnMutableRawAccess() override { return !IsLocked(); }
+
+  void EnforceUniformVoxelSize() const
+  {
+    if (!this->HasUniformVoxelSize())
+    {
+      throw std::invalid_argument(
+          "Signed distance field cannot have non-uniform voxel sizes");
+    }
+  }
 
 public:
   static uint64_t Serialize(
@@ -713,45 +723,39 @@ public:
 
   SignedDistanceField(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value)
       : SignedDistanceField(
           origin_transform, frame, sizes, default_value, default_value) {}
 
   SignedDistanceField(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value)
       : SignedDistanceField(frame, sizes, default_value, default_value) {}
 
   SignedDistanceField(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
             ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
                 origin_transform, sizes, default_value, oob_value),
         frame_(frame), locked_(false)
   {
-    if (!this->HasUniformCellSize())
-    {
-      throw std::invalid_argument("SDF cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   SignedDistanceField(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
             ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
                 sizes, default_value, oob_value),
         frame_(frame), locked_(false)
   {
-    if (!this->HasUniformCellSize())
-    {
-      throw std::invalid_argument("SDF cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   SignedDistanceField()
@@ -784,9 +788,9 @@ public:
 
   void Unlock() { locked_ = false; }
 
-  double GetResolution() const { return this->GetCellSizes().x(); }
+  double Resolution() const { return this->VoxelXSize(); }
 
-  const std::string& GetFrame() const { return frame_; }
+  const std::string& Frame() const { return frame_; }
 
   void SetFrame(const std::string& frame) { frame_ = frame; }
 
@@ -818,7 +822,7 @@ public:
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
         = this->LocationToGridIndex4d(location);
-    if (this->IndexInBounds(index))
+    if (this->CheckGridIndexInBounds(index))
     {
       return EstimateDistanceQuery(
           EstimateDistanceInterpolateFromNeighbors(
@@ -862,7 +866,7 @@ public:
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
         = this->LocationToGridIndex3d(location);
-    if (this->IndexInBounds(index))
+    if (this->CheckGridIndexInBounds(index))
     {
       return GetIndexCoarseGradient(index, enable_edge_gradients);
     }
@@ -878,7 +882,7 @@ public:
   {
     const common_robotics_utilities::voxel_grid::GridIndex index
         = this->LocationToGridIndex4d(location);
-    if (this->IndexInBounds(index))
+    if (this->CheckGridIndexInBounds(index))
     {
       return GetIndexCoarseGradient(index, enable_edge_gradients);
     }
@@ -906,7 +910,7 @@ public:
     if (grid_aligned_gradient.HasValue())
     {
       const Eigen::Vector4d gradient
-          = this->GetOriginTransform() * grid_aligned_gradient.Value();
+          = this->OriginTransform() * grid_aligned_gradient.Value();
       return GradientQuery(gradient);
     }
     else
@@ -920,15 +924,15 @@ public:
       const bool enable_edge_gradients=false) const
   {
     // Make sure the index is inside bounds
-    if (this->IndexInBounds(x_index, y_index, z_index))
+    if (this->CheckGridIndexInBounds(x_index, y_index, z_index))
     {
       // See if the index we're trying to query is one cell in from the edge
       if ((x_index > 0) && (y_index > 0) && (z_index > 0)
-          && (x_index < (this->GetNumXCells() - 1))
-          && (y_index < (this->GetNumYCells() - 1))
-          && (z_index < (this->GetNumZCells() - 1)))
+          && (x_index < (this->NumXVoxels() - 1))
+          && (y_index < (this->NumYVoxels() - 1))
+          && (z_index < (this->NumZVoxels() - 1)))
       {
-        const double inv_twice_resolution = 1.0 / (2.0 * GetResolution());
+        const double inv_twice_resolution = 1.0 / (2.0 * Resolution());
         const double gx
             = (this->GetIndexImmutable(x_index + 1, y_index, z_index).Value()
                - this->GetIndexImmutable(x_index - 1, y_index, z_index).Value())
@@ -953,22 +957,22 @@ public:
         const int64_t low_x_index
             = std::max(static_cast<int64_t>(0), x_index - 1);
         const int64_t high_x_index
-            = std::min(this->GetNumXCells() - 1, x_index + 1);
+            = std::min(this->NumXVoxels() - 1, x_index + 1);
         const int64_t low_y_index
             = std::max(static_cast<int64_t>(0), y_index - 1);
         const int64_t high_y_index
-            = std::min(this->GetNumYCells() - 1, y_index + 1);
+            = std::min(this->NumYVoxels() - 1, y_index + 1);
         const int64_t low_z_index
             = std::max(static_cast<int64_t>(0), z_index - 1);
         const int64_t high_z_index
-            = std::min(this->GetNumZCells() - 1, z_index + 1);
+            = std::min(this->NumZVoxels() - 1, z_index + 1);
         // Compute the axis increments
         const double x_increment
-            = static_cast<double>(high_x_index - low_x_index) * GetResolution();
+            = static_cast<double>(high_x_index - low_x_index) * Resolution();
         const double y_increment
-            = static_cast<double>(high_y_index - low_y_index) * GetResolution();
+            = static_cast<double>(high_y_index - low_y_index) * Resolution();
         const double z_increment
-            = static_cast<double>(high_z_index - low_z_index) * GetResolution();
+            = static_cast<double>(high_z_index - low_z_index) * Resolution();
         // Compute the gradients for each axis - by default these are zero
         double gx = 0.0;
         double gy = 0.0;
@@ -1049,7 +1053,7 @@ public:
       const double nominal_window_size) const
   {
     const double ideal_window_size = std::abs(nominal_window_size);
-    if (this->LocationInBounds(x, y, z))
+    if (this->CheckLocationInBounds(x, y, z))
     {
       const double min_x = x - ideal_window_size;
       const double max_x = x + ideal_window_size;
@@ -1159,12 +1163,12 @@ public:
     Eigen::Vector4d mutable_location = location;
     // If we are in bounds, start the projection process,
     // otherwise return the location unchanged
-    if (this->LocationInBounds4d(mutable_location))
+    if (this->CheckLocationInBounds4d(mutable_location))
     {
       // Add a small collision margin to account for rounding and similar
       const double minimum_distance_with_margin
-          = minimum_distance + GetResolution() * stepsize_multiplier * 1e-3;
-      const double max_stepsize = GetResolution() * stepsize_multiplier;
+          = minimum_distance + Resolution() * stepsize_multiplier * 1e-3;
+      const double max_stepsize = Resolution() * stepsize_multiplier;
       const bool enable_edge_gradients = true;
       double sdf_dist = EstimateLocationDistance4d(mutable_location).Value();
       while (sdf_dist <= minimum_distance)
@@ -1176,7 +1180,7 @@ public:
         {
           const Eigen::Vector4d& grad_vector = gradient.Value();
           // Make sure the gradient is large enough to be productive
-          if (grad_vector.norm() > GetResolution() * 0.25)
+          if (grad_vector.norm() > Resolution() * 0.25)
           {
             // Don't step any farther than is needed
             const double step_distance =
@@ -1208,13 +1212,13 @@ public:
         -std::numeric_limits<double>::infinity(),
         -std::numeric_limits<double>::infinity());
     common_robotics_utilities::voxel_grid::VoxelGrid<Eigen::Vector3d>
-        watershed_map(this->GetOriginTransform(), this->GetGridSizes(),
-                      default_value);
-    for (int64_t x_idx = 0; x_idx < watershed_map.GetNumXCells(); x_idx++)
+        watershed_map(
+            this->OriginTransform(), this->ControlSizes(), default_value);
+    for (int64_t x_idx = 0; x_idx < watershed_map.NumXVoxels(); x_idx++)
     {
-      for (int64_t y_idx = 0; y_idx < watershed_map.GetNumYCells(); y_idx++)
+      for (int64_t y_idx = 0; y_idx < watershed_map.NumYVoxels(); y_idx++)
       {
-        for (int64_t z_idx = 0; z_idx < watershed_map.GetNumZCells(); z_idx++)
+        for (int64_t z_idx = 0; z_idx < watershed_map.NumZVoxels(); z_idx++)
         {
           // We use an "unsafe" function here because we know all the indices
           // we provide it will be safe

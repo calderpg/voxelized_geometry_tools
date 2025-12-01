@@ -45,7 +45,7 @@ public:
 
   int64_t Size() const override { return static_cast<int64_t>(points_.size()); }
 
-  const Eigen::Isometry3d& GetPointCloudOriginTransform() const override
+  const Eigen::Isometry3d& PointCloudOriginTransform() const override
   {
     return origin_transform_;
   }
@@ -79,11 +79,11 @@ private:
 void check_empty_voxelization(const OccupancyMap& occupancy)
 {
   // Make sure the grid is properly filled
-  for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy.NumYVoxels(); yidx++)
     {
-      for (int64_t zidx = 0; zidx < occupancy.GetNumZCells(); zidx++)
+      for (int64_t zidx = 0; zidx < occupancy.NumZVoxels(); zidx++)
       {
         // Check grid querying
         const auto occupancy_query =
@@ -108,11 +108,11 @@ void check_empty_voxelization(const OccupancyMap& occupancy)
 void check_voxelization(const OccupancyMap& occupancy)
 {
   // Make sure the grid is properly filled
-  for (int64_t xidx = 0; xidx < occupancy.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < occupancy.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < occupancy.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < occupancy.NumYVoxels(); yidx++)
     {
-      for (int64_t zidx = 0; zidx < occupancy.GetNumZCells(); zidx++)
+      for (int64_t zidx = 0; zidx < occupancy.NumZVoxels(); zidx++)
       {
         // Check grid querying
         const auto occupancy_query =
@@ -169,14 +169,15 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
   const OccupancyCell empty_cell(0.0f);
   const OccupancyCell filled_cell(1.0f);
 
-  const common_robotics_utilities::voxel_grid::GridSizes grid_size(
-      grid_resolution, x_size, y_size, z_size);
-  OccupancyMap static_environment(X_WG, "world", grid_size, empty_cell);
+  const auto grid_sizes =
+      common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
+          grid_resolution, Eigen::Vector3d(x_size, y_size, z_size));
+  OccupancyMap static_environment(X_WG, "world", grid_sizes, empty_cell);
 
   // Set the bottom cells filled
-  for (int64_t xidx = 0; xidx < static_environment.GetNumXCells(); xidx++)
+  for (int64_t xidx = 0; xidx < static_environment.NumXVoxels(); xidx++)
   {
-    for (int64_t yidx = 0; yidx < static_environment.GetNumYCells(); yidx++)
+    for (int64_t yidx = 0; yidx < static_environment.NumYVoxels(); yidx++)
     {
       static_environment.SetIndex(xidx, yidx, 0, filled_cell);
     }

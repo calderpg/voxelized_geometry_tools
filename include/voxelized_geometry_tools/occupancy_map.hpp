@@ -95,6 +95,15 @@ private:
 
   bool OnMutableRawAccess() override;
 
+  void EnforceUniformVoxelSize() const
+  {
+    if (!HasUniformVoxelSize())
+    {
+      throw std::invalid_argument(
+          "Occupancy map cannot have non-uniform voxel sizes");
+    }
+  }
+
 public:
   static uint64_t Serialize(
       const OccupancyMap& map, std::vector<uint8_t>& buffer);
@@ -110,56 +119,48 @@ public:
 
   OccupancyMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value)
       : OccupancyMap(
           origin_transform, frame, sizes, default_value, default_value) {}
 
   OccupancyMap(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value)
       : OccupancyMap(frame, sizes, default_value, default_value) {}
 
   OccupancyMap(
       const Eigen::Isometry3d& origin_transform, const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value, const OccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>(
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "Collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   OccupancyMap(
       const std::string& frame,
-      const common_robotics_utilities::voxel_grid::GridSizes& sizes,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value, const OccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>(
               sizes, default_value, oob_value),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "Collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   OccupancyMap()
       : common_robotics_utilities::voxel_grid
           ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>() {}
 
-  double GetResolution() const { return GetCellSizes().x(); }
+  double Resolution() const { return VoxelXSize(); }
 
-  const std::string& GetFrame() const { return frame_; }
+  const std::string& Frame() const { return frame_; }
 
   void SetFrame(const std::string& frame) { frame_ = frame; }
 
@@ -205,7 +206,7 @@ public:
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
             <OccupancyCell, std::vector<OccupancyCell>, ScalarType>(
-                *this, is_filled_fn, GetFrame(), parameters);
+                *this, is_filled_fn, Frame(), parameters);
   }
 
   SignedDistanceField<double> ExtractSignedDistanceFieldDouble(

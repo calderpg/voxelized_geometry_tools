@@ -63,7 +63,6 @@ OccupancyComponentMap::DoClone() const
       new OccupancyComponentMap(*this));
 }
 
-/// We need to serialize the frame and locked flag.
 uint64_t OccupancyComponentMap::DerivedSerializeSelf(
     std::vector<uint8_t>& buffer,
     const OccupancyComponentCellSerializer& value_serializer) const
@@ -79,12 +78,14 @@ uint64_t OccupancyComponentMap::DerivedSerializeSelf(
   return bytes_written;
 }
 
-/// We need to deserialize the frame and locked flag.
 uint64_t OccupancyComponentMap::DerivedDeserializeSelf(
     const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
     const OccupancyComponentCellDeserializer& value_deserializer)
 {
   CRU_UNUSED(value_deserializer);
+  // Enforce uniform voxel sizes
+  EnforceUniformVoxelSize();
+  // Deserialize our additional members
   uint64_t current_position = starting_offset;
   const auto number_of_components_deserialized
       = common_robotics_utilities::serialization
@@ -236,17 +237,17 @@ OccupancyComponentMap::IsSurfaceIndex(
 {
   // First, we make sure that indices are within bounds
   // Out of bounds indices are NOT surface cells
-  if (IndexInBounds(x_index, y_index, z_index) == false)
+  if (!CheckGridIndexInBounds(x_index, y_index, z_index))
   {
     return common_robotics_utilities::OwningMaybe<bool>();
   }
   // Check all 26 possible neighbors
   const int64_t min_x_check = std::max(INT64_C(0), x_index - 1);
-  const int64_t max_x_check = std::min(GetNumXCells() - 1, x_index + 1);
+  const int64_t max_x_check = std::min(NumXVoxels() - 1, x_index + 1);
   const int64_t min_y_check = std::max(INT64_C(0), y_index - 1);
-  const int64_t max_y_check = std::min(GetNumYCells() - 1, y_index + 1);
+  const int64_t max_y_check = std::min(NumYVoxels() - 1, y_index + 1);
   const int64_t min_z_check = std::max(INT64_C(0), z_index - 1);
-  const int64_t max_z_check = std::min(GetNumZCells() - 1, z_index + 1);
+  const int64_t max_z_check = std::min(NumZVoxels() - 1, z_index + 1);
   const float our_occupancy
       = GetIndexImmutable(x_index, y_index, z_index).Value().Occupancy();
   for (int64_t x_idx = min_x_check; x_idx <= max_x_check; x_idx++)
@@ -293,14 +294,14 @@ OccupancyComponentMap::IsConnectedComponentSurfaceIndex(
 {
   // First, we make sure that indices are within bounds
   // Out of bounds indices are NOT surface cells
-  if (!IndexInBounds(x_index, y_index, z_index))
+  if (!CheckGridIndexInBounds(x_index, y_index, z_index))
   {
     return common_robotics_utilities::OwningMaybe<bool>();
   }
   // Edge indices are automatically surface cells
   if (x_index == 0 || y_index == 0 || z_index == 0
-      || x_index == (GetNumXCells() - 1) || y_index == (GetNumYCells() - 1)
-      || z_index == (GetNumZCells() - 1))
+      || x_index == (NumXVoxels() - 1) || y_index == (NumYVoxels() - 1)
+      || z_index == (NumZVoxels() - 1))
   {
     return common_robotics_utilities::OwningMaybe<bool>(true);
   }

@@ -46,8 +46,9 @@ void test_spatial_segments(
   const Eigen::Isometry3d origin_transform
       = Eigen::Translation3d(0.0, 0.0, 0.0) * Eigen::Quaterniond(
           Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitZ()));
-  const common_robotics_utilities::voxel_grid::GridSizes grid_sizes(
-      res, x_size, y_size, z_size);
+  const auto grid_sizes =
+      common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
+          res, Eigen::Vector3d(x_size, y_size, z_size));
   const voxelized_geometry_tools::TaggedObjectOccupancyComponentCell empty_cell(
       0.0f, 0u);
   voxelized_geometry_tools::TaggedObjectOccupancyComponentMap tocmap(
@@ -58,16 +59,16 @@ void test_spatial_segments(
   const voxelized_geometry_tools::TaggedObjectOccupancyComponentCell filled_2(
       1.0f, 2u);
 
-  for (int64_t x_idx = 0; x_idx < tocmap.GetNumXCells(); x_idx++)
+  for (int64_t x_idx = 0; x_idx < tocmap.NumXVoxels(); x_idx++)
   {
-    for (int64_t y_idx = 0; y_idx < tocmap.GetNumYCells(); y_idx++)
+    for (int64_t y_idx = 0; y_idx < tocmap.NumYVoxels(); y_idx++)
     {
-      for (int64_t z_idx = 0; z_idx < tocmap.GetNumZCells(); z_idx++)
+      for (int64_t z_idx = 0; z_idx < tocmap.NumZVoxels(); z_idx++)
       {
         if ((x_idx < 10)
             || (y_idx < 10)
-            || (x_idx >= tocmap.GetNumXCells() - 10)
-            || (y_idx >= tocmap.GetNumYCells() - 10))
+            || (x_idx >= tocmap.NumXVoxels() - 10)
+            || (y_idx >= tocmap.NumYVoxels() - 10))
         {
           tocmap.SetIndex(x_idx, y_idx, z_idx, filled_1);
         }
@@ -176,11 +177,11 @@ void test_spatial_segments(
 
   // Make extrema markers
   const auto maxima_map = virtual_border_sdf.ComputeLocalExtremaMap();
-  for (int64_t x_idx = 0; x_idx < maxima_map.GetNumXCells(); x_idx++)
+  for (int64_t x_idx = 0; x_idx < maxima_map.NumXVoxels(); x_idx++)
   {
-    for (int64_t y_idx = 0; y_idx < maxima_map.GetNumYCells(); y_idx++)
+    for (int64_t y_idx = 0; y_idx < maxima_map.NumYVoxels(); y_idx++)
     {
-      for (int64_t z_idx = 0; z_idx < maxima_map.GetNumZCells(); z_idx++)
+      for (int64_t z_idx = 0; z_idx < maxima_map.NumZVoxels(); z_idx++)
       {
         const Eigen::Vector4d location
             = maxima_map.GridIndexToLocation(x_idx, y_idx, z_idx);
@@ -191,7 +192,7 @@ void test_spatial_segments(
             && !std::isinf(extrema.z()))
         {
           const double distance = (extrema - location.block<3, 1>(0, 0)).norm();
-          if (distance < sdf.GetResolution())
+          if (distance < sdf.Resolution())
           {
             Marker maxima_rep;
             // Populate the header
@@ -211,9 +212,9 @@ void test_spatial_segments(
                     ::EigenQuaterniondToGeometryQuaternion(
                         Eigen::Quaterniond::Identity());
             maxima_rep.type = Marker::SPHERE;
-            maxima_rep.scale.x = sdf.GetResolution();
-            maxima_rep.scale.y = sdf.GetResolution();
-            maxima_rep.scale.z = sdf.GetResolution();
+            maxima_rep.scale.x = sdf.Resolution();
+            maxima_rep.scale.y = sdf.Resolution();
+            maxima_rep.scale.z = sdf.Resolution();
             maxima_rep.color = common_robotics_utilities::color_builder
                 ::MakeFromFloatColors<ColorRGBA>(1.0, 0.5, 0.0, 1.0);
             display_markers.markers.push_back(maxima_rep);

@@ -45,9 +45,20 @@ private:
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const OccupancyCellDeserializer& value_deserializer) override;
 
-  bool OnMutableAccess(const Eigen::Vector4d& location) override;
+  bool OnMutableAccess(const int64_t x_index,
+                       const int64_t y_index,
+                       const int64_t z_index) override;
 
   bool OnMutableRawAccess() override;
+
+  void EnforceUniformVoxelSize() const
+  {
+    if (!HasUniformVoxelSize())
+    {
+      throw std::invalid_argument(
+          "DSH occupancy map cannot have non-uniform voxel sizes");
+    }
+  }
 
 public:
   static uint64_t Serialize(
@@ -65,46 +76,40 @@ public:
       const std::string& filepath);
 
   DynamicSpatialHashedOccupancyMap(
-      const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
+      const common_robotics_utilities::voxel_grid
+          ::DynamicSpatialHashedVoxelGridSizes& voxel_grid_sizes,
       const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
           OccupancyCell, std::vector<OccupancyCell>>(
-              Eigen::Isometry3d::Identity(), chunk_sizes, default_value,
-              expected_chunks),
+              voxel_grid_sizes, default_value, expected_chunks),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "DSH collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   DynamicSpatialHashedOccupancyMap(
       const Eigen::Isometry3d& origin_transform,
-      const common_robotics_utilities::voxel_grid::GridSizes& chunk_sizes,
+      const common_robotics_utilities::voxel_grid
+          ::DynamicSpatialHashedVoxelGridSizes& voxel_grid_sizes,
       const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
       : DynamicSpatialHashedVoxelGridBase<
           OccupancyCell, std::vector<OccupancyCell>>(
-              origin_transform, chunk_sizes, default_value, expected_chunks),
+              origin_transform, voxel_grid_sizes, default_value,
+              expected_chunks),
         frame_(frame)
   {
-    if (!HasUniformCellSize())
-    {
-      throw std::invalid_argument(
-          "DSH collision map cannot have non-uniform cell sizes");
-    }
+    EnforceUniformVoxelSize();
   }
 
   DynamicSpatialHashedOccupancyMap()
       : DynamicSpatialHashedVoxelGridBase<
           OccupancyCell, std::vector<OccupancyCell>>() {}
 
-  double GetResolution() const { return GetCellSizes().x(); }
+  double Resolution() const { return VoxelXSize(); }
 
-  const std::string& GetFrame() const { return frame_; }
+  const std::string& Frame() const { return frame_; }
 
   void SetFrame(const std::string& frame) { frame_ = frame; }
 };

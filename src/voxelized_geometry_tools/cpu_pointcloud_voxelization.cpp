@@ -131,12 +131,11 @@ void CpuPointCloudVoxelizer::CombineAndFilterGrids(
 }
 
 VoxelizerRuntime CpuPointCloudVoxelizer::DoVoxelizePointClouds(
-    const OccupancyMap& static_environment, const double step_size_multiplier,
+    const OccupancyMap& static_environment,
     const PointCloudVoxelizationFilterOptions& filter_options,
     const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
     OccupancyMap& output_environment) const
 {
-  (void)(step_size_multiplier);
   const std::chrono::time_point<std::chrono::steady_clock> start_time =
       std::chrono::steady_clock::now();
   // Pose of grid G in world W.
@@ -298,13 +297,13 @@ void CpuPointCloudVoxelizer::DoRaycastSinglePoint(
       tracking_grid.LocationInGridFrameToGridIndex4d(p_GFinal);
 
   // Step 4: get axis steps.
-  const auto step_from_diff = [](const int64_t delta)
+  const auto step_from_diff = [](const int64_t diff)
   {
-    if (delta > 0)
+    if (diff > 0)
     {
       return 1;
     }
-    else if (delta < 0)
+    else if (diff < 0)
     {
       return -1;
     }

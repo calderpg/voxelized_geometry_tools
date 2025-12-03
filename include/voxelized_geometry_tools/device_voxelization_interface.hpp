@@ -149,9 +149,10 @@ public:
   virtual void RaycastPoints(
       const std::vector<float>& raw_points, const float max_range,
       const float* const grid_pointcloud_transform,
-      const float inverse_step_size, const float inverse_cell_size,
-      const int32_t num_x_cells, const int32_t num_y_cells,
-      const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,
+      const float voxel_size, const float inverse_voxel_size,
+      const float grid_x_size, const float grid_y_size, const float grid_z_size,
+      const int32_t num_x_voxels, const int32_t num_y_voxels,
+      const int32_t num_z_voxels, TrackingGridsHandle& tracking_grids,
       const size_t tracking_grid_index) = 0;
 
   virtual std::unique_ptr<FilterGridHandle> PrepareFilterGrid(

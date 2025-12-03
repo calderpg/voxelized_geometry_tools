@@ -167,7 +167,6 @@ void test_pointcloud_voxelization(
   const double z_size = 2.0;
   // 1/4 meter resolution, so 8 cells/axis
   const double grid_resolution = 0.25;
-  const double step_size_multiplier = 0.5;
   const voxelized_geometry_tools::OccupancyCell default_cell(0.0f);
   const auto grid_sizes =
       common_robotics_utilities::voxel_grid::VoxelGridSizes::FromGridSizes(
@@ -251,8 +250,7 @@ void test_pointcloud_voxelization(
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
         new CudaPointCloudVoxelizer(options));
     const auto cuda_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
+        static_environment, filter_options, {cam1_cloud, cam2_cloud});
     check_voxelization(cuda_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface
@@ -276,8 +274,7 @@ void test_pointcloud_voxelization(
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
         new OpenCLPointCloudVoxelizer(options));
     const auto opencl_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
+        static_environment, filter_options, {cam1_cloud, cam2_cloud});
     check_voxelization(opencl_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface
@@ -301,8 +298,7 @@ void test_pointcloud_voxelization(
     std::unique_ptr<PointCloudVoxelizationInterface> voxelizer(
         new CpuPointCloudVoxelizer(options));
     const auto cpu_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
-        {cam1_cloud, cam2_cloud});
+        static_environment, filter_options, {cam1_cloud, cam2_cloud});
     check_voxelization(cpu_voxelized);
     auto environment_display =
         voxelized_geometry_tools::ros_interface

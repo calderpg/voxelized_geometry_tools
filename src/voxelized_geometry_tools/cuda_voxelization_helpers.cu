@@ -4,6 +4,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <map>
@@ -31,109 +32,325 @@ void CudaCheckErrors(const cudaError_t error, const std::string& msg)
   }
 }
 
+__device__
+int32_t GetStepFromDiff(const int32_t diff)
+{
+  if (diff > 0)
+  {
+    return 1;
+  }
+  else if (diff < 0)
+  {
+    return -1;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+__device__
+float GetAxisTValue(
+    const float point_axis, const float ray_axis,
+    const float voxel_min_axis, const float voxel_max_axis)
+{
+  if (ray_axis > 0.0)
+  {
+    const float max_within_voxel = voxel_max_axis - point_axis;
+    return std::abs(max_within_voxel / ray_axis);
+  }
+  else if (ray_axis < -0.0)
+  {
+    const float max_within_voxel = point_axis - voxel_min_axis;
+    return std::abs(max_within_voxel / ray_axis);
+  }
+  else
+  {
+    return INFINITY;
+  }
+}
+
 __global__
 void RaycastPoint(
     const float* const device_points_ptr, const int32_t num_points,
     const float max_range,
     const float* const device_grid_pointcloud_transform_ptr,
-    const float inverse_step_size, const float inverse_cell_size,
-    const int32_t num_x_cells, const int32_t num_y_cells,
-    const int32_t num_z_cells, const int32_t stride1, const int32_t stride2,
-    int32_t* const device_tracking_grid_ptr)
+    const float voxel_size, const float inverse_voxel_size,
+    const float grid_x_size, const float grid_y_size, const float grid_z_size,
+    const int32_t num_x_voxels, const int32_t num_y_voxels,
+    const int32_t num_z_voxels, const int32_t stride1,
+    const int32_t stride2, int32_t* const device_tracking_grid_ptr)
 {
+  // Bail if we are beyond the pointcloud.
   const int32_t point_index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (point_index < num_points)
+  if (point_index >= num_points)
   {
-    // Point in pointcloud frame
-    const float px = device_points_ptr[(point_index * 3) + 0];
-    const float py = device_points_ptr[(point_index * 3) + 1];
-    const float pz = device_points_ptr[(point_index * 3) + 2];
-    // Skip invalid points marked with NaN or infinity
-    if (isfinite(px) && isfinite(py) && isfinite(pz))
+    return;
+  }
+
+  // Point in pointcloud frame.
+  const float p_CP_x = device_points_ptr[(point_index * 3) + 0];
+  const float p_CP_y = device_points_ptr[(point_index * 3) + 1];
+  const float p_CP_z = device_points_ptr[(point_index * 3) + 2];
+
+  // Bail if the point is non-finite.
+  if (!isfinite(p_CP_x) || !isfinite(p_CP_y) || !isfinite(p_CP_z))
+  {
+    return;
+  }
+
+  // Transform point into grid frame.
+  const float p_GP_x = device_grid_pointcloud_transform_ptr[0] * p_CP_x +
+                       device_grid_pointcloud_transform_ptr[4] * p_CP_y +
+                       device_grid_pointcloud_transform_ptr[8] * p_CP_z +
+                       device_grid_pointcloud_transform_ptr[12];
+  const float p_GP_y = device_grid_pointcloud_transform_ptr[1] * p_CP_x +
+                       device_grid_pointcloud_transform_ptr[5] * p_CP_y +
+                       device_grid_pointcloud_transform_ptr[9] * p_CP_z +
+                       device_grid_pointcloud_transform_ptr[13];
+  const float p_GP_z = device_grid_pointcloud_transform_ptr[2] * p_CP_x +
+                       device_grid_pointcloud_transform_ptr[6] * p_CP_y +
+                       device_grid_pointcloud_transform_ptr[10] * p_CP_z +
+                       device_grid_pointcloud_transform_ptr[14];
+
+  // Get pointcloud origin in grid frame.
+  const float p_GCo_x = device_grid_pointcloud_transform_ptr[12];
+  const float p_GCo_y = device_grid_pointcloud_transform_ptr[13];
+  const float p_GCo_z = device_grid_pointcloud_transform_ptr[14];
+
+  // Step 1: limit the final point to the provided maximum range.
+  const float ray_x = p_GP_x - p_GCo_x;
+  const float ray_y = p_GP_y - p_GCo_y;
+  const float ray_z = p_GP_z - p_GCo_z;
+  const float ray_length = sqrtf(ray_x * ray_x + ray_y * ray_y + ray_z * ray_z);
+  const bool clipped = ray_length > max_range;
+
+  float p_GFinal_x = p_GP_x;
+  float p_GFinal_y = p_GP_y;
+  float p_GFinal_z = p_GP_z;
+  if (clipped)
+  {
+    p_GFinal_x = p_GCo_x + (ray_x * (max_range / ray_length));
+    p_GFinal_y = p_GCo_y + (ray_y * (max_range / ray_length));
+    p_GFinal_z = p_GCo_z + (ray_z * (max_range / ray_length));
+  }
+
+  // Step 2: get a starting point within the grid.
+  const int32_t p_GCo_idx =
+      static_cast<int32_t>(std::floor(p_GCo_x * inverse_voxel_size));
+  const int32_t p_GCo_idy =
+      static_cast<int32_t>(std::floor(p_GCo_y * inverse_voxel_size));
+  const int32_t p_GCo_idz =
+      static_cast<int32_t>(std::floor(p_GCo_z * inverse_voxel_size));
+
+  const bool origin_in_grid =
+      p_GCo_idx >= 0 && p_GCo_idx < num_x_voxels &&
+      p_GCo_idy >= 0 && p_GCo_idy < num_y_voxels &&
+      p_GCo_idz >= 0 && p_GCo_idz < num_z_voxels;
+
+  float p_GStart_x = p_GCo_x;
+  float p_GStart_y = p_GCo_y;
+  float p_GStart_z = p_GCo_z;
+  if (!origin_in_grid)
+  {
+    float grid_sizes[3];
+    grid_sizes[0] = grid_x_size;
+    grid_sizes[1] = grid_y_size;
+    grid_sizes[2] = grid_z_size;
+
+    float p_GCo[3];
+    p_GCo[0] = p_GCo_x;
+    p_GCo[1] = p_GCo_y;
+    p_GCo[2] = p_GCo_z;
+
+    float tmin = 0.0f;
+    float tmax = max_range;
+
+    float direction[3];
+    direction[0] = ray_x / ray_length;
+    direction[1] = ray_y / ray_length;
+    direction[2] = ray_z / ray_length;
+
+    // Threshold for considering an axis direction as flat.
+    const float flat_threshold = 1e-10;
+
+    for (int axis = 0; axis < 3; axis++)
     {
-      // Pointcloud origin in grid frame
-      const float ox = device_grid_pointcloud_transform_ptr[12];
-      const float oy = device_grid_pointcloud_transform_ptr[13];
-      const float oz = device_grid_pointcloud_transform_ptr[14];
-      // Point in grid frame
-      const float gx = device_grid_pointcloud_transform_ptr[0] * px
-                       + device_grid_pointcloud_transform_ptr[4] * py
-                       + device_grid_pointcloud_transform_ptr[8] * pz
-                       + device_grid_pointcloud_transform_ptr[12];
-      const float gy = device_grid_pointcloud_transform_ptr[1] * px
-                       + device_grid_pointcloud_transform_ptr[5] * py
-                       + device_grid_pointcloud_transform_ptr[9] * pz
-                       + device_grid_pointcloud_transform_ptr[13];
-      const float gz = device_grid_pointcloud_transform_ptr[2] * px
-                       + device_grid_pointcloud_transform_ptr[6] * py
-                       + device_grid_pointcloud_transform_ptr[10] * pz
-                       + device_grid_pointcloud_transform_ptr[14];
-      const float rx = gx - ox;
-      const float ry = gy - oy;
-      const float rz = gz - oz;
-      const float current_ray_length = sqrtf((rx * rx) + (ry * ry) + (rz * rz));
-      const float num_steps = floor(current_ray_length * inverse_step_size);
-      int32_t previous_x_cell = -1;
-      int32_t previous_y_cell = -1;
-      int32_t previous_z_cell = -1;
-      bool ray_crossed_grid = false;
-      for (float step = 0.0; step < num_steps; step += 1.0)
+      if (std::abs(direction[axis]) < flat_threshold)
       {
-        const float elapsed_ratio = step / num_steps;
-        if ((elapsed_ratio * current_ray_length) > max_range)
+        // If the direction verctor is nearly zero, make sure it is within the
+        // axis range of the grid; if not, terminate.
+        const bool in_slab =
+            p_GCo[axis] >= 0.0f && p_GCo[axis] < grid_sizes[axis];
+
+        if (!in_slab)
         {
-          // We've gone beyond max range of the sensor
-          break;
-        }
-        const float qx = (rx * elapsed_ratio) + ox;
-        const float qy = (ry * elapsed_ratio) + oy;
-        const float qz = (rz * elapsed_ratio) + oz;
-        const int32_t x_cell =
-            static_cast<int32_t>(std::floor(qx * inverse_cell_size));
-        const int32_t y_cell =
-            static_cast<int32_t>(std::floor(qy * inverse_cell_size));
-        const int32_t z_cell =
-            static_cast<int32_t>(std::floor(qz * inverse_cell_size));
-        if (x_cell != previous_x_cell || y_cell != previous_y_cell
-            || z_cell != previous_z_cell)
-        {
-          if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-              && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-          {
-            ray_crossed_grid = true;
-            const int32_t cell_index =
-                (x_cell * stride1) + (y_cell * stride2) + z_cell;
-            // Increase free count
-            atomicAdd(&(device_tracking_grid_ptr[cell_index * 2]), 1);
-          }
-          else if (ray_crossed_grid)
-          {
-            // We've left the grid and there's no reason to keep going.
-            break;
-          }
-        }
-        previous_x_cell = x_cell;
-        previous_y_cell = y_cell;
-        previous_z_cell = z_cell;
-      }
-      // Set the point itself as filled, if it is in range
-      if (current_ray_length <= max_range)
-      {
-        const int32_t x_cell =
-            static_cast<int32_t>(std::floor(gx * inverse_cell_size));
-        const int32_t y_cell =
-            static_cast<int32_t>(std::floor(gy * inverse_cell_size));
-        const int32_t z_cell =
-            static_cast<int32_t>(std::floor(gz * inverse_cell_size));
-        if (x_cell >= 0 && x_cell < num_x_cells && y_cell >= 0
-            && y_cell < num_y_cells && z_cell >= 0 && z_cell < num_z_cells)
-        {
-          const int32_t cell_index =
-              (x_cell * stride1) + (y_cell * stride2) + z_cell;
-          // Increase filled count
-          atomicAdd(&(device_tracking_grid_ptr[(cell_index * 2) + 1]), 1);
+          return;
         }
       }
+      else
+      {
+        // Check against the low and high planes of the current axis.
+        const float ood = 1.0f / direction[axis];
+
+        const float tlow = (0.0 - p_GCo[axis]) * ood;
+        const float thigh = (grid_sizes[axis] - p_GCo[axis]) * ood;
+
+        const float t1 = (tlow <= thigh) ? tlow : thigh;
+        const float t2 = (tlow <= thigh) ? thigh : tlow;
+
+        if (t1 > tmin)
+        {
+          tmin = t1;
+        }
+        if (t2 > tmax)
+        {
+          tmax = t2;
+        }
+
+        if (tmin > tmax)
+        {
+          // Line segment does not interset the grid, terminate.
+          return;
+        }
+      }
+    }
+
+    // Nudge the point slightly farther into the grid to avoid any edge cases.
+    const float nudge = 1e-10;
+
+    p_GStart_x = p_GCo_x + (direction[0] * (tmin + nudge));
+    p_GStart_y = p_GCo_y + (direction[1] * (tmin + nudge));
+    p_GStart_z = p_GCo_z + (direction[2] * (tmin + nudge));
+  }
+
+  // Step 3: grab indices for start and final points.
+  const int32_t p_GStart_idx =
+      static_cast<int32_t>(std::floor(p_GStart_x * inverse_voxel_size));
+  const int32_t p_GStart_idy =
+      static_cast<int32_t>(std::floor(p_GStart_y * inverse_voxel_size));
+  const int32_t p_GStart_idz =
+      static_cast<int32_t>(std::floor(p_GStart_z * inverse_voxel_size));
+
+  const int32_t p_GFinal_idx =
+      static_cast<int32_t>(std::floor(p_GFinal_x * inverse_voxel_size));
+  const int32_t p_GFinal_idy =
+      static_cast<int32_t>(std::floor(p_GFinal_y * inverse_voxel_size));
+  const int32_t p_GFinal_idz =
+      static_cast<int32_t>(std::floor(p_GFinal_z * inverse_voxel_size));
+
+  // Step 4: get axis steps.
+  const int32_t x_step = GetStepFromDiff(p_GFinal_idx - p_GStart_idx);
+  const int32_t y_step = GetStepFromDiff(p_GFinal_idy - p_GStart_idy);
+  const int32_t z_step = GetStepFromDiff(p_GFinal_idz - p_GStart_idz);
+
+  // Step 5: compute the control values.
+  const float half_voxel_size = voxel_size * 0.5f;
+
+  const float p_GStart_idcx =
+      (static_cast<float>(p_GStart_idx) + 0.5f) * voxel_size;
+  const float p_GStart_idcy =
+      (static_cast<float>(p_GStart_idy) + 0.5f) * voxel_size;
+  const float p_GStart_idcz =
+      (static_cast<float>(p_GStart_idz) + 0.5f) * voxel_size;
+
+  const float voxel_bottom_corner_x = p_GStart_idcx - half_voxel_size;
+  const float voxel_bottom_corner_y = p_GStart_idcy - half_voxel_size;
+  const float voxel_bottom_corner_z = p_GStart_idcz - half_voxel_size;
+
+  const float voxel_top_corner_x = p_GStart_idcx + half_voxel_size;
+  const float voxel_top_corner_y = p_GStart_idcy + half_voxel_size;
+  const float voxel_top_corner_z = p_GStart_idcz + half_voxel_size;
+
+  const float tx_initial = GetAxisTValue(
+      p_GStart_x, ray_x, voxel_bottom_corner_x, voxel_top_corner_x);
+  const float ty_initial = GetAxisTValue(
+      p_GStart_y, ray_y, voxel_bottom_corner_y, voxel_top_corner_y);
+  const float tz_initial = GetAxisTValue(
+      p_GStart_z, ray_z, voxel_bottom_corner_z, voxel_top_corner_z);
+
+  const float delta_tx = std::abs(voxel_size / ray_x);
+  const float delta_ty = std::abs(voxel_size / ray_y);
+  const float delta_tz = std::abs(voxel_size / ray_z);
+
+  // Step 6: set the final point.
+  if (p_GFinal_idx >= 0 && p_GFinal_idx < num_x_voxels &&
+      p_GFinal_idy >= 0 && p_GFinal_idy < num_y_voxels &&
+      p_GFinal_idz >= 0 && p_GFinal_idz < num_z_voxels)
+  {
+    const int32_t data_index =
+        (p_GFinal_idx * stride1) + (p_GFinal_idy * stride2) + p_GFinal_idz;
+    if (clipped)
+    {
+      // If the actual point was clipped, mark the final voxel as seen-free.
+      atomicAdd(&(device_tracking_grid_ptr[(data_index * 2) + 0]), 1);
+    }
+    else
+    {
+      // If the point was not clipped, mark the final voxel as seen-filled.
+      atomicAdd(&(device_tracking_grid_ptr[(data_index * 2) + 1]), 1);
+    }
+  }
+
+  // Iterate along line.
+  int32_t current_idx = p_GStart_idx;
+  int32_t current_idy = p_GStart_idy;
+  int32_t current_idz = p_GStart_idz;
+
+  float tx = tx_initial;
+  float ty = ty_initial;
+  float tz = tz_initial;
+
+  while (current_idx != p_GFinal_idx ||
+         current_idy != p_GFinal_idy ||
+         current_idz != p_GFinal_idz)
+  {
+    // Update the current voxel.
+    if (current_idx >= 0 && current_idx < num_x_voxels &&
+        current_idy >= 0 && current_idy < num_y_voxels &&
+        current_idz >= 0 && current_idz < num_z_voxels)
+    {
+      const int32_t data_index =
+          (current_idx * stride1) + (current_idy * stride2) + current_idz;
+      // If the query is in bounds, update the seen-free count.
+      atomicAdd(&(device_tracking_grid_ptr[(data_index * 2) + 0]), 1);
+    }
+    else
+    {
+      // If the query is out of bounds, we are done.
+      break;
+    }
+
+    // Step.
+    if (tx <= ty && tx <= tz)
+    {
+      if (current_idx == p_GFinal_idx)
+      {
+        // If we would step out of range, we are done.
+        break;
+      }
+      current_idx += x_step;
+      tx += delta_tx;
+    }
+    else if (ty <= tx && ty <= tz)
+    {
+      if (current_idy == p_GFinal_idy)
+      {
+        // If we would step out of range, we are done.
+        break;
+      }
+      current_idy += y_step;
+      ty += delta_ty;
+    }
+    else
+    {
+      if (current_idz == p_GFinal_idz)
+      {
+        // If we would step out of range, we are done.
+        break;
+      }
+      current_idz += z_step;
+      tz += delta_tz;
     }
   }
 }
@@ -443,9 +660,10 @@ public:
   void RaycastPoints(
       const std::vector<float>& raw_points, const float max_range,
       const float* const grid_pointcloud_transform,
-      const float inverse_step_size, const float inverse_cell_size,
-      const int32_t num_x_cells, const int32_t num_y_cells,
-      const int32_t num_z_cells, TrackingGridsHandle& tracking_grids,
+      const float voxel_size, const float inverse_voxel_size,
+      const float grid_x_size, const float grid_y_size, const float grid_z_size,
+      const int32_t num_x_voxels, const int32_t num_y_voxels,
+      const int32_t num_z_voxels, TrackingGridsHandle& tracking_grids,
       const size_t tracking_grid_index) override
   {
     CudaTrackingGridsHandle& real_tracking_grids =
@@ -462,8 +680,8 @@ public:
         16, grid_pointcloud_transform);
 
     // Prepare for raycasting
-    const int32_t stride1 = num_y_cells * num_z_cells;
-    const int32_t stride2 = num_z_cells;
+    const int32_t stride1 = num_y_voxels * num_z_voxels;
+    const int32_t stride2 = num_z_voxels;
     // Call the CUDA kernel
     const int32_t num_threads = CudaThreadsPerBlock();
     const int32_t num_blocks = CalcNumBlocks(num_points);
@@ -473,9 +691,9 @@ public:
         real_tracking_grids.GetBuffer() + starting_index;
     RaycastPoint<<<num_blocks, num_threads>>>(
         device_points.Get(), num_points, max_range,
-        device_grid_pointcloud_transform.Get(), inverse_step_size,
-        inverse_cell_size, num_x_cells, num_y_cells, num_z_cells, stride1,
-        stride2, device_tracking_grid_ptr);
+        device_grid_pointcloud_transform.Get(), voxel_size, inverse_voxel_size,
+        grid_x_size, grid_y_size, grid_z_size, num_x_voxels, num_y_voxels,
+        num_z_voxels, stride1, stride2, device_tracking_grid_ptr);
   }
 
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(

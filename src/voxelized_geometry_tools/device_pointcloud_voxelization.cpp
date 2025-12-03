@@ -63,7 +63,7 @@ DevicePointCloudVoxelizer::DevicePointCloudVoxelizer(
 }
 
 VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
-    const OccupancyMap& static_environment, const double step_size_multiplier,
+    const OccupancyMap& static_environment,
     const PointCloudVoxelizationFilterOptions& filter_options,
     const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
     OccupancyMap& output_environment) const
@@ -92,16 +92,19 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
   const Eigen::Isometry3d& X_GW = static_environment.InverseOriginTransform();
 
   // Prepare grid data
-  const float inverse_step_size =
-      static_cast<float>(1.0 /
-          (static_environment.Resolution() * step_size_multiplier));
-  const float inverse_cell_size =
+  const float voxel_size = static_cast<float>(static_environment.VoxelXSize());
+  const float inverse_voxel_size =
       static_cast<float>(static_environment.ControlSizes().InverseVoxelXSize());
-  const int32_t num_x_cells =
+
+  const float grid_x_size = static_cast<float>(static_environment.GridXSize());
+  const float grid_y_size = static_cast<float>(static_environment.GridYSize());
+  const float grid_z_size = static_cast<float>(static_environment.GridZSize());
+
+  const int32_t num_x_voxels =
       static_cast<int32_t>(static_environment.NumXVoxels());
-  const int32_t num_y_cells =
+  const int32_t num_y_voxels =
       static_cast<int32_t>(static_environment.NumYVoxels());
-  const int32_t num_z_cells =
+  const int32_t num_z_voxels =
       static_cast<int32_t>(static_environment.NumZVoxels());
 
   // Lambda for the raycasting of a single pointcloud.
@@ -135,8 +138,9 @@ VoxelizerRuntime DevicePointCloudVoxelizer::DoVoxelizePointClouds(
       // Raycast
       helper_interface_->RaycastPoints(
           raw_points, max_range, grid_pointcloud_transform_float.data(),
-          inverse_step_size, inverse_cell_size, num_x_cells, num_y_cells,
-          num_z_cells, *tracking_grids, static_cast<size_t>(pointcloud_index));
+          voxel_size, inverse_voxel_size, grid_x_size, grid_y_size, grid_z_size,
+          num_x_voxels, num_y_voxels, num_z_voxels, *tracking_grids,
+          static_cast<size_t>(pointcloud_index));
     }
   };
 

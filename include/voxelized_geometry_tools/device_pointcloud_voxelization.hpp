@@ -50,7 +50,7 @@ protected:
 
 private:
   VoxelizerRuntime DoVoxelizePointClouds(
-      const OccupancyMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       OccupancyMap& output_environment) const override;

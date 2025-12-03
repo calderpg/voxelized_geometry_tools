@@ -242,15 +242,14 @@ public:
   virtual ~PointCloudVoxelizationInterface() {}
 
   OccupancyMap VoxelizePointClouds(
-      const OccupancyMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       const std::function<void(const VoxelizerRuntime&)>&
           runtime_log_fn = {}) const {
     OccupancyMap output_environment = static_environment;
     const auto voxelizer_runtime = VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options, pointclouds,
-        output_environment);
+        static_environment, filter_options, pointclouds, output_environment);
     if (runtime_log_fn)
     {
       runtime_log_fn(voxelizer_runtime);
@@ -259,17 +258,13 @@ public:
   }
 
   VoxelizerRuntime VoxelizePointClouds(
-      const OccupancyMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       OccupancyMap& output_environment) const {
     if (!static_environment.IsInitialized())
     {
       throw std::invalid_argument("!static_environment.IsInitialized()");
-    }
-    if (step_size_multiplier > 1.0 || step_size_multiplier <= 0.0)
-    {
-      throw std::invalid_argument("step_size_multiplier is not in (0, 1]");
     }
     if (!output_environment.IsInitialized())
     {
@@ -291,13 +286,12 @@ public:
       }
     }
     return DoVoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options, pointclouds,
-        output_environment);
+        static_environment, filter_options, pointclouds, output_environment);
   }
 
 protected:
   virtual VoxelizerRuntime DoVoxelizePointClouds(
-      const OccupancyMap& static_environment, const double step_size_multiplier,
+      const OccupancyMap& static_environment,
       const PointCloudVoxelizationFilterOptions& filter_options,
       const std::vector<PointCloudWrapperSharedPtr>& pointclouds,
       OccupancyMap& output_environment) const = 0;

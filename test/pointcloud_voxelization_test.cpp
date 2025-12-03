@@ -165,7 +165,6 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
   const double z_size = 2.0;
   // 1/4 meter resolution, so 8 cells/axis
   const double grid_resolution = 0.25;
-  const double step_size_multiplier = 0.5;
   const OccupancyCell empty_cell(0.0f);
   const OccupancyCell filled_cell(1.0f);
 
@@ -278,12 +277,14 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
     auto voxelizer = pointcloud_voxelization::MakePointCloudVoxelizer(
         available_backend, logging_fn);
 
+    std::cout << "Trying empty voxelization..." << std::endl;
     const auto empty_voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options, {});
+        static_environment, filter_options, {});
     check_empty_voxelization(empty_voxelized);
 
+    std::cout << "Trying real voxelization..." << std::endl;
     const auto voxelized = voxelizer->VoxelizePointClouds(
-        static_environment, step_size_multiplier, filter_options,
+        static_environment, filter_options,
         {cam1_cloud, cam2_cloud, cam3_cloud});
     check_voxelization(voxelized);
   }

@@ -278,10 +278,12 @@ TEST_P(PointCloudVoxelizationTestSuite, Test)
     auto voxelizer = pointcloud_voxelization::MakePointCloudVoxelizer(
         available_backend, logging_fn);
 
+    std::cout << "Trying empty voxelization..." << std::endl;
     const auto empty_voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options, {});
     check_empty_voxelization(empty_voxelized);
 
+    std::cout << "Trying real voxelization..." << std::endl;
     const auto voxelized = voxelizer->VoxelizePointClouds(
         static_environment, step_size_multiplier, filter_options,
         {cam1_cloud, cam2_cloud, cam3_cloud});

@@ -226,6 +226,15 @@ target_link_libraries(pointcloud_voxelization
     ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
     ${PROJECT_NAME})
 
+add_executable(voxel_raycasting example/voxel_raycasting.cpp)
+ament_target_dependencies(voxel_raycasting
+    common_robotics_utilities)
+ament_target_dependencies(voxel_raycasting
+    SYSTEM rclcpp std_msgs visualization_msgs)
+target_link_libraries(voxel_raycasting
+    ${PROJECT_NAME}_ros_interface ${PROJECT_NAME}_pointcloud_voxelization
+    ${PROJECT_NAME})
+
 if(BUILD_TESTING)
     # Tests
     find_package(ament_cmake_gtest REQUIRED)
@@ -244,6 +253,10 @@ if(BUILD_TESTING)
 
     ament_add_gtest(sdf_generation_test test/sdf_generation_test.cpp)
     target_link_libraries(sdf_generation_test ${PROJECT_NAME})
+
+    ament_add_gtest(voxel_raycasting_test test/voxel_raycasting_test.cpp)
+    target_link_libraries(voxel_raycasting_test
+        ${PROJECT_NAME}_pointcloud_voxelization)
 endif()
 
 #############

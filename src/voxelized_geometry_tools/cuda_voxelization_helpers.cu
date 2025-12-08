@@ -54,12 +54,12 @@ float GetAxisTValue(
     const float point_axis, const float ray_axis,
     const float voxel_min_axis, const float voxel_max_axis)
 {
-  if (ray_axis > 0.0)
+  if (ray_axis > 0.0f)
   {
     const float max_within_voxel = voxel_max_axis - point_axis;
     return std::abs(max_within_voxel / ray_axis);
   }
-  else if (ray_axis < -0.0)
+  else if (ray_axis < -0.0f)
   {
     const float max_within_voxel = point_axis - voxel_min_axis;
     return std::abs(max_within_voxel / ray_axis);
@@ -172,7 +172,7 @@ void RaycastPoint(
     direction[2] = ray_z / ray_length;
 
     // Threshold for considering an axis direction as flat.
-    const float flat_threshold = 1e-10;
+    const float flat_threshold = 1e-10f;
 
     for (int axis = 0; axis < 3; axis++)
     {
@@ -193,7 +193,7 @@ void RaycastPoint(
         // Check against the low and high planes of the current axis.
         const float ood = 1.0f / direction[axis];
 
-        const float tlow = (0.0 - p_GCo[axis]) * ood;
+        const float tlow = (0.0f - p_GCo[axis]) * ood;
         const float thigh = (grid_sizes[axis] - p_GCo[axis]) * ood;
 
         const float t1 = (tlow <= thigh) ? tlow : thigh;
@@ -217,7 +217,7 @@ void RaycastPoint(
     }
 
     // Nudge the point slightly farther into the grid to avoid any edge cases.
-    const float nudge = 1e-10;
+    const float nudge = 1e-10f;
 
     p_GStart_x = p_GCo_x + (direction[0] * (tmin + nudge));
     p_GStart_y = p_GCo_y + (direction[1] * (tmin + nudge));

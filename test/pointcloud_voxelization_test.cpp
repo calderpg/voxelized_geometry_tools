@@ -93,12 +93,12 @@ void check_empty_voxelization(const OccupancyMap& occupancy)
         // Check the bottom cells
         if (zidx == 0)
         {
-          ASSERT_EQ(cmap_occupancy, 1.0f);
+          EXPECT_EQ(cmap_occupancy, 1.0f);
         }
         // All other cells should be marked "unknown"
         else
         {
-          ASSERT_EQ(cmap_occupancy, 0.5f);
+          EXPECT_EQ(cmap_occupancy, 0.5f);
         }
       }
     }
@@ -122,30 +122,30 @@ void check_voxelization(const OccupancyMap& occupancy)
         // Check the bottom cells
         if (zidx == 0)
         {
-          ASSERT_EQ(cmap_occupancy, 1.0f);
+          EXPECT_EQ(cmap_occupancy, 1.0f);
         }
         // Check a few "seen empty" cells
         if ((xidx == 3) && (yidx >= 3) && (zidx >= 1))
         {
-          ASSERT_EQ(cmap_occupancy, 0.0f);
+          EXPECT_EQ(cmap_occupancy, 0.0f);
         }
         if ((xidx >= 3) && (yidx == 3) && (zidx >= 1))
         {
-          ASSERT_EQ(cmap_occupancy, 0.0f);
+          EXPECT_EQ(cmap_occupancy, 0.0f);
         }
         // Check a few "seen filled" cells
         if ((xidx == 4) && (yidx >= 4) && (zidx >= 1))
         {
-          ASSERT_EQ(cmap_occupancy, 1.0f);
+          EXPECT_EQ(cmap_occupancy, 1.0f);
         }
         if ((xidx >= 4) && (yidx == 4) && (zidx >= 1))
         {
-          ASSERT_EQ(cmap_occupancy, 1.0f);
+          EXPECT_EQ(cmap_occupancy, 1.0f);
         }
         // Check shadowed cells
         if ((xidx > 4) && (yidx > 4) && (zidx >= 1))
         {
-          ASSERT_EQ(cmap_occupancy, 0.5f);
+          EXPECT_EQ(cmap_occupancy, 0.5f);
         }
       }
     }

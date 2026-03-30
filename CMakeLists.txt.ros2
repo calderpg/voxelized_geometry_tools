@@ -108,9 +108,7 @@ ament_target_dependencies(${PROJECT_NAME} common_robotics_utilities)
 if(CUDA_FOUND)
     message(STATUS "CUDA found. Building CUDA voxelization helpers")
     include_directories(SYSTEM ${CUDA_INCLUDE_DIRS})
-    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O3 -use_fast_math")
-    set(CUDA_NVCC_FLAGS
-        "${CUDA_NVCC_FLAGS} -Xcompiler -D__CORRECT_ISO_CPP11_MATH_H_PROTO")
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++17 -O2 -use_fast_math")
     cuda_add_library(${PROJECT_NAME}_cuda_voxelization_helpers
                      include/${PROJECT_NAME}/device_voxelization_interface.hpp
                      include/${PROJECT_NAME}/cuda_voxelization_helpers.h

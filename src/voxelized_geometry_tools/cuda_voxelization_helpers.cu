@@ -368,7 +368,7 @@ void FilterGrids(
     const float current_occupancy = device_filter_grid_ptr[voxel_index];
     // Filled cells stay filled, we don't work with them.
     // We only change cells that are unknown or empty.
-    if (current_occupancy <= 0.5)
+    if (current_occupancy <= 0.5f)
     {
       int32_t cameras_seen_filled = 0;
       int32_t cameras_seen_free = 0;
@@ -409,17 +409,17 @@ void FilterGrids(
       if (cameras_seen_filled > 0)
       {
         // If any camera saw something here, it is filled.
-        device_filter_grid_ptr[voxel_index] = 1.0;
+        device_filter_grid_ptr[voxel_index] = 1.0f;
       }
       else if (cameras_seen_free >= num_cameras_seen_free)
       {
         // Did enough cameras see this empty?
-        device_filter_grid_ptr[voxel_index] = 0.0;
+        device_filter_grid_ptr[voxel_index] = 0.0f;
       }
       else
       {
         // Otherwise, it is unknown.
-        device_filter_grid_ptr[voxel_index] = 0.5;
+        device_filter_grid_ptr[voxel_index] = 0.5f;
       }
     }
   }
@@ -694,6 +694,8 @@ public:
         device_grid_pointcloud_transform.Get(), voxel_size, inverse_voxel_size,
         grid_x_size, grid_y_size, grid_z_size, num_x_voxels, num_y_voxels,
         num_z_voxels, stride1, stride2, device_tracking_grid_ptr);
+    CudaCheckErrors(
+        cudaGetLastError(), "Failed to dispatch RaycastPoint kernel");
   }
 
   std::unique_ptr<FilterGridHandle> PrepareFilterGrid(
@@ -725,6 +727,8 @@ public:
         static_cast<int32_t>(real_tracking_grids.GetNumTrackingGrids()),
         real_tracking_grids.GetBuffer(), real_filter_grid.GetBuffer(),
         percent_seen_free, outlier_points_threshold, num_cameras_seen_free);
+    CudaCheckErrors(
+        cudaGetLastError(), "Failed to dispatch FilterGrids kernel");
   }
 
   void RetrieveTrackingGrid(
@@ -734,10 +738,6 @@ public:
     const CudaTrackingGridsHandle& real_tracking_grids =
         dynamic_cast<const CudaTrackingGridsHandle&>(tracking_grids);
 
-    // Wait for GPU to finish before accessing on host
-    CudaCheckErrors(
-        cudaDeviceSynchronize(),
-        "RetrieveTrackingGrid failed to synchronize");
     const size_t item_size = sizeof(int32_t) * 2;
     const size_t tracking_grid_size =
         real_tracking_grids.NumCellsPerGrid() * item_size;
@@ -757,10 +757,6 @@ public:
     const CudaFilterGridHandle& real_filter_grid =
         dynamic_cast<const CudaFilterGridHandle&>(filter_grid);
 
-    // Wait for GPU to finish before accessing on host
-    CudaCheckErrors(
-        cudaDeviceSynchronize(),
-        "RetrieveFilteredGrid failed to synchronize");
     const size_t item_size = sizeof(float);
     const size_t buffer_size = real_filter_grid.NumVoxels() * item_size;
     CudaCheckErrors(

@@ -626,13 +626,6 @@ public:
       throw std::runtime_error(
           "Failed to enqueueFillBuffer: " + LogOpenCLError(err));
     }
-
-    err = queue_->finish();
-    if (err != CL_SUCCESS)
-    {
-      throw std::runtime_error(
-          "Failed to complete enqueueFillBuffer: " + LogOpenCLError(err));
-    }
 #endif
 
     // Calculate offsets into the buffer
@@ -775,13 +768,6 @@ public:
     const OpenCLTrackingGridsHandle& real_tracking_grids =
         dynamic_cast<const OpenCLTrackingGridsHandle&>(tracking_grids);
 
-    cl_int err = queue_->finish();
-    if (err != CL_SUCCESS)
-    {
-      throw std::runtime_error(
-          "RetrieveTrackingGrid finish failed: " + LogOpenCLError(err));
-    }
-
     const size_t item_size = sizeof(int32_t) * 2;
     const size_t tracking_grid_size =
         static_cast<size_t>(real_tracking_grids.NumCellsPerGrid()) * item_size;
@@ -789,7 +775,7 @@ public:
         static_cast<size_t>(real_tracking_grids.GetTrackingGridStartingOffset(
             tracking_grid_index))
         * sizeof(int32_t);
-    err = queue_->enqueueReadBuffer(
+    const cl_int err = queue_->enqueueReadBuffer(
         real_tracking_grids.GetBuffer(), CL_TRUE, starting_offset,
         tracking_grid_size, host_data_ptr);
     if (err != CL_SUCCESS)
@@ -806,17 +792,10 @@ public:
     const OpenCLFilterGridHandle& real_filter_grid =
         dynamic_cast<const OpenCLFilterGridHandle&>(filter_grid);
 
-    cl_int err = queue_->finish();
-    if (err != CL_SUCCESS)
-    {
-      throw std::runtime_error(
-          "RetrieveFilteredGrid finish failed: " + LogOpenCLError(err));
-    }
-
     const size_t item_size = sizeof(float);
     const size_t buffer_size =
         static_cast<size_t>(real_filter_grid.NumVoxels()) * item_size;
-    err = queue_->enqueueReadBuffer(
+    const cl_int err = queue_->enqueueReadBuffer(
         real_filter_grid.GetBuffer(), CL_TRUE, 0, buffer_size, host_data_ptr);
     if (err != CL_SUCCESS)
     {

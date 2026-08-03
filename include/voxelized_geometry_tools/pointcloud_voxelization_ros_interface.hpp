@@ -39,6 +39,8 @@ public:
 
   double MaxRange() const override { return max_range_; }
 
+  void SetMaxRange(const double max_range) override { max_range_ = max_range; }
+
   int64_t Size() const override
   {
     return static_cast<int64_t>(cloud_ptr_->width * cloud_ptr_->height);

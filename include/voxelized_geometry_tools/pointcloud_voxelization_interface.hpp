@@ -105,6 +105,8 @@ public:
 
   virtual double MaxRange() const = 0;
 
+  virtual void SetMaxRange(const double max_range) = 0;
+
   virtual int64_t Size() const = 0;
 
   virtual const Eigen::Isometry3d& PointCloudOriginTransform() const = 0;

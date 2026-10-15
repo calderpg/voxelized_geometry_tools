@@ -391,12 +391,68 @@ inline Marker ExportSDFForDisplayCollisionOnly(
       = common_robotics_utilities::color_builder
         ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
-      = [&] (const float& distance,
+      = [&] (const ScalarType& distance,
              const common_robotics_utilities::voxel_grid::GridIndex&)
   {
     if (distance <= 0.0)
     {
       return filled_color;
+    }
+    else
+    {
+      return free_color;
+    }
+  };
+  auto display_rep =
+      ExportVoxelGridToRViz<ScalarType>(sdf, sdf.Frame(), color_fn);
+  display_rep.ns = "sdf_collision";
+  display_rep.id = 1;
+  return display_rep;
+}
+
+template<typename ScalarType>
+inline Marker ExportSDFForDisplayCollisionSurfaceOnly(
+    const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
+{
+  const auto grid_sizes = sdf.VoxelCounts();
+  const double resolution = sdf.Resolution();
+  const ColorRGBA filled_color
+      = common_robotics_utilities::color_builder
+          ::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 0.0, alpha);
+  const ColorRGBA free_color
+      = common_robotics_utilities::color_builder
+        ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
+  const auto is_edge_index = [&] (
+      const common_robotics_utilities::voxel_grid::GridIndex& index)
+  {
+    return (index.X() == 0) || (index.X() == (grid_sizes.x() - 1)) ||
+           (index.Y() == 0) || (index.Y() == (grid_sizes.y() - 1)) ||
+           (index.Z() == 0) || (index.Z() == (grid_sizes.z() - 1));
+  };
+  const auto is_surface_depth = [&] (const ScalarType& distance)
+  {
+    return (distance <= 0.0) && (distance > (resolution * -2.0));
+  };
+  const auto color_fn
+      = [&] (const ScalarType& distance,
+             const common_robotics_utilities::voxel_grid::GridIndex& index)
+  {
+    if (distance <= 0.0)
+    {
+      const bool is_edge = is_edge_index(index);
+      const bool is_surface = is_surface_depth(distance);
+      if (is_edge)
+      {
+        return filled_color;
+      }
+      else if (is_surface)
+      {
+        return filled_color;
+      }
+      else
+      {
+        return free_color;
+      }
     }
     else
     {

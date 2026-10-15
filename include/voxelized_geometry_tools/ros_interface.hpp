@@ -382,12 +382,9 @@ inline Marker ExportSDFForDisplay(
 
 template<typename ScalarType>
 inline Marker ExportSDFForDisplayCollisionOnly(
-    const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
+    const SignedDistanceField<ScalarType>& sdf, const ColorRGBA& color)
 {
-  const ColorRGBA filled_color
-      = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 0.0, alpha);
-  const ColorRGBA free_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
         ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto color_fn
@@ -396,11 +393,11 @@ inline Marker ExportSDFForDisplayCollisionOnly(
   {
     if (distance <= 0.0)
     {
-      return filled_color;
+      return color;
     }
     else
     {
-      return free_color;
+      return no_color;
     }
   };
   auto display_rep =
@@ -412,14 +409,11 @@ inline Marker ExportSDFForDisplayCollisionOnly(
 
 template<typename ScalarType>
 inline Marker ExportSDFForDisplayCollisionSurfaceOnly(
-    const SignedDistanceField<ScalarType>& sdf, const float alpha = 0.01f)
+    const SignedDistanceField<ScalarType>& sdf, const ColorRGBA& color)
 {
   const auto grid_sizes = sdf.VoxelCounts();
   const double resolution = sdf.Resolution();
-  const ColorRGBA filled_color
-      = common_robotics_utilities::color_builder
-          ::MakeFromFloatColors<ColorRGBA>(1.0, 0.0, 0.0, alpha);
-  const ColorRGBA free_color
+  const ColorRGBA no_color
       = common_robotics_utilities::color_builder
         ::MakeFromFloatColors<ColorRGBA>(0.0, 0.0, 0.0, 0.0);
   const auto is_edge_index = [&] (
@@ -443,20 +437,20 @@ inline Marker ExportSDFForDisplayCollisionSurfaceOnly(
       const bool is_surface = is_surface_depth(distance);
       if (is_edge)
       {
-        return filled_color;
+        return color;
       }
       else if (is_surface)
       {
-        return filled_color;
+        return color;
       }
       else
       {
-        return free_color;
+        return no_color;
       }
     }
     else
     {
-      return free_color;
+      return no_color;
     }
   };
   auto display_rep =

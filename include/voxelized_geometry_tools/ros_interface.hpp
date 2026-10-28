@@ -435,11 +435,7 @@ inline Marker ExportSDFForDisplayCollisionSurfaceOnly(
     {
       const bool is_edge = is_edge_index(index);
       const bool is_surface = is_surface_depth(distance);
-      if (is_edge)
-      {
-        return color;
-      }
-      else if (is_surface)
+      if (is_edge || is_surface)
       {
         return color;
       }

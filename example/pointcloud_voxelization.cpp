@@ -9,17 +9,9 @@
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/math.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/device_pointcloud_voxelization.hpp>
@@ -41,13 +33,8 @@ using voxelized_geometry_tools::pointcloud_voxelization::PointCloudWrapper;
 using voxelized_geometry_tools::pointcloud_voxelization
     ::PointCloudWrapperSharedPtr;
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using ColorRGBA = std_msgs::ColorRGBA;
-using MarkerArray = visualization_msgs::MarkerArray;
-#endif
 
 namespace
 {
@@ -323,7 +310,6 @@ void test_pointcloud_voxelization(
 
 int main(int argc, char** argv)
 {
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("pointcloud_voxelization_test");
   auto display_pub = node->create_publisher<MarkerArray>(
@@ -336,30 +322,14 @@ int main(int argc, char** argv)
   const int32_t iterations =
       static_cast<int32_t>(node->declare_parameter(
           "iterations", rclcpp::ParameterValue(1)).get<int32_t>());
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::init(argc, argv, "pointcloud_voxelization_test");
-  ros::NodeHandle nh;
-  ros::NodeHandle nhp("~");
-  ros::Publisher display_pub = nh.advertise<MarkerArray>(
-      "pointcloud_occupancy", 1, true);
-  const std::function<void(const MarkerArray&)>& display_fn
-      = [&] (const MarkerArray& markers)
-  {
-    display_pub.publish(markers);
-  };
-  const int32_t iterations = nhp.param(std::string("iterations"), 1);
-#endif
 
   for (int32_t iter = 0; iter < iterations; iter++)
   {
     test_pointcloud_voxelization(display_fn);
   }
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::spin(node);
   rclcpp::shutdown();
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::spin();
-#endif
+
   return 0;
 }

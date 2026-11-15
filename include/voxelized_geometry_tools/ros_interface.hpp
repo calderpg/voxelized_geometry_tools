@@ -9,19 +9,10 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 
 #include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/conversions.hpp>
@@ -38,21 +29,12 @@
 #include <voxelized_geometry_tools/tagged_object_occupancy_map.hpp>
 #include <voxelized_geometry_tools/vgt_namespace.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <voxelized_geometry_tools/msg/dynamic_spatial_hashed_occupancy_map_message.hpp>
 #include <voxelized_geometry_tools/msg/occupancy_component_map_message.hpp>
 #include <voxelized_geometry_tools/msg/occupancy_map_message.hpp>
 #include <voxelized_geometry_tools/msg/signed_distance_field_message.hpp>
 #include <voxelized_geometry_tools/msg/tagged_object_occupancy_component_map_message.hpp>
 #include <voxelized_geometry_tools/msg/tagged_object_occupancy_map_message.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <voxelized_geometry_tools/DynamicSpatialHashedOccupancyMapMessage.h>
-#include <voxelized_geometry_tools/OccupancyComponentMapMessage.h>
-#include <voxelized_geometry_tools/OccupancyMapMessage.h>
-#include <voxelized_geometry_tools/SignedDistanceFieldMessage.h>
-#include <voxelized_geometry_tools/TaggedObjectOccupancyComponentMapMessage.h>
-#include <voxelized_geometry_tools/TaggedObjectOccupancyMapMessage.h>
-#endif
 
 namespace voxelized_geometry_tools
 {
@@ -60,7 +42,6 @@ VGT_NAMESPACE_BEGIN
 namespace ros_interface
 {
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using Point = geometry_msgs::msg::Point;
 using Marker = visualization_msgs::msg::Marker;
@@ -75,12 +56,6 @@ using TaggedObjectOccupancyComponentMapMessage =
     msg::TaggedObjectOccupancyComponentMapMessage;
 using TaggedObjectOccupancyMapMessage =
     msg::TaggedObjectOccupancyMapMessage;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using ColorRGBA = std_msgs::ColorRGBA;
-using Point = geometry_msgs::Point;
-using Marker = visualization_msgs::Marker;
-using MarkerArray = visualization_msgs::MarkerArray;
-#endif
 
 inline ColorRGBA LookupComponentColor(
     const uint32_t component, const float alpha=1.0f)
@@ -107,11 +82,7 @@ inline Marker ExportVoxelGridToRViz(
   display_rep.id = 0;
   display_rep.type = Marker::CUBE_LIST;
   display_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   display_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  display_rep.lifetime = ros::Duration(0.0);
-#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -167,11 +138,7 @@ inline Marker ExportVoxelGridIndexMapToRViz(
   display_rep.id = 0;
   display_rep.type = Marker::CUBE_LIST;
   display_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   display_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  display_rep.lifetime = ros::Duration(0.0);
-#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -224,11 +191,7 @@ inline Marker ExportVoxelGridIndicesToRViz(
   display_rep.id = 0;
   display_rep.type = Marker::CUBE_LIST;
   display_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   display_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  display_rep.lifetime = ros::Duration(0.0);
-#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions
@@ -275,11 +238,7 @@ inline Marker ExportDynamicSpatialHashedVoxelGridToRViz(
   display_rep.id = 0;
   display_rep.type = Marker::CUBE_LIST;
   display_rep.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   display_rep.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  display_rep.lifetime = ros::Duration(0.0);
-#endif
   display_rep.frame_locked = false;
   display_rep.pose
       = common_robotics_utilities::ros_conversions

@@ -70,8 +70,6 @@ else()
     add_compile_options(-march=native)
 endif()
 
-add_definitions(-DVOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION=2)
-
 ## It's not clear if add_compile_options does the right things for flags that
 ## may differ between languages and target type.
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -291,7 +289,6 @@ install(
   PATTERN ".svn" EXCLUDE
 )
 
-ament_export_definitions(-DVOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION=2)
 ament_export_include_directories(include)
 ament_export_libraries(
   ${PROJECT_NAME}

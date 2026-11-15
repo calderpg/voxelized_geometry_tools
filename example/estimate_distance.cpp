@@ -3,47 +3,29 @@
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <geometry_msgs/msg/point.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <geometry_msgs/Point.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 
 #include <functional>
 #include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using Point = geometry_msgs::msg::Point;
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
 
 using Duration = rclcpp::Duration;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using Point = geometry_msgs::Point;
-using ColorRGBA = std_msgs::ColorRGBA;
-using Marker = visualization_msgs::Marker;
-using MarkerArray = visualization_msgs::MarkerArray;
-
-using Duration = ros::Duration;
-#endif
 
 namespace
 {
 void test_estimate_distance(
     const std::function<void(const MarkerArray&)>& display_fn)
 {
-  const double res = 1.0; //0.125; //1.0;
+  const double res = 1.0;
   const double size = 10.0;
   const Eigen::Isometry3d origin_transform
       = Eigen::Translation3d(0.0, 0.0, 0.0) * Eigen::Quaterniond(
@@ -120,9 +102,9 @@ void test_estimate_distance(
       common_robotics_utilities::ros_conversions::EigenIsometry3dToGeometryPose(
           sdf.OriginTransform());
   const double step = sdf.Resolution() * 0.125 * 0.25;
-  distance_rep.scale.x = sdf.Resolution() * step; // * 0.125;
-  distance_rep.scale.y = sdf.Resolution() * step; // * 0.125;
-  distance_rep.scale.z = sdf.Resolution() * 0.95; // * 0.125;
+  distance_rep.scale.x = sdf.Resolution() * step;
+  distance_rep.scale.y = sdf.Resolution() * step;
+  distance_rep.scale.z = sdf.Resolution() * 0.95;
   // Add all the cells of the SDF to the message
   double min_distance = 0.0;
   double max_distance = 0.0;
@@ -280,7 +262,6 @@ void test_estimate_distance(
 
 int main(int argc, char** argv)
 {
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("estimate_distance_test");
   auto display_pub = node->create_publisher<MarkerArray>(
@@ -290,25 +271,11 @@ int main(int argc, char** argv)
   {
     display_pub->publish(markers);
   };
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::init(argc, argv, "estimate_distance_test");
-  ros::NodeHandle nh;
-  ros::Publisher display_pub = nh.advertise<MarkerArray>(
-      "display_test_voxel_grid", 1, true);
-  const std::function<void(const MarkerArray&)>& display_fn
-      = [&] (const MarkerArray& markers)
-  {
-    display_pub.publish(markers);
-  };
-#endif
 
   test_estimate_distance(display_fn);
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::spin(node);
   rclcpp::shutdown();
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::spin();
-#endif
+
   return 0;
 }

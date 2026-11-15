@@ -8,13 +8,7 @@
 #include <vector>
 
 #include <Eigen/Geometry>
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <sensor_msgs/PointCloud2.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 #include <voxelized_geometry_tools/vgt_namespace.hpp>
 
@@ -24,13 +18,8 @@ VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using PointCloud2 = sensor_msgs::msg::PointCloud2;
 using PointCloud2ConstSharedPtr = std::shared_ptr<const PointCloud2>;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using PointCloud2 = sensor_msgs::PointCloud2;
-using PointCloud2ConstSharedPtr = sensor_msgs::PointCloud2ConstPtr;
-#endif
 
 class PointCloud2Wrapper : public PointCloudWrapper
 {

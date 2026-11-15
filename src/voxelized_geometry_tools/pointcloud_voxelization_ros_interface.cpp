@@ -7,11 +7,7 @@
 
 #include <Eigen/Geometry>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <sensor_msgs/msg/point_field.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <sensor_msgs/PointField.h>
-#endif
 
 #include <voxelized_geometry_tools/pointcloud_voxelization_interface.hpp>
 
@@ -21,11 +17,7 @@ VGT_NAMESPACE_BEGIN
 namespace pointcloud_voxelization
 {
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using PointField = sensor_msgs::msg::PointField;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using PointField = sensor_msgs::PointField;
-#endif
 
 PointCloud2Wrapper::PointCloud2Wrapper(
     const PointCloud2* const cloud_ptr,

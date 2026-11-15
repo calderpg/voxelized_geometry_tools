@@ -11,17 +11,9 @@
 #include <common_robotics_utilities/math.hpp>
 #include <common_robotics_utilities/utility.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 
 #include <voxelized_geometry_tools/cpu_pointcloud_voxelization.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
@@ -36,17 +28,10 @@ using voxelized_geometry_tools::pointcloud_voxelization
     ::CpuPointCloudVoxelizer;
 using voxelized_geometry_tools::ros_interface::ExportVoxelGridToRViz;
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
 using Point = geometry_msgs::msg::Point;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using ColorRGBA = std_msgs::ColorRGBA;
-using Marker = visualization_msgs::Marker;
-using MarkerArray = visualization_msgs::MarkerArray;
-using Point = geometry_msgs::Point;
-#endif
 
 namespace
 {
@@ -135,11 +120,7 @@ void RunRaycastCycle(
   grid_box_marker.id = 1;
   grid_box_marker.type = Marker::CUBE;
   grid_box_marker.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   grid_box_marker.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  grid_box_marker.lifetime = ros::Duration(0.0);
-#endif
   grid_box_marker.frame_locked = true;
   grid_box_marker.scale.x = 5.0;
   grid_box_marker.scale.y = 5.0;
@@ -162,11 +143,7 @@ void RunRaycastCycle(
   origin_marker.id = 1;
   origin_marker.type = Marker::SPHERE;
   origin_marker.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   origin_marker.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  origin_marker.lifetime = ros::Duration(0.0);
-#endif
   origin_marker.frame_locked = true;
   origin_marker.scale.x = 0.05;
   origin_marker.scale.y = 0.05;
@@ -189,11 +166,7 @@ void RunRaycastCycle(
   point_marker.id = 1;
   point_marker.type = Marker::SPHERE;
   point_marker.action = Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   point_marker.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  point_marker.lifetime = ros::Duration(0.0);
-#endif
   point_marker.frame_locked = true;
   point_marker.scale.x = 0.05;
   point_marker.scale.y = 0.05;
@@ -225,11 +198,7 @@ void RunRaycastCycle(
   ray_marker.id = 1;
   ray_marker.type = visualization_msgs::msg::Marker::LINE_LIST;
   ray_marker.action = visualization_msgs::msg::Marker::ADD;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   ray_marker.lifetime = rclcpp::Duration(0, 0);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ray_marker.lifetime = ros::Duration(0.0);
-#endif
   ray_marker.frame_locked = true;
   ray_marker.scale.x = 0.01;
   ray_marker.scale.y = 0.0;
@@ -263,7 +232,6 @@ int main(int argc, char** argv)
 {
   constexpr int32_t default_iterations = 100;
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("voxel_raycasting");
   auto display_pub = node->create_publisher<MarkerArray>(
@@ -276,19 +244,6 @@ int main(int argc, char** argv)
       static_cast<int32_t>(node->declare_parameter(
           "iterations",
           rclcpp::ParameterValue(default_iterations)).get<int32_t>());
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::init(argc, argv, "voxel_raycasting");
-  ros::NodeHandle nh;
-  ros::NodeHandle nhp("~");
-  ros::Publisher display_pub = nh.advertise<MarkerArray>(
-      "voxel_raycasting", 1, true);
-  const DisplayFunction display_fn = [&](const MarkerArray& markers)
-  {
-    display_pub.publish(markers);
-  };
-  const int32_t iterations =
-      nhp.param(std::string("iterations"), default_iterations);
-#endif
 
   std::mt19937_64 prng(42);
 
@@ -300,24 +255,15 @@ int main(int argc, char** argv)
 
   for (int32_t iter = 0; iter < iterations; iter++)
   {
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
     if (rclcpp::ok())
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-    if (ros::ok())
-#endif
     {
       RunRaycastCycle(uniform_unit_real_fn, display_fn);
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
       rclcpp::spin_some(node);
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-      ros::spin();
-#endif
     }
   }
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::shutdown();
-#endif
+
   return 0;
 }

@@ -1,27 +1,21 @@
+#include <chrono>
+#include <functional>
+#include <iostream>
+
+#include <common_robotics_utilities/conversions.hpp>
+#include <common_robotics_utilities/color_builder.hpp>
 #include <common_robotics_utilities/print.hpp>
 #include <voxelized_geometry_tools/occupancy_component_map.hpp>
 #include <voxelized_geometry_tools/signed_distance_field.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
-#include <chrono>
-#include <functional>
-#include <iostream>
-#include <common_robotics_utilities/conversions.hpp>
-#include <common_robotics_utilities/color_builder.hpp>
+
+
 
 int main(int argc, char** argv)
 {
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   using ColorRGBA = std_msgs::msg::ColorRGBA;
   using Marker = visualization_msgs::msg::Marker;
 
@@ -34,25 +28,6 @@ int main(int argc, char** argv)
   {
     visualization_pub->publish(marker);
   };
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  using ColorRGBA = std_msgs::ColorRGBA;
-  using Marker = visualization_msgs::Marker;
-
-  // Make a ROS node, which we'll use to publish copies of the data in the
-  // OccupancyComponentMap and SDF and Rviz markers that allow us to visualize
-  // them.
-  ros::init(argc, argv, "sdf_tools_tutorial");
-  // Get a handle to the current node
-  ros::NodeHandle nh;
-  // Make a publisher for visualization messages
-  ros::Publisher visualization_pub = nh.advertise<Marker>(
-      "sdf_tools_tutorial_visualization", 1, true);
-  const std::function<void(const Marker&)> display_fn
-    = [&] (const Marker& marker)
-  {
-    visualization_pub.publish(marker);
-  };
-#endif
 
   // In preparation, we want to set a couple common paramters
   const double resolution = 0.25;
@@ -268,11 +243,9 @@ int main(int argc, char** argv)
   sdf_marker.id = 1;
   display_fn(sdf_marker);
   std::cout << "...done" << std::endl;
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
+
   rclcpp::spin(node);
   rclcpp::shutdown();
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::spin();
-#endif
+
   return 0;
 }

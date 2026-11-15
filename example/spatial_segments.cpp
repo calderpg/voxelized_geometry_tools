@@ -3,36 +3,20 @@
 #include <voxelized_geometry_tools/tagged_object_occupancy_component_map.hpp>
 #include <voxelized_geometry_tools/ros_interface.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/color_rgba.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-#include <ros/ros.h>
-#include <std_msgs/ColorRGBA.h>
-#include <visualization_msgs/MarkerArray.h>
-#else
-#error "Undefined or unknown VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION"
-#endif
 
 #include <functional>
 #include <iostream>
 #include <common_robotics_utilities/conversions.hpp>
 #include <common_robotics_utilities/color_builder.hpp>
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
 using ColorRGBA = std_msgs::msg::ColorRGBA;
 using Marker = visualization_msgs::msg::Marker;
 using MarkerArray = visualization_msgs::msg::MarkerArray;
 
 using Duration = rclcpp::Duration;
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-using ColorRGBA = std_msgs::ColorRGBA;
-using Marker = visualization_msgs::Marker;
-using MarkerArray = visualization_msgs::MarkerArray;
-
-using Duration = ros::Duration;
-#endif
 
 namespace
 {
@@ -276,7 +260,6 @@ void test_spatial_segments(
 
 int main(int argc, char** argv)
 {
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("compute_spatial_segments_test");
   auto display_pub = node->create_publisher<MarkerArray>(
@@ -286,25 +269,11 @@ int main(int argc, char** argv)
   {
     display_pub->publish(markers);
   };
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::init(argc, argv, "compute_spatial_segments_test");
-  ros::NodeHandle nh;
-  ros::Publisher display_pub = nh.advertise<MarkerArray>(
-      "display_test_voxel_grid", 1, true);
-  const std::function<void(const MarkerArray&)>& display_fn
-      = [&] (const MarkerArray& markers)
-  {
-    display_pub.publish(markers);
-  };
-#endif
 
   test_spatial_segments(display_fn);
 
-#if VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 2
   rclcpp::spin(node);
   rclcpp::shutdown();
-#elif VOXELIZED_GEOMETRY_TOOLS__SUPPORTED_ROS_VERSION == 1
-  ros::spin();
-#endif
+
   return 0;
 }

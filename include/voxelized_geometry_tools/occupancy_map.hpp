@@ -140,6 +140,7 @@ public:
         frame_(frame)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   OccupancyMap(
@@ -152,11 +153,15 @@ public:
         frame_(frame)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   OccupancyMap()
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>() {}
+          ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>()
+  {
+    this->DisableCheckMutableAccess();
+  }
 
   double Resolution() const { return VoxelXSize(); }
 

@@ -453,6 +453,7 @@ uint32_t OccupancyComponentMap::UpdateConnectedComponents()
     return number_of_components_;
   }
   components_valid_.store(false);
+  this->DisableCheckMutableAccess();
   // Make the helper functions
   const std::function<bool(const GridIndex&, const GridIndex&)>
     are_connected_fn = [&] (const GridIndex& index1, const GridIndex& index2)
@@ -504,6 +505,7 @@ uint32_t OccupancyComponentMap::UpdateConnectedComponents()
   number_of_components_
       = topology_computation::ComputeConnectedComponents(
           *this, are_connected_fn, get_component_fn, mark_component_fn);
+  this->EnableCheckMutableAccess();
   components_valid_.store(true);
   return number_of_components_;
 }

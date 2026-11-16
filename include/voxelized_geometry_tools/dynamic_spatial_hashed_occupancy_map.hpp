@@ -86,6 +86,7 @@ public:
         frame_(frame)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   DynamicSpatialHashedOccupancyMap(
@@ -101,11 +102,15 @@ public:
         frame_(frame)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   DynamicSpatialHashedOccupancyMap()
       : DynamicSpatialHashedVoxelGridBase<
-          OccupancyCell, std::vector<OccupancyCell>>() {}
+          OccupancyCell, std::vector<OccupancyCell>>()
+  {
+    this->DisableCheckMutableAccess();
+  }
 
   double Resolution() const { return VoxelXSize(); }
 

@@ -744,6 +744,7 @@ public:
         frame_(frame), locked_(false)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   SignedDistanceField(
@@ -756,11 +757,15 @@ public:
         frame_(frame), locked_(false)
   {
     EnforceUniformVoxelSize();
+    this->DisableCheckMutableAccess();
   }
 
   SignedDistanceField()
       : common_robotics_utilities::voxel_grid
-            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>() {}
+            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>()
+  {
+    this->DisableCheckMutableAccess();
+  }
 
   SignedDistanceFieldMinimumMaximum<ScalarType> GetMinimumMaximum() const
   {
@@ -782,11 +787,16 @@ public:
 
   void Lock()
   {
+    this->EnableCheckMutableAccess();
     minimum_maximum_ = GetMinimumMaximum();
     locked_ = true;
   }
 
-  void Unlock() { locked_ = false; }
+  void Unlock()
+  {
+    this->DisableCheckMutableAccess();
+    locked_ = false;
+  }
 
   double Resolution() const { return this->VoxelXSize(); }
 

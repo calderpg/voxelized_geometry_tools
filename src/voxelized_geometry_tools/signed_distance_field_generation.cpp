@@ -87,14 +87,20 @@ void ComputeOneDimensionDistanceTransformInPlaceBruteForce(
     const int64_t num_elements, const Indexer& indexer,
     Eigen::Ref<VectorXd> scratch_d, EDTDistanceField& distance_field)
 {
+  auto& raw_data = distance_field.GetMutableRawData();
+
   const auto f = [&](const int64_t element)
   {
-    return distance_field.GetIndexImmutable(indexer(element)).Value();
+    const int64_t data_index =
+        distance_field.GridIndexToDataIndex(indexer(element));
+    return raw_data[data_index];
   };
 
   const auto set_f = [&](const int64_t element, const double value)
   {
-    return distance_field.SetIndex(indexer(element), value);
+    const int64_t data_index =
+        distance_field.GridIndexToDataIndex(indexer(element));
+    raw_data[data_index] = value;
   };
 
   const auto square =
@@ -127,14 +133,20 @@ void ComputeOneDimensionDistanceTransformInPlaceLinear(
     Eigen::Ref<VectorXd> scratch_z, Eigen::Ref<VectorXi64> scratch_v,
     Eigen::Ref<VectorXd> scratch_d, EDTDistanceField& distance_field)
 {
+  auto& raw_data = distance_field.GetMutableRawData();
+
   const auto f = [&](const int64_t element)
   {
-    return distance_field.GetIndexImmutable(indexer(element)).Value();
+    const int64_t data_index =
+        distance_field.GridIndexToDataIndex(indexer(element));
+    return raw_data[data_index];
   };
 
   const auto set_f = [&](const int64_t element, const double value)
   {
-    return distance_field.SetIndex(indexer(element), value);
+    const int64_t data_index =
+        distance_field.GridIndexToDataIndex(indexer(element));
+    raw_data[data_index] = value;
   };
 
   const auto square =

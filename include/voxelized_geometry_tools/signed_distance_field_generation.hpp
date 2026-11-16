@@ -82,6 +82,8 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
       grid_origin_transform, frame, grid_sizes, parameters.OOBValue());
+  auto& new_sdf_raw_data = new_sdf.GetMutableRawData();
+
   for (int64_t x_index = 0; x_index < new_sdf.NumXVoxels(); x_index++)
   {
     for (int64_t y_index = 0; y_index < new_sdf.NumYVoxels(); y_index++)
@@ -101,8 +103,9 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
             std::sqrt(free_distance_squared) * new_sdf.Resolution();
         const double distance = distance1 - distance2;
 
-        new_sdf.SetIndex(
-            x_index, y_index, z_index, static_cast<SDFScalarType>(distance));
+        const int64_t data_index =
+            new_sdf.GridIndexToDataIndex(x_index, y_index, z_index);
+        new_sdf_raw_data[data_index] = static_cast<SDFScalarType>(distance);
       }
     }
   }
@@ -247,6 +250,8 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     SignedDistanceField<SDFScalarType> combined_sdf(
         grid.OriginTransform(), frame, grid.ControlSizes(),
         parameters.OOBValue());
+    auto& combined_sdf_raw_data = combined_sdf.GetMutableRawData();
+
     for (int64_t x_idx = 0; x_idx < combined_sdf.NumXVoxels(); x_idx++)
     {
       for (int64_t y_idx = 0; y_idx < combined_sdf.NumYVoxels(); y_idx++)
@@ -261,17 +266,20 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
           const SDFScalarType filled_sdf_value = filled_sdf.GetIndexImmutable(
               query_x_idx, query_y_idx, query_z_idx).Value();
 
+          const int64_t data_index =
+              combined_sdf.GridIndexToDataIndex(x_idx, y_idx, z_idx);
+
           if (free_sdf_value >= 0.0)
           {
-            combined_sdf.SetIndex(x_idx, y_idx, z_idx, free_sdf_value);
+            combined_sdf_raw_data[data_index] = free_sdf_value;
           }
           else if (filled_sdf_value <= -0.0)
           {
-            combined_sdf.SetIndex(x_idx, y_idx, z_idx, filled_sdf_value);
+            combined_sdf_raw_data[data_index] = filled_sdf_value;
           }
           else
           {
-            combined_sdf.SetIndex(x_idx, y_idx, z_idx, 0.0);
+            combined_sdf_raw_data[data_index] = 0.0;
           }
         }
       }

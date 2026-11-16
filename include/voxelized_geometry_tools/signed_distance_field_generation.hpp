@@ -51,8 +51,13 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   // distance to free voxels.
   EDTDistanceField filled_distance_field(
       grid_origin_transform, grid_sizes, unmarked_cell);
+  auto& filled_distance_field_raw_data =
+      filled_distance_field.GetMutableRawData();
+
   EDTDistanceField free_distance_field(
       grid_origin_transform, grid_sizes, unmarked_cell);
+  auto& free_distance_field_raw_data =
+      free_distance_field.GetMutableRawData();
 
   for (int64_t x_index = 0; x_index < grid_sizes.NumXVoxels(); x_index++)
   {
@@ -61,13 +66,16 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
       for (int64_t z_index = 0; z_index < grid_sizes.NumZVoxels(); z_index++)
       {
         const GridIndex current_index(x_index, y_index, z_index);
+        const int64_t current_data_index =
+            grid_sizes.GridIndexToDataIndex(current_index);
+
         if (is_filled_fn(current_index))
         {
-          filled_distance_field.SetIndex(current_index, marked_cell);
+          filled_distance_field_raw_data[current_data_index] = marked_cell;
         }
         else
         {
-          free_distance_field.SetIndex(current_index, marked_cell);
+          free_distance_field_raw_data[current_data_index] = marked_cell;
         }
       }
     }

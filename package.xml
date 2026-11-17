@@ -6,10 +6,11 @@
   <maintainer email="calder.pg@gmail.com">Calder Phillips-Grafflin</maintainer>
   <license>BSD</license>
 
-  <buildtool_depend>ament_cmake_ros</buildtool_depend>
+  <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
 
   <depend>common_robotics_utilities</depend>
+  <depend>eigen</depend>
   <depend>geometry_msgs</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
@@ -17,6 +18,8 @@
   <depend>visualization_msgs</depend>
 
   <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <test_depend>gtest</test_depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
 

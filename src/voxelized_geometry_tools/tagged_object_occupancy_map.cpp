@@ -54,9 +54,8 @@ TaggedObjectOccupancyCell::Deserialize(
 }
 
 /// We need to implement cloning.
-std::unique_ptr<common_robotics_utilities::voxel_grid
-    ::VoxelGridBase<TaggedObjectOccupancyCell,
-                    std::vector<TaggedObjectOccupancyCell>>>
+std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+    <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>>
 TaggedObjectOccupancyMap::DoClone() const
 {
   return std::unique_ptr<TaggedObjectOccupancyMap>(
@@ -91,20 +90,6 @@ uint64_t TaggedObjectOccupancyMap::DerivedDeserializeSelf(
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
-}
-
-bool TaggedObjectOccupancyMap::OnMutableAccess(
-    const int64_t x_index, const int64_t y_index, const int64_t z_index)
-{
-  CRU_UNUSED(x_index);
-  CRU_UNUSED(y_index);
-  CRU_UNUSED(z_index);
-  return true;
-}
-
-bool TaggedObjectOccupancyMap::OnMutableRawAccess()
-{
-  return true;
 }
 
 uint64_t TaggedObjectOccupancyMap::Serialize(

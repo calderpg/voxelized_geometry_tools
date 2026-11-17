@@ -64,10 +64,9 @@ inline ColorRGBA LookupComponentColor(
       ::LookupUniqueColor<ColorRGBA>(component, alpha);
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename T, typename VoxelGridType>
 inline Marker ExportVoxelGridToRViz(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& voxel_grid,
+    const VoxelGridType& voxel_grid,
     const std::string& frame,
     const std::function<ColorRGBA(
         const T&, const common_robotics_utilities
@@ -118,10 +117,9 @@ inline Marker ExportVoxelGridToRViz(
   return display_rep;
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename T, typename VoxelGridType>
 inline Marker ExportVoxelGridIndexMapToRViz(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& voxel_grid,
+    const VoxelGridType& voxel_grid,
     const std::unordered_map<
         common_robotics_utilities::voxel_grid::GridIndex, uint8_t>& index_map,
     const std::string& frame,
@@ -171,10 +169,9 @@ inline Marker ExportVoxelGridIndexMapToRViz(
   return display_rep;
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename T, typename VoxelGridType>
 inline Marker ExportVoxelGridIndicesToRViz(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& voxel_grid,
+    const VoxelGridType& voxel_grid,
     const std::vector<common_robotics_utilities::voxel_grid::GridIndex>&
         indices,
     const std::string& frame,
@@ -218,10 +215,9 @@ inline Marker ExportVoxelGridIndicesToRViz(
   return display_rep;
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename T, typename DynamicSpatialHashedVoxelGridType>
 inline Marker ExportDynamicSpatialHashedVoxelGridToRViz(
-    const common_robotics_utilities::voxel_grid
-        ::DynamicSpatialHashedVoxelGridBase<T, BackingStore>& dsh_voxel_grid,
+    const DynamicSpatialHashedVoxelGridType& dsh_voxel_grid,
     const std::string& frame,
     const std::function<ColorRGBA(
         const T&, const common_robotics_utilities

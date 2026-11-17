@@ -108,9 +108,9 @@ using TaggedObjectOccupancyComponentCellDeserializer
         ::Deserializer<TaggedObjectOccupancyComponentCell>;
 
 class TaggedObjectOccupancyComponentMap
-    : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
-                        std::vector<TaggedObjectOccupancyComponentCell>>
+    : public common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
+        <TaggedObjectOccupancyComponentCell,
+         std::vector<TaggedObjectOccupancyComponentCell>>
 {
 private:
   using DeserializedTaggedObjectOccupancyComponentMap
@@ -128,9 +128,9 @@ private:
   /// Implement the VoxelGridBase interface.
 
   /// We need to implement cloning.
-  std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
-                      std::vector<TaggedObjectOccupancyComponentCell>>>
+  std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
+      <TaggedObjectOccupancyComponentCell,
+       std::vector<TaggedObjectOccupancyComponentCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
@@ -198,10 +198,10 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyComponentCell& default_value,
       const TaggedObjectOccupancyComponentCell& oob_value)
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
-                          std::vector<TaggedObjectOccupancyComponentCell>>(
-              origin_transform, sizes, default_value, oob_value),
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
+            <TaggedObjectOccupancyComponentCell,
+             std::vector<TaggedObjectOccupancyComponentCell>>(
+                origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
     EnforceUniformVoxelSize();
@@ -212,19 +212,19 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyComponentCell& default_value,
       const TaggedObjectOccupancyComponentCell& oob_value)
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
-                          std::vector<TaggedObjectOccupancyComponentCell>>(
-              sizes, default_value, oob_value),
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
+            <TaggedObjectOccupancyComponentCell,
+             std::vector<TaggedObjectOccupancyComponentCell>>(
+                sizes, default_value, oob_value),
         frame_(frame)
   {
     EnforceUniformVoxelSize();
   }
 
   TaggedObjectOccupancyComponentMap()
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyComponentCell,
-                          std::vector<TaggedObjectOccupancyComponentCell>>() {}
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
+          <TaggedObjectOccupancyComponentCell,
+           std::vector<TaggedObjectOccupancyComponentCell>>() {}
 
   bool AreComponentsValid() const { return components_valid_.load(); }
 
@@ -334,21 +334,21 @@ public:
                                    EMPTY_COMPONENTS=0x02,
                                    UNKNOWN_COMPONENTS=0x04 };
 
-  std::map<uint32_t, std::unordered_map<
-      common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
+  std::map<uint32_t, std::unordered_map
+      <common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractComponentSurfaces(
       const COMPONENT_TYPES component_types_to_extract) const;
 
-  std::map<uint32_t, std::unordered_map<
-      common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
+  std::map<uint32_t, std::unordered_map
+      <common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractFilledComponentSurfaces() const;
 
-  std::map<uint32_t, std::unordered_map<
-      common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
+  std::map<uint32_t, std::unordered_map
+      <common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractUnknownComponentSurfaces() const;
 
-  std::map<uint32_t, std::unordered_map<
-      common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
+  std::map<uint32_t, std::unordered_map
+      <common_robotics_utilities::voxel_grid::GridIndex, uint8_t>>
   ExtractEmptyComponentSurfaces() const;
 
   topology_computation::TopologicalInvariants ComputeComponentTopology(
@@ -403,9 +403,7 @@ public:
     };
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyComponentCell,
-             std::vector<TaggedObjectOccupancyComponentCell>,
-             ScalarType>(*this, is_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, is_filled_fn, Frame(), parameters);
   }
 
   template<typename ScalarType>
@@ -476,9 +474,7 @@ public:
     };
     const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyComponentCell,
-             std::vector<TaggedObjectOccupancyComponentCell>,
-             ScalarType>(*this, free_sdf_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, free_sdf_filled_fn, Frame(), parameters);
 
     // Make the helper function
     const std::function<bool(const GridIndex&)>
@@ -503,9 +499,7 @@ public:
     };
     const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyComponentCell,
-             std::vector<TaggedObjectOccupancyComponentCell>,
-             ScalarType>(*this, object_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, object_filled_fn, Frame(), parameters);
 
     SignedDistanceField<ScalarType> combined_sdf = free_sdf;
     combined_sdf.Unlock();

@@ -17,8 +17,8 @@ namespace voxelized_geometry_tools
 VGT_NAMESPACE_BEGIN
 class DynamicSpatialHashedOccupancyMap final
     : public common_robotics_utilities::voxel_grid
-        ::DynamicSpatialHashedVoxelGridBase<
-            OccupancyCell, std::vector<OccupancyCell>>
+        ::DynamicSpatialHashedVoxelGridUncheckedBase
+            <OccupancyCell, std::vector<OccupancyCell>>
 {
 private:
   using DeserializedDynamicSpatialHashedOccupancyMap
@@ -31,8 +31,8 @@ private:
 
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::DynamicSpatialHashedVoxelGridBase<
-          OccupancyCell, std::vector<OccupancyCell>>>
+      ::DynamicSpatialHashedVoxelGridUncheckedBase
+          <OccupancyCell, std::vector<OccupancyCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
@@ -44,12 +44,6 @@ private:
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const OccupancyCellDeserializer& value_deserializer) override;
-
-  bool OnMutableAccess(const int64_t x_index,
-                       const int64_t y_index,
-                       const int64_t z_index) override;
-
-  bool OnMutableRawAccess() override;
 
   void EnforceUniformVoxelSize() const
   {
@@ -80,9 +74,10 @@ public:
           ::DynamicSpatialHashedVoxelGridSizes& voxel_grid_sizes,
       const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
-      : DynamicSpatialHashedVoxelGridBase<
-          OccupancyCell, std::vector<OccupancyCell>>(
-              voxel_grid_sizes, default_value, expected_chunks),
+      : common_robotics_utilities::voxel_grid
+          ::DynamicSpatialHashedVoxelGridUncheckedBase
+              <OccupancyCell, std::vector<OccupancyCell>>(
+                  voxel_grid_sizes, default_value, expected_chunks),
         frame_(frame)
   {
     EnforceUniformVoxelSize();
@@ -94,18 +89,20 @@ public:
           ::DynamicSpatialHashedVoxelGridSizes& voxel_grid_sizes,
       const OccupancyCell& default_value, const size_t expected_chunks,
       const std::string& frame)
-      : DynamicSpatialHashedVoxelGridBase<
-          OccupancyCell, std::vector<OccupancyCell>>(
-              origin_transform, voxel_grid_sizes, default_value,
-              expected_chunks),
+      : common_robotics_utilities::voxel_grid
+          ::DynamicSpatialHashedVoxelGridUncheckedBase
+              <OccupancyCell, std::vector<OccupancyCell>>(
+                  origin_transform, voxel_grid_sizes, default_value,
+                  expected_chunks),
         frame_(frame)
   {
     EnforceUniformVoxelSize();
   }
 
   DynamicSpatialHashedOccupancyMap()
-      : DynamicSpatialHashedVoxelGridBase<
-          OccupancyCell, std::vector<OccupancyCell>>() {}
+      : common_robotics_utilities::voxel_grid
+          ::DynamicSpatialHashedVoxelGridUncheckedBase
+              <OccupancyCell, std::vector<OccupancyCell>>() {}
 
   double Resolution() const { return VoxelXSize(); }
 

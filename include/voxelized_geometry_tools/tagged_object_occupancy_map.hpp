@@ -78,9 +78,8 @@ using TaggedObjectOccupancyCellDeserializer
         ::Deserializer<TaggedObjectOccupancyCell>;
 
 class TaggedObjectOccupancyMap
-    : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<TaggedObjectOccupancyCell,
-                        std::vector<TaggedObjectOccupancyCell>>
+    : public common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+        <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>
 {
 private:
   using DeserializedTaggedObjectOccupancyMap
@@ -92,9 +91,8 @@ private:
   /// Implement the VoxelGridBase interface.
 
   /// We need to implement cloning.
-  std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<TaggedObjectOccupancyCell,
-                      std::vector<TaggedObjectOccupancyCell>>>
+  std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+      <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
@@ -108,12 +106,6 @@ private:
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const TaggedObjectOccupancyCellDeserializer& value_deserializer)
       override;
-
-  bool OnMutableAccess(const int64_t x_index,
-                       const int64_t y_index,
-                       const int64_t z_index) override;
-
-  bool OnMutableRawAccess() override;
 
   void EnforceUniformVoxelSize() const
   {
@@ -155,9 +147,8 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value,
       const TaggedObjectOccupancyCell& oob_value)
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyCell,
-                          std::vector<TaggedObjectOccupancyCell>>(
+      : common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+          <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>(
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -169,9 +160,8 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const TaggedObjectOccupancyCell& default_value,
       const TaggedObjectOccupancyCell& oob_value)
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyCell,
-                          std::vector<TaggedObjectOccupancyCell>>(
+      : common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+          <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>(
               sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -179,9 +169,9 @@ public:
   }
 
   TaggedObjectOccupancyMap()
-      : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<TaggedObjectOccupancyCell,
-                          std::vector<TaggedObjectOccupancyCell>>() {}
+      : common_robotics_utilities::voxel_grid::VoxelGridUncheckedBase
+          <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>>()
+  {}
 
   double Resolution() const { return VoxelXSize(); }
 
@@ -242,8 +232,7 @@ public:
     };
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, is_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, is_filled_fn, Frame(), parameters);
   }
 
   template<typename ScalarType>
@@ -314,8 +303,7 @@ public:
     };
     const auto free_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, free_sdf_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, free_sdf_filled_fn, Frame(), parameters);
 
     // Make the helper function
     const std::function<bool(const GridIndex&)>
@@ -340,8 +328,7 @@ public:
     };
     const auto named_objects_sdf =
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <TaggedObjectOccupancyCell, std::vector<TaggedObjectOccupancyCell>,
-             ScalarType>(*this, object_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, object_filled_fn, Frame(), parameters);
 
     SignedDistanceField<ScalarType> combined_sdf = free_sdf;
     combined_sdf.Unlock();

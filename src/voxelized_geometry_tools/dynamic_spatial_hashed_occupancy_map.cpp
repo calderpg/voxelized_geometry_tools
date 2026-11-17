@@ -20,7 +20,7 @@ namespace voxelized_geometry_tools
 VGT_NAMESPACE_BEGIN
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
-    ::DynamicSpatialHashedVoxelGridBase<
+    ::DynamicSpatialHashedVoxelGridUncheckedBase<
         OccupancyCell, std::vector<OccupancyCell>>>
 DynamicSpatialHashedOccupancyMap::DoClone() const
 {
@@ -58,20 +58,6 @@ uint64_t DynamicSpatialHashedOccupancyMap::DerivedDeserializeSelf(
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
-}
-
-bool DynamicSpatialHashedOccupancyMap::OnMutableAccess(
-    const int64_t x_index, const int64_t y_index, const int64_t z_index)
-{
-  CRU_UNUSED(x_index);
-  CRU_UNUSED(y_index);
-  CRU_UNUSED(z_index);
-  return true;
-}
-
-bool DynamicSpatialHashedOccupancyMap::OnMutableRawAccess()
-{
-  return true;
 }
 
 uint64_t DynamicSpatialHashedOccupancyMap::Serialize(

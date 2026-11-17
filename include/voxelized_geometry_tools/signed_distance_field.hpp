@@ -193,7 +193,7 @@ public:
 template<typename ScalarType>
 class SignedDistanceField final
     : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<ScalarType, std::vector<ScalarType>>
+        ::VoxelGridCheckedBase<ScalarType, std::vector<ScalarType>>
 {
 private:
   using ScalarTypeSerializer
@@ -541,7 +541,7 @@ private:
 
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<ScalarType, std::vector<ScalarType>>>
+      ::VoxelGridCheckedBase<ScalarType, std::vector<ScalarType>>>
   DoClone() const override
   {
     return std::unique_ptr<SignedDistanceField<ScalarType>>(
@@ -739,7 +739,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
-            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
+            ::VoxelGridCheckedBase<ScalarType, std::vector<ScalarType>>(
                 origin_transform, sizes, default_value, oob_value),
         frame_(frame), locked_(false)
   {
@@ -751,7 +751,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const ScalarType default_value, const ScalarType oob_value)
       : common_robotics_utilities::voxel_grid
-            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>(
+            ::VoxelGridCheckedBase<ScalarType, std::vector<ScalarType>>(
                 sizes, default_value, oob_value),
         frame_(frame), locked_(false)
   {
@@ -760,7 +760,7 @@ public:
 
   SignedDistanceField()
       : common_robotics_utilities::voxel_grid
-            ::VoxelGridBase<ScalarType, std::vector<ScalarType>>() {}
+            ::VoxelGridCheckedBase<ScalarType, std::vector<ScalarType>>() {}
 
   SignedDistanceFieldMinimumMaximum<ScalarType> GetMinimumMaximum() const
   {

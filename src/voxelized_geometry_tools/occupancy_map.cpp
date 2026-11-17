@@ -47,7 +47,7 @@ OccupancyCell::DeserializedOccupancyCell OccupancyCell::Deserialize(
 
 /// We need to implement cloning.
 std::unique_ptr<common_robotics_utilities::voxel_grid
-    ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>>
+    ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>>
 OccupancyMap::DoClone() const
 {
   return std::unique_ptr<OccupancyMap>(new OccupancyMap(*this));
@@ -81,20 +81,6 @@ uint64_t OccupancyMap::DerivedDeserializeSelf(
   // Figure out how many bytes were read
   const uint64_t bytes_read = current_position - starting_offset;
   return bytes_read;
-}
-
-bool OccupancyMap::OnMutableAccess(
-    const int64_t x_index, const int64_t y_index, const int64_t z_index)
-{
-  CRU_UNUSED(x_index);
-  CRU_UNUSED(y_index);
-  CRU_UNUSED(z_index);
-  return true;
-}
-
-bool OccupancyMap::OnMutableRawAccess()
-{
-  return true;
 }
 
 uint64_t OccupancyMap::Serialize(

@@ -64,7 +64,7 @@ using OccupancyCellDeserializer
 
 class OccupancyMap
     : public common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>
+        ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>
 {
 private:
   using DeserializedOccupancyMap
@@ -76,7 +76,7 @@ private:
 
   /// We need to implement cloning.
   std::unique_ptr<common_robotics_utilities::voxel_grid
-      ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>>
+      ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>>
   DoClone() const override;
 
   /// We need to serialize the frame and locked flag.
@@ -88,12 +88,6 @@ private:
   uint64_t DerivedDeserializeSelf(
       const std::vector<uint8_t>& buffer, const uint64_t starting_offset,
       const OccupancyCellDeserializer& value_deserializer) override;
-
-  bool OnMutableAccess(const int64_t x_index,
-                       const int64_t y_index,
-                       const int64_t z_index) override;
-
-  bool OnMutableRawAccess() override;
 
   void EnforceUniformVoxelSize() const
   {
@@ -135,7 +129,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value, const OccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>(
+          ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>(
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -147,7 +141,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyCell& default_value, const OccupancyCell& oob_value)
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>(
+          ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>(
               sizes, default_value, oob_value),
         frame_(frame)
   {
@@ -156,7 +150,8 @@ public:
 
   OccupancyMap()
       : common_robotics_utilities::voxel_grid
-          ::VoxelGridBase<OccupancyCell, std::vector<OccupancyCell>>() {}
+          ::VoxelGridUncheckedBase<OccupancyCell, std::vector<OccupancyCell>>()
+  {}
 
   double Resolution() const { return VoxelXSize(); }
 
@@ -205,8 +200,7 @@ public:
     };
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <OccupancyCell, std::vector<OccupancyCell>, ScalarType>(
-                *this, is_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, is_filled_fn, Frame(), parameters);
   }
 
   SignedDistanceField<double> ExtractSignedDistanceFieldDouble(

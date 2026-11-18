@@ -70,7 +70,7 @@ TaggedObjectOccupancyComponentCell::Deserialize(
 }
 
 /// We need to implement cloning.
-std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridBase
+std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
     <TaggedObjectOccupancyComponentCell,
      std::vector<TaggedObjectOccupancyComponentCell>>>
 TaggedObjectOccupancyComponentMap::DoClone() const

@@ -78,7 +78,7 @@ using OccupancyComponentCellDeserializer
         <OccupancyComponentCell>;
 
 class OccupancyComponentMap
-    : public common_robotics_utilities::voxel_grid::VoxelGridBase
+    : public common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
         <OccupancyComponentCell, std::vector<OccupancyComponentCell>>
 {
 private:
@@ -94,7 +94,7 @@ private:
   /// Implement the VoxelGridBase interface.
 
   /// We need to implement cloning.
-  std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridBase
+  std::unique_ptr<common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
       <OccupancyComponentCell, std::vector<OccupancyComponentCell>>>
   DoClone() const override;
 
@@ -156,7 +156,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyComponentCell& default_value,
       const OccupancyComponentCell& oob_value)
-      : common_robotics_utilities::voxel_grid::VoxelGridBase
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
           <OccupancyComponentCell, std::vector<OccupancyComponentCell>>(
               origin_transform, sizes, default_value, oob_value),
         frame_(frame)
@@ -169,7 +169,7 @@ public:
       const common_robotics_utilities::voxel_grid::VoxelGridSizes& sizes,
       const OccupancyComponentCell& default_value,
       const OccupancyComponentCell& oob_value)
-      : common_robotics_utilities::voxel_grid::VoxelGridBase
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
           <OccupancyComponentCell, std::vector<OccupancyComponentCell>>(
               sizes, default_value, oob_value),
         frame_(frame)
@@ -178,7 +178,7 @@ public:
   }
 
   OccupancyComponentMap()
-      : common_robotics_utilities::voxel_grid::VoxelGridBase
+      : common_robotics_utilities::voxel_grid::VoxelGridCheckedBase
           <OccupancyComponentCell, std::vector<OccupancyComponentCell>>() {}
 
   bool AreComponentsValid() const { return components_valid_.load(); }
@@ -301,8 +301,7 @@ public:
     };
     return
         signed_distance_field_generation::internal::ExtractSignedDistanceField
-            <OccupancyComponentCell, std::vector<OccupancyComponentCell>,
-             ScalarType>(*this, is_filled_fn, Frame(), parameters);
+            <ScalarType>(*this, is_filled_fn, Frame(), parameters);
   }
 
   SignedDistanceField<double> ExtractSignedDistanceFieldDouble(

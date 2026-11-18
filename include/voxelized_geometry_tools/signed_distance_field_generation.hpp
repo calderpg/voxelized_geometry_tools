@@ -112,10 +112,9 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   return new_sdf;
 }
 
-template<typename T, typename BackingStore, typename SDFScalarType>
+template<typename SDFScalarType, typename VoxelGridType>
 inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& grid,
+    const VoxelGridType& grid,
     const std::function<bool(const GridIndex&)>& is_filled_fn,
     const std::string& frame,
     const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters)

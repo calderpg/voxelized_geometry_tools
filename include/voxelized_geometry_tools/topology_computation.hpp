@@ -56,10 +56,9 @@ using TopologicalInvariants = std::map<uint32_t, NumberOfHolesAndVoids>;
 
 using common_robotics_utilities::voxel_grid::GridIndex;
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename VoxelGridType>
 int64_t MarkConnectedComponent(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& source_grid,
+    const VoxelGridType& source_grid,
     const std::function<bool(const GridIndex&,
                              const GridIndex&)>& are_connected_fn,
     const std::function<uint32_t(const GridIndex&)>& get_component_fn,
@@ -135,10 +134,9 @@ int64_t MarkConnectedComponent(
   return marked_cells;
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename VoxelGridType>
 uint32_t ComputeConnectedComponents(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& source_grid,
+    const VoxelGridType& source_grid,
     const std::function<bool(const GridIndex&,
                              const GridIndex&)>& are_connected_fn,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
@@ -298,11 +296,10 @@ inline int32_t ComputeConnectivityOfSurfaceVertices(
   return connected_components;
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename VoxelGridType>
 std::map<uint32_t, std::unordered_map<GridIndex, uint8_t>>
 ExtractComponentSurfaces(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& source_grid,
+    const VoxelGridType& source_grid,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
     const std::function<bool(const GridIndex&)>& is_surface_index_fn)
 {
@@ -642,10 +639,9 @@ inline NumberOfHolesAndVoids ComputeHolesAndVoidsInSurface(
   return NumberOfHolesAndVoids(number_of_holes, number_of_voids);
 }
 
-template<typename T, typename BackingStore=std::vector<T>>
+template<typename VoxelGridType>
 TopologicalInvariants ComputeComponentTopology(
-    const common_robotics_utilities::voxel_grid
-        ::VoxelGridBase<T, BackingStore>& source_grid,
+    const VoxelGridType& source_grid,
     const std::function<int64_t(const GridIndex&)>& get_component_fn,
     const std::function<bool(const GridIndex&)>& is_surface_index_fn,
     const common_robotics_utilities::utility::LoggingFunction& logging_fn)

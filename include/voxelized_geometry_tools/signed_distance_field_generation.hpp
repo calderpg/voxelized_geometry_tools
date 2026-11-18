@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <functional>
+#include <future>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -82,10 +83,39 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   }
 
   // Compute the distance transforms in place
-  ComputeDistanceFieldTransformInPlace(
-      parameters.Parallelism(), filled_distance_field);
-  ComputeDistanceFieldTransformInPlace(
-      parameters.Parallelism(), free_distance_field);
+  if (parameters.Parallelism().IsParallel())
+  {
+    // Give half of the parallelism to each field worker
+    const common_robotics_utilities::parallelism::DegreeOfParallelism
+        per_field_parallelism(parameters.Parallelism().GetNumThreads() / 2);
+
+    // Dispatch via std::async, so that we can still use OpenMP inside
+    auto filled_field_future = std::async(
+        std::launch::async,
+        [&]()
+        {
+          ComputeDistanceFieldTransformInPlace(
+              per_field_parallelism, filled_distance_field);
+        });
+    auto free_field_future = std::async(
+        std::launch::async,
+        [&]()
+        {
+          ComputeDistanceFieldTransformInPlace(
+              per_field_parallelism, free_distance_field);
+        });
+
+    // Wait for the async operations to complete
+    filled_field_future.get();
+    free_field_future.get();
+  }
+  else
+  {
+    ComputeDistanceFieldTransformInPlace(
+        parameters.Parallelism(), filled_distance_field);
+    ComputeDistanceFieldTransformInPlace(
+        parameters.Parallelism(), free_distance_field);
+  }
 
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(

@@ -234,6 +234,8 @@ int main(int argc, char** argv)
 
   rclcpp::init(argc, argv);
   auto node = std::make_shared<rclcpp::Node>("voxel_raycasting");
+  rclcpp::executors::SingleThreadedExecutor executor;
+  executor.add_node(node);
   auto display_pub = node->create_publisher<MarkerArray>(
       "voxel_raycasting", rclcpp::QoS(1).transient_local());
   const DisplayFunction display_fn = [&](const MarkerArray& markers)
@@ -259,7 +261,7 @@ int main(int argc, char** argv)
     {
       RunRaycastCycle(uniform_unit_real_fn, display_fn);
 
-      rclcpp::spin_some(node);
+      executor.spin_some();
     }
   }
 

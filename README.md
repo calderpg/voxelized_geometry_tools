@@ -4,7 +4,7 @@ Voxelized geometry tools (Voxel-based collision/occupancy maps, signed-distance 
 ## Setup
 
 For convenience of building, `voxelized_geometry_tools` is a ROS package which
-supports [ROS 2 Dashing](https://index.ros.org/doc/ros2/Installation/) and
+supports [ROS 2 Jazzy](https://docs.ros.org/en/rolling/Installation.html) and
 newer ROS 2 distributions. Much of this project can be built entirely without
 ROS support, see the example of the
 [Drake](https://github.com/RobotLocomotion/drake) project which builds this
@@ -30,7 +30,6 @@ rosdep install -i -y --from-path src
 
 Use [`colcon`](https://colcon.readthedocs.io/en/released/):
 
-*For ROS 2 Dashing+*
 ```sh
 cd ~/ws
 colcon build  # the entire workspace
@@ -41,7 +40,6 @@ colcon build --packages-select voxelized_geometry_tools  # the package only
 
 Use [`colcon`](https://colcon.readthedocs.io/en/released/):
 
-*For ROS 2 Dashing+*
 ```sh
 cd ~/ws
 colcon test --event-handlers=console_direct+  # the entire workspace
@@ -52,7 +50,6 @@ colcon test --event-handlers=console_direct+ --packages-select voxelized_geometr
 
 Use [`ros2 run`](https://index.ros.org/doc/ros2/Tutorials/Understanding-ROS2-Nodes/#ros2-run):
 
-*For ROS 2 Dashing+*
 ```sh
 cd ~/ws
 source ./install/setup.bash

@@ -166,7 +166,8 @@ template<typename ScalarType>
 class SignedDistanceFieldMinimumMaximum
 {
 private:
-  template<typename SDFScalarType> friend class SignedDistanceField;
+  template<typename SDFScalarType>
+  friend class SignedDistanceField;
 
   ScalarType minimum_{};
   ScalarType maximum_{};
@@ -189,6 +190,64 @@ public:
 
   ScalarType Maximum() const { return maximum_; }
 };
+
+template<typename ScalarType>
+class SignedDistanceFieldGenerationParameters
+{
+private:
+  ScalarType oob_value_;
+  common_robotics_utilities::parallelism::DegreeOfParallelism parallelism_;
+  bool unknown_is_filled_ = true;
+  bool add_virtual_border_ = false;
+
+public:
+  SignedDistanceFieldGenerationParameters()
+      : oob_value_(std::numeric_limits<ScalarType>::infinity()) {}
+
+  SignedDistanceFieldGenerationParameters(
+      const ScalarType& oob_value,
+      const common_robotics_utilities::parallelism::DegreeOfParallelism&
+          parallelism,
+      const bool unknown_is_filled, const bool add_virtual_border)
+      : oob_value_(oob_value), parallelism_(parallelism),
+        unknown_is_filled_(unknown_is_filled),
+        add_virtual_border_(add_virtual_border) {}
+
+  const ScalarType& OOBValue() const { return oob_value_; }
+
+  const common_robotics_utilities::parallelism::DegreeOfParallelism&
+  Parallelism() const { return parallelism_; }
+
+  bool UnknownIsFilled() const { return unknown_is_filled_; }
+
+  bool AddVirtualBorder() const { return add_virtual_border_; }
+};
+
+// Forward declaration for use defining friend functions.
+namespace signed_distance_field_generation
+{
+namespace internal
+{
+template<typename SDFScalarType>
+SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
+    const Eigen::Isometry3d& grid_origin_transform,
+    const common_robotics_utilities::voxel_grid::VoxelGridSizes& grid_sizes,
+    const std::function<bool(
+        const common_robotics_utilities::voxel_grid::GridIndex&)>&
+            is_filled_fn,
+    const std::string& frame,
+    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters);
+
+template<typename SDFScalarType, typename VoxelGridType>
+SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
+    const VoxelGridType& grid,
+    const std::function<bool(
+        const common_robotics_utilities::voxel_grid::GridIndex&)>&
+            is_filled_fn,
+    const std::string& frame,
+    const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters);
+}  // namespace internal
+}  // namespace signed_distance_field_generation
 
 template<typename ScalarType>
 class SignedDistanceField final
@@ -618,6 +677,34 @@ private:
     }
   }
 
+  template<typename SDFScalarType>
+  friend SignedDistanceField<SDFScalarType>
+  signed_distance_field_generation::internal::ExtractSignedDistanceField(
+      const Eigen::Isometry3d& grid_origin_transform,
+      const common_robotics_utilities::voxel_grid::VoxelGridSizes& grid_sizes,
+      const std::function<bool(
+          const common_robotics_utilities::voxel_grid::GridIndex&)>&
+              is_filled_fn,
+      const std::string& frame,
+      const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters);
+
+  template<typename SDFScalarType, typename VoxelGridType>
+  friend SignedDistanceField<SDFScalarType>
+  signed_distance_field_generation::internal::ExtractSignedDistanceField(
+      const VoxelGridType& grid,
+      const std::function<bool(
+          const common_robotics_utilities::voxel_grid::GridIndex&)>&
+              is_filled_fn,
+      const std::string& frame,
+      const SignedDistanceFieldGenerationParameters<SDFScalarType>& parameters);
+
+  void LockWithMinimumMaximum(
+      const SignedDistanceFieldMinimumMaximum<ScalarType>& minimum_maximum)
+  {
+    minimum_maximum_ = minimum_maximum;
+    locked_ = true;
+  }
+
 public:
   static uint64_t Serialize(
       const SignedDistanceField<ScalarType>& sdf, std::vector<uint8_t>& buffer)
@@ -782,8 +869,7 @@ public:
 
   void Lock()
   {
-    minimum_maximum_ = GetMinimumMaximum();
-    locked_ = true;
+    LockWithMinimumMaximum(GetMinimumMaximum());
   }
 
   void Unlock() { locked_ = false; }
@@ -1229,38 +1315,6 @@ public:
     }
     return watershed_map;
   }
-};
-
-template<typename ScalarType>
-class SignedDistanceFieldGenerationParameters
-{
-private:
-  ScalarType oob_value_;
-  common_robotics_utilities::parallelism::DegreeOfParallelism parallelism_;
-  bool unknown_is_filled_ = true;
-  bool add_virtual_border_ = false;
-
-public:
-  SignedDistanceFieldGenerationParameters()
-      : oob_value_(std::numeric_limits<ScalarType>::infinity()) {}
-
-  SignedDistanceFieldGenerationParameters(
-      const ScalarType& oob_value,
-      const common_robotics_utilities::parallelism::DegreeOfParallelism&
-          parallelism,
-      const bool unknown_is_filled, const bool add_virtual_border)
-      : oob_value_(oob_value), parallelism_(parallelism),
-        unknown_is_filled_(unknown_is_filled),
-        add_virtual_border_(add_virtual_border) {}
-
-  const ScalarType& OOBValue() const { return oob_value_; }
-
-  const common_robotics_utilities::parallelism::DegreeOfParallelism&
-  Parallelism() const { return parallelism_; }
-
-  bool UnknownIsFilled() const { return unknown_is_filled_; }
-
-  bool AddVirtualBorder() const { return add_virtual_border_; }
 };
 VGT_NAMESPACE_END
 }  // namespace voxelized_geometry_tools

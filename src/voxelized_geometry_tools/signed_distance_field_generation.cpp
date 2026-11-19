@@ -17,6 +17,7 @@ using common_robotics_utilities::parallelism::DegreeOfParallelism;
 using common_robotics_utilities::parallelism::ParallelForBackend;
 using common_robotics_utilities::parallelism::StaticParallelForRangeLoop;
 using common_robotics_utilities::parallelism::ThreadWorkRange;
+using common_robotics_utilities::voxel_grid::VoxelGridSizes;
 
 using Eigen::VectorXd;
 using Eigen::MatrixXd;
@@ -85,16 +86,21 @@ private:
 template<typename Indexer>
 void ComputeOneDimensionDistanceTransformInPlaceBruteForce(
     const int64_t num_elements, const Indexer& indexer,
-    Eigen::Ref<VectorXd> scratch_d, EDTDistanceField& distance_field)
+    Eigen::Ref<VectorXd> scratch_d, const VoxelGridSizes& distance_field_sizes,
+    std::vector<double>& distance_field_raw_data)
 {
   const auto f = [&](const int64_t element)
   {
-    return distance_field.GetIndexImmutable(indexer(element)).Value();
+    const int64_t data_index =
+        distance_field_sizes.GridIndexToDataIndex(indexer(element));
+    return distance_field_raw_data[data_index];
   };
 
   const auto set_f = [&](const int64_t element, const double value)
   {
-    return distance_field.SetIndex(indexer(element), value);
+    const int64_t data_index =
+        distance_field_sizes.GridIndexToDataIndex(indexer(element));
+    distance_field_raw_data[data_index] = value;
   };
 
   const auto square =
@@ -125,16 +131,21 @@ template<typename Indexer>
 void ComputeOneDimensionDistanceTransformInPlaceLinear(
     const int64_t num_elements, const Indexer& indexer,
     Eigen::Ref<VectorXd> scratch_z, Eigen::Ref<VectorXi64> scratch_v,
-    Eigen::Ref<VectorXd> scratch_d, EDTDistanceField& distance_field)
+    Eigen::Ref<VectorXd> scratch_d, const VoxelGridSizes& distance_field_sizes,
+    std::vector<double>& distance_field_raw_data)
 {
   const auto f = [&](const int64_t element)
   {
-    return distance_field.GetIndexImmutable(indexer(element)).Value();
+    const int64_t data_index =
+        distance_field_sizes.GridIndexToDataIndex(indexer(element));
+    return distance_field_raw_data[data_index];
   };
 
   const auto set_f = [&](const int64_t element, const double value)
   {
-    return distance_field.SetIndex(indexer(element), value);
+    const int64_t data_index =
+        distance_field_sizes.GridIndexToDataIndex(indexer(element));
+    distance_field_raw_data[data_index] = value;
   };
 
   const auto square =
@@ -229,7 +240,8 @@ template<typename Indexer>
 void ComputeOneDimensionDistanceTransformInPlace(
     const int64_t num_elements, const Indexer& indexer,
     Eigen::Ref<VectorXd> scratch_z, Eigen::Ref<VectorXi64> scratch_v,
-    Eigen::Ref<VectorXd> scratch_d, EDTDistanceField& distance_field)
+    Eigen::Ref<VectorXd> scratch_d, const VoxelGridSizes& distance_field_sizes,
+    std::vector<double>& distance_field_raw_data)
 {
   // We expect the brute force O(num_elements^2) strategy to be faster for small
   // numbers of elements than the more complex O(num_elements) strategy.
@@ -238,12 +250,14 @@ void ComputeOneDimensionDistanceTransformInPlace(
   if (num_elements > kStrategyThreshold)
   {
     ComputeOneDimensionDistanceTransformInPlaceLinear(
-        num_elements, indexer, scratch_z, scratch_v, scratch_d, distance_field);
+        num_elements, indexer, scratch_z, scratch_v, scratch_d,
+        distance_field_sizes, distance_field_raw_data);
   }
   else
   {
     ComputeOneDimensionDistanceTransformInPlaceBruteForce(
-        num_elements, indexer, scratch_d, distance_field);
+        num_elements, indexer, scratch_d, distance_field_sizes,
+        distance_field_raw_data);
   }
 }
 }  // namespace
@@ -258,9 +272,13 @@ void ComputeOneDimensionDistanceTransformInPlace(
 void ComputeDistanceFieldTransformInPlace(
     const DegreeOfParallelism& parallelism, EDTDistanceField& distance_field)
 {
-  const int64_t num_x_cells = distance_field.NumXVoxels();
-  const int64_t num_y_cells = distance_field.NumYVoxels();
-  const int64_t num_z_cells = distance_field.NumZVoxels();
+  const VoxelGridSizes& distance_field_sizes = distance_field.ControlSizes();
+  const int64_t num_x_cells = distance_field_sizes.NumXVoxels();
+  const int64_t num_y_cells = distance_field_sizes.NumYVoxels();
+  const int64_t num_z_cells = distance_field_sizes.NumZVoxels();
+
+  std::vector<double>& distance_field_raw_data =
+      distance_field.GetMutableRawData();
 
   const auto get_indicies_from_iteration = [&](
       const int64_t step, const int64_t iteration)
@@ -301,7 +319,7 @@ void ComputeDistanceFieldTransformInPlace(
 
         ComputeOneDimensionDistanceTransformInPlace(
             num_x_cells, XIndexer(y_index, z_index), scratch_z, scratch_v,
-            scratch_d, distance_field);
+            scratch_d, distance_field_sizes, distance_field_raw_data);
       }
     };
 
@@ -340,7 +358,7 @@ void ComputeDistanceFieldTransformInPlace(
 
         ComputeOneDimensionDistanceTransformInPlace(
             num_y_cells, YIndexer(x_index, z_index), scratch_z, scratch_v,
-            scratch_d, distance_field);
+            scratch_d, distance_field_sizes, distance_field_raw_data);
       }
     };
 
@@ -379,7 +397,7 @@ void ComputeDistanceFieldTransformInPlace(
 
         ComputeOneDimensionDistanceTransformInPlace(
             num_z_cells, ZIndexer(x_index, y_index), scratch_z, scratch_v,
-            scratch_d, distance_field);
+            scratch_d, distance_field_sizes, distance_field_raw_data);
       }
     };
 

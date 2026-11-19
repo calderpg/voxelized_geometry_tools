@@ -110,8 +110,8 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   const auto fill_sdf_work = [&](
       const common_robotics_utilities::parallelism::ThreadWorkRange& work_range)
   {
-    double minimum = std::numeric_limits<double>::infinity();
-    double maximum = -std::numeric_limits<double>::infinity();
+    double minimum = per_thread_minimums.at(work_range.GetThreadNum());
+    double maximum = per_thread_maximums.at(work_range.GetThreadNum());
 
     for (int64_t data_index = work_range.GetRangeStart();
          data_index < work_range.GetRangeEnd(); data_index++)
@@ -298,8 +298,8 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
     const auto fill_sdf_work = [&](
         const common_robotics_utilities::parallelism::ThreadWorkRange& work_range)
     {
-      SDFScalarType minimum = std::numeric_limits<SDFScalarType>::infinity();
-      SDFScalarType maximum = -std::numeric_limits<SDFScalarType>::infinity();
+      SDFScalarType minimum = per_thread_minimums.at(work_range.GetThreadNum());
+      SDFScalarType maximum = per_thread_maximums.at(work_range.GetThreadNum());
 
       for (int64_t data_index = work_range.GetRangeStart();
            data_index < work_range.GetRangeEnd(); data_index++)

@@ -8,8 +8,6 @@ include(GNUInstallDirs)
 
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(VOXELIZED_GEOMETRY_TOOLS_BUILD_EXAMPLES "Build the examples" ON)
-option(VOXELIZED_GEOMETRY_TOOLS_NATIVE_ARCH
-       "Compile with -march=native (only safe if every consumer does too)" OFF)
 
 find_package(ament_cmake REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -52,21 +50,27 @@ if(PROJECT_IS_TOP_LEVEL)
   endif()
 endif()
 
-# Warnings for this project's own targets only; consumers don't inherit them.
-add_library(vgt_warnings INTERFACE)
+# Flags for this project's own targets only; consumers don't inherit them.
+add_library(vgt_compile_options INTERFACE)
 set(vgt_warning_flags
   -Wall -Wextra -Wconversion -Wshadow -Wold-style-cast -Wpessimizing-move
   -Wuninitialized -Wmissing-declarations -Werror=non-virtual-dtor)
-target_compile_options(vgt_warnings INTERFACE
+target_compile_options(vgt_compile_options INTERFACE
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:${vgt_warning_flags}>")
+
+# We don't depend on Drake, but we do use different build flags if present.
+find_package(drake QUIET)
+if(drake_FOUND)
+  message(STATUS "Drake found, disabling -march=native")
+else()
+  message(STATUS "Drake NOT found, enabling -march=native")
+  target_compile_options(vgt_compile_options INTERFACE
+    $<$<COMPILE_LANGUAGE:CXX>:-march=native>)
+endif()
 
 # Common settings for every library and executable built here.
 function(vgt_configure target)
-  target_link_libraries(${target} PRIVATE $<BUILD_INTERFACE:vgt_warnings>)
-  if(VOXELIZED_GEOMETRY_TOOLS_NATIVE_ARCH)
-    target_compile_options(${target} PUBLIC
-      $<$<COMPILE_LANGUAGE:CXX>:-march=native>)
-  endif()
+  target_link_libraries(${target} PRIVATE $<BUILD_INTERFACE:vgt_compile_options>)
 endfunction()
 
 # Add a library with an alias in the project namespace.

@@ -48,6 +48,10 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   const double marked_cell = 0.0;
   const double unmarked_cell = std::numeric_limits<double>::infinity();
 
+  constexpr auto parallel_backend =
+      common_robotics_utilities::parallelism::ParallelForBackend
+          ::BEST_AVAILABLE;
+
   // Make two distance fields, one for distance to filled voxels, one for
   // distance to free voxels.
   EDTDistanceField filled_distance_field(
@@ -60,93 +64,63 @@ inline SignedDistanceField<SDFScalarType> ExtractSignedDistanceField(
   auto& free_distance_field_raw_data =
       free_distance_field.GetMutableRawData();
 
-  for (int64_t x_index = 0; x_index < grid_sizes.NumXVoxels(); x_index++)
+  const auto fill_fields_work = [&](
+      const common_robotics_utilities::parallelism::ThreadWorkRange& work_range)
   {
-    for (int64_t y_index = 0; y_index < grid_sizes.NumYVoxels(); y_index++)
+    for (int64_t data_index = work_range.GetRangeStart();
+         data_index < work_range.GetRangeEnd(); data_index++)
     {
-      for (int64_t z_index = 0; z_index < grid_sizes.NumZVoxels(); z_index++)
-      {
-        const GridIndex current_index(x_index, y_index, z_index);
-        const int64_t current_data_index =
-            grid_sizes.GridIndexToDataIndex(current_index);
+      const GridIndex grid_index = grid_sizes.DataIndexToGridIndex(data_index);
 
-        if (is_filled_fn(current_index))
-        {
-          filled_distance_field_raw_data[current_data_index] = marked_cell;
-        }
-        else
-        {
-          free_distance_field_raw_data[current_data_index] = marked_cell;
-        }
+      if (is_filled_fn(grid_index))
+      {
+        filled_distance_field_raw_data[data_index] = marked_cell;
+      }
+      else
+      {
+        free_distance_field_raw_data[data_index] = marked_cell;
       }
     }
-  }
+  };
+
+  common_robotics_utilities::parallelism::StaticParallelForRangeLoop(
+      parameters.Parallelism(), 0, grid_sizes.NumTotalVoxels(),
+      fill_fields_work, parallel_backend);
 
   // Compute the distance transforms in place
-  if (parameters.Parallelism().IsParallel())
-  {
-    // Give half of the parallelism to each field worker
-    const common_robotics_utilities::parallelism::DegreeOfParallelism
-        per_field_parallelism(parameters.Parallelism().GetNumThreads() / 2);
-
-    // Dispatch via std::async, so that we can still use OpenMP inside
-    auto filled_field_future = std::async(
-        std::launch::async,
-        [&]()
-        {
-          ComputeDistanceFieldTransformInPlace(
-              per_field_parallelism, filled_distance_field);
-        });
-    auto free_field_future = std::async(
-        std::launch::async,
-        [&]()
-        {
-          ComputeDistanceFieldTransformInPlace(
-              per_field_parallelism, free_distance_field);
-        });
-
-    // Wait for the async operations to complete
-    filled_field_future.get();
-    free_field_future.get();
-  }
-  else
-  {
-    ComputeDistanceFieldTransformInPlace(
-        parameters.Parallelism(), filled_distance_field);
-    ComputeDistanceFieldTransformInPlace(
-        parameters.Parallelism(), free_distance_field);
-  }
+  ComputeDistanceFieldTransformInPlace(
+      parameters.Parallelism(), filled_distance_field);
+  ComputeDistanceFieldTransformInPlace(
+      parameters.Parallelism(), free_distance_field);
 
   // Generate the SDF
   SignedDistanceField<SDFScalarType> new_sdf(
       grid_origin_transform, frame, grid_sizes, parameters.OOBValue());
+  const double resolution = new_sdf.Resolution();
   auto& new_sdf_raw_data = new_sdf.GetMutableRawData();
 
-  for (int64_t x_index = 0; x_index < new_sdf.NumXVoxels(); x_index++)
+  const auto fill_sdf_work = [&](
+      const common_robotics_utilities::parallelism::ThreadWorkRange& work_range)
   {
-    for (int64_t y_index = 0; y_index < new_sdf.NumYVoxels(); y_index++)
+    for (int64_t data_index = work_range.GetRangeStart();
+         data_index < work_range.GetRangeEnd(); data_index++)
     {
-      for (int64_t z_index = 0; z_index < new_sdf.NumZVoxels(); z_index++)
-      {
-        const double filled_distance_squared =
-            filled_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value();
-        const double free_distance_squared =
-            free_distance_field.GetIndexImmutable(
-                x_index, y_index, z_index).Value();
+      const double filled_distance_squared =
+          filled_distance_field_raw_data[data_index];
+      const double free_distance_squared =
+          free_distance_field_raw_data[data_index];
 
-        const double distance1 =
-            std::sqrt(filled_distance_squared) * new_sdf.Resolution();
-        const double distance2 =
-            std::sqrt(free_distance_squared) * new_sdf.Resolution();
-        const double distance = distance1 - distance2;
+      const double distance1 = std::sqrt(filled_distance_squared) * resolution;
+      const double distance2 = std::sqrt(free_distance_squared) * resolution;
+      const double distance = distance1 - distance2;
 
-        const int64_t data_index =
-            new_sdf.GridIndexToDataIndex(x_index, y_index, z_index);
-        new_sdf_raw_data[data_index] = static_cast<SDFScalarType>(distance);
-      }
+      new_sdf_raw_data[data_index] = static_cast<SDFScalarType>(distance);
     }
-  }
+  };
+
+  common_robotics_utilities::parallelism::StaticParallelForRangeLoop(
+      parameters.Parallelism(), 0, grid_sizes.NumTotalVoxels(), fill_sdf_work,
+      parallel_backend);
 
   // Lock & update min/max values.
   new_sdf.Lock();
